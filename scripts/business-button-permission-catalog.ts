@@ -31,6 +31,366 @@ const crud = (
 ]
 
 export const businessButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] = [
+  // FMS 页面会跳转到这些 TMS 页面（TMS 不在模板范围内）：只登记页面级查看权限
+  ...['TmsCarrier', 'TmsCustomer', 'TmsLoadedWaybillList'].map((menuName) => ({
+    menuName,
+    buttons: [button('View', '查看')]
+  })),
+  // 结算类页面共用同一组按钮（源目录里也是用 map 生成，按字面量裁剪时容易漏掉）
+  ...['FinanceCarrierSettlement', 'FinanceCustomerSettlement'].map((menuName) => ({
+    menuName,
+    buttons: [
+      button('View', '查看'),
+      button('Add', '生成对账单'),
+      button('Submit', '提交审核'),
+      button('Approve', '审核通过'),
+      button('Reject', '驳回'),
+      button('Void', '作废'),
+      button('Delete', '删除'),
+      button('Export', '导出')
+    ]
+  })),
+  {
+    menuName: 'HrSkillMatrix',
+    buttons: [button('View', '查看技能矩阵', 'Hr:SkillMatrix:View')]
+  },
+  {
+    menuName: 'HrEmployeeRoster',
+    buttons: [
+      button('View', '查看员工', 'Hr:Employee:View'),
+      button('Add', '新增员工', 'Hr:Employee:Add'),
+      button('Edit', '编辑员工', 'Hr:Employee:Edit'),
+      button('Delete', '删除员工', 'Hr:Employee:Delete')
+    ]
+  },
+  {
+    menuName: 'HrOrganizationPosition',
+    buttons: [button('View', '查看组织岗位人员', 'Hr:OrganizationPosition:View')]
+  },
+  {
+    menuName: 'HrPosition',
+    buttons: [
+      button('View', '查看岗位', 'Hr:Position:View'),
+      button('Add', '新增岗位', 'Hr:Position:Add'),
+      button('Edit', '编辑岗位', 'Hr:Position:Edit'),
+      button('Delete', '删除岗位', 'Hr:Position:Delete')
+    ]
+  },
+  {
+    menuName: 'HrJobArchitecture',
+    buttons: [
+      button('JobFamilyView', '查看职族', 'Hr:JobFamily:View'),
+      button('JobFamilyAdd', '新增职族', 'Hr:JobFamily:Add'),
+      button('JobFamilyEdit', '编辑职族', 'Hr:JobFamily:Edit'),
+      button('JobFamilyDelete', '删除职族', 'Hr:JobFamily:Delete'),
+      button('GradeView', '查看职级', 'Hr:Grade:View'),
+      button('GradeAdd', '新增职级', 'Hr:Grade:Add'),
+      button('GradeEdit', '编辑职级', 'Hr:Grade:Edit'),
+      button('GradeDelete', '删除职级', 'Hr:Grade:Delete'),
+      button('JobProfileView', '查看标准职务', 'Hr:JobProfile:View'),
+      button('JobProfileAdd', '新增标准职务', 'Hr:JobProfile:Add'),
+      button('JobProfileEdit', '编辑标准职务', 'Hr:JobProfile:Edit'),
+      button('JobProfileDelete', '删除标准职务', 'Hr:JobProfile:Delete')
+    ]
+  },
+  {
+    menuName: 'HrPersonnelChange',
+    buttons: [
+      button('View', '查看异动', 'Hr:PersonnelChange:View'),
+      button('Add', '新增异动', 'Hr:PersonnelChange:Add'),
+      button('Edit', '编辑异动', 'Hr:PersonnelChange:Edit'),
+      button('Delete', '删除异动', 'Hr:PersonnelChange:Delete'),
+      button('Submit', '提交审批', 'Hr:PersonnelChange:Submit'),
+      button('Effect', '生效异动', 'Hr:PersonnelChange:Effect')
+    ]
+  },
+  {
+    menuName: 'HrLifecycle',
+    buttons: [
+      button('View', '查看事项', 'Hr:Lifecycle:View'),
+      button('Add', '新增事项', 'Hr:Lifecycle:Add'),
+      button('Edit', '编辑事项', 'Hr:Lifecycle:Edit'),
+      button('Delete', '删除事项', 'Hr:Lifecycle:Delete'),
+      button('Submit', '提交审批', 'Hr:Lifecycle:Submit'),
+      button('CompleteTask', '完成任务', 'Hr:Lifecycle:CompleteTask'),
+      button('Start', '启动或推进事项', 'Hr:Lifecycle:Start'),
+      button('CompleteCase', '办结生命周期事项', 'Hr:Lifecycle:CompleteCase'),
+      button('WaiveTask', '豁免生命周期任务', 'Hr:Lifecycle:WaiveTask'),
+      button('ManageTemplate', '管理标准任务包', 'Hr:Lifecycle:ManageTemplate')
+    ]
+  },
+  {
+    menuName: 'HrCompliance',
+    buttons: [
+      button('View', '查看合同资质', 'Hr:Compliance:View'),
+      button('Add', '新增合同或资质', 'Hr:Compliance:Add'),
+      button('Edit', '编辑合同资质', 'Hr:Compliance:Edit'),
+      button('Delete', '删除合规草稿', 'Hr:Compliance:Delete'),
+      button('ContractRenew', '续签劳动合同', 'Hr:Compliance:Contract:Renew'),
+      button('ContractTerminate', '终止劳动合同', 'Hr:Compliance:Contract:Terminate'),
+      button('QualificationVerify', '核验员工资质', 'Hr:Compliance:Qualification:Verify'),
+      button('QualificationRevoke', '撤销员工资质', 'Hr:Compliance:Qualification:Revoke')
+    ]
+  },
+  {
+    menuName: 'HrEmployeeRelations',
+    buttons: [
+      button('View', '查看员工关系案件', 'Hr:EmployeeRelations:View'),
+      button('Add', '新增员工关系案件', 'Hr:EmployeeRelations:Add'),
+      button('Edit', '编辑员工关系案件', 'Hr:EmployeeRelations:Edit'),
+      button('Delete', '删除员工关系案件草稿', 'Hr:EmployeeRelations:Delete'),
+      button('Assign', '分派与分级员工关系案件', 'Hr:EmployeeRelations:Assign'),
+      button('Investigate', '调查员工关系案件', 'Hr:EmployeeRelations:Investigate'),
+      button('Resolve', '提交员工关系案件解决结论', 'Hr:EmployeeRelations:Resolve'),
+      button('Close', '结案或重新开启员工关系案件', 'Hr:EmployeeRelations:Close'),
+      button('ActionManage', '管理员工关系处置行动', 'Hr:EmployeeRelations:Action:Manage'),
+      button('SensitiveView', '查看员工关系敏感内容', 'Hr:EmployeeRelations:Sensitive:View')
+    ]
+  },
+  {
+    menuName: 'HrBenefits',
+    buttons: [
+      button('View', '查看福利与参保', 'Hr:Benefits:View'),
+      button('PlanManage', '管理福利计划', 'Hr:Benefits:Plan:Manage'),
+      button('EnrollmentManage', '管理员工参保', 'Hr:Benefits:Enrollment:Manage'),
+      button('Approve', '审核员工参保', 'Hr:Benefits:Approve'),
+      button('EventManage', '管理福利人生事件', 'Hr:Benefits:Event:Manage'),
+      button('AmountView', '查看福利缴费金额', 'Hr:Benefits:Amount:View'),
+      button('PayrollExport', '导出福利薪资输入', 'Hr:Benefits:Payroll:Export'),
+      button('AmountEdit', '维护福利缴费金额', 'Hr:Benefits:Amount:Edit'),
+      button('EvidenceView', '查看福利人生事件附件', 'Hr:Benefits:Evidence:View')
+    ]
+  },
+  {
+    menuName: 'HrEmployeeExperience',
+    buttons: [
+      button('View', '查看员工体验工作台', 'Hr:Experience:View'),
+      button('SurveyManage', '管理员工体验调查', 'Hr:Experience:Survey:Manage'),
+      button('QuestionManage', '管理员工体验调查题目', 'Hr:Experience:Question:Manage'),
+      button('Launch', '发布、开放或关闭员工体验调查', 'Hr:Experience:Launch'),
+      button('Respond', '填写匿名员工体验调查', 'Hr:Experience:Respond'),
+      button('InsightsView', '查看匿名聚合洞察', 'Hr:Experience:Insights:View'),
+      button('CommentsView', '查看匿名开放评论', 'Hr:Experience:Comments:View'),
+      button('ActionManage', '管理员工体验改善行动', 'Hr:Experience:Action:Manage'),
+      button('ActionClose', '验收员工体验改善行动', 'Hr:Experience:Action:Close')
+    ]
+  },
+  {
+    menuName: 'HrPeopleAnalytics',
+    buttons: [button('View', '查看人力分析', 'Hr:PeopleAnalytics:View')]
+  },
+  {
+    menuName: 'HrHeadcount',
+    buttons: [
+      button('View', '查看人力规划与编制', 'Hr:Headcount:View'),
+      button('Add', '新增规划或有效编制', 'Hr:Headcount:Add'),
+      button('Edit', '编辑规划或有效编制', 'Hr:Headcount:Edit'),
+      button('Delete', '删除规划或有效编制', 'Hr:Headcount:Delete'),
+      button('Submit', '提交人力规划', 'Hr:Headcount:Submit'),
+      button('Approve', '审批人力规划', 'Hr:Headcount:Approve'),
+      button('Activate', '启用人力规划', 'Hr:Headcount:Activate'),
+      button('Close', '关闭人力规划', 'Hr:Headcount:Close')
+    ]
+  },
+  {
+    menuName: 'HrCompensation',
+    buttons: [
+      button('View', '查看薪酬管理', 'Hr:Compensation:View'),
+      button('PolicyAdd', '新增薪酬政策', 'Hr:Compensation:Policy:Add'),
+      button('PolicyEdit', '编辑薪酬政策', 'Hr:Compensation:Policy:Edit'),
+      button('PolicyDelete', '删除薪酬政策', 'Hr:Compensation:Policy:Delete'),
+      button('RecordAdd', '新增员工薪酬', 'Hr:Compensation:Record:Add'),
+      button('RecordEdit', '编辑员工薪酬', 'Hr:Compensation:Record:Edit'),
+      button('RecordDelete', '删除员工薪酬', 'Hr:Compensation:Record:Delete'),
+      button('AmountView', '查看薪酬金额', 'Hr:Compensation:Amount:View'),
+      button('AmountEdit', '编辑薪酬金额', 'Hr:Compensation:Amount:Edit'),
+      button('Approve', '批准与终止薪酬', 'Hr:Compensation:Approve')
+    ]
+  },
+  {
+    menuName: 'HrCompensationReview',
+    buttons: [
+      button('View', '查看调薪复核', 'Hr:CompensationReview:View'),
+      button('CycleManage', '管理调薪周期', 'Hr:CompensationReview:Cycle:Manage'),
+      button('BudgetManage', '管理调薪预算', 'Hr:CompensationReview:Budget:Manage'),
+      button('Recommend', '提交调薪建议', 'Hr:CompensationReview:Recommend'),
+      button('Calibrate', '执行调薪校准', 'Hr:CompensationReview:Calibrate'),
+      button('Approve', '批准调薪结果', 'Hr:CompensationReview:Approve'),
+      button('Effect', '批量生效调薪', 'Hr:CompensationReview:Effect'),
+      button('AmountView', '查看调薪金额', 'Hr:CompensationReview:Amount:View'),
+      button('AmountEdit', '编辑调薪金额', 'Hr:CompensationReview:Amount:Edit')
+    ]
+  },
+  {
+    menuName: 'HrContingentWorkforce',
+    buttons: [
+      button('View', '查看外部用工', 'Hr:ContingentWorkforce:View'),
+      button('VendorManage', '管理用工供应商', 'Hr:ContingentWorkforce:Vendor:Manage'),
+      button('WorkerManage', '管理外部人员', 'Hr:ContingentWorkforce:Worker:Manage'),
+      button('EngagementManage', '管理用工任务', 'Hr:ContingentWorkforce:Engagement:Manage'),
+      button('ControlManage', '管理准入控制', 'Hr:ContingentWorkforce:Control:Manage'),
+      button('Activate', '激活外部用工', 'Hr:ContingentWorkforce:Activate'),
+      button('End', '执行外部人员退场', 'Hr:ContingentWorkforce:End'),
+      button('PiiView', '查看外部人员联系方式', 'Hr:ContingentWorkforce:PII:View'),
+      button('CostView', '查看外部用工成本', 'Hr:ContingentWorkforce:Cost:View'),
+      button('CostEdit', '编辑外部用工成本', 'Hr:ContingentWorkforce:Cost:Edit')
+    ]
+  },
+  {
+    menuName: 'HrPolicyAcknowledgement',
+    buttons: [
+      button('View', '查看政策与签收', 'Hr:PolicyAcknowledgement:View'),
+      button('PolicyManage', '管理政策草稿', 'Hr:PolicyAcknowledgement:Policy:Manage'),
+      button('Publish', '发布与退役政策', 'Hr:PolicyAcknowledgement:Publish'),
+      button('ReceiptManage', '管理政策签收', 'Hr:PolicyAcknowledgement:Receipt:Manage'),
+      button('EvidenceView', '查看签收凭证', 'Hr:PolicyAcknowledgement:Evidence:View')
+    ]
+  },
+  {
+    menuName: 'HrOrganizationDesign',
+    buttons: [
+      button('View', '查看组织变革方案', 'Hr:OrganizationDesign:View'),
+      button('ScenarioManage', '管理组织变革草稿', 'Hr:OrganizationDesign:Scenario:Manage'),
+      button('ImpactReview', '提交影响评审', 'Hr:OrganizationDesign:Impact:Review'),
+      button('Approve', '审批组织变革方案', 'Hr:OrganizationDesign:Approve'),
+      button('Handoff', '移交组织主数据执行', 'Hr:OrganizationDesign:Handoff')
+    ]
+  },
+  {
+    menuName: 'HrInternalMobility',
+    buttons: [
+      button('View', '查看内部人才市场', 'Hr:InternalMobility:View'),
+      button('OpportunityManage', '管理内部机会草稿', 'Hr:InternalMobility:Opportunity:Manage'),
+      button('Publish', '发布与关闭内部机会', 'Hr:InternalMobility:Publish'),
+      button('ApplicationSelf', '提交本人内部申请', 'Hr:InternalMobility:Application:Self'),
+      button('ApplicationManage', '评审内部申请', 'Hr:InternalMobility:Application:Manage'),
+      button('Convert', '转正式人事异动', 'Hr:InternalMobility:Convert')
+    ]
+  },
+  {
+    menuName: 'HrAbsence',
+    buttons: [
+      button('View', '查看假勤管理', 'Hr:Absence:View'),
+      button('PolicyAdd', '新增假别与政策', 'Hr:Absence:Policy:Add'),
+      button('PolicyEdit', '编辑假别与政策', 'Hr:Absence:Policy:Edit'),
+      button('PolicyDelete', '删除假别与政策', 'Hr:Absence:Policy:Delete'),
+      button('BalanceAdjust', '调整休假余额', 'Hr:Absence:Balance:Adjust'),
+      button('RequestAdd', '新增休假申请', 'Hr:Absence:Request:Add'),
+      button('RequestEdit', '编辑休假申请', 'Hr:Absence:Request:Edit'),
+      button('RequestDelete', '删除休假申请', 'Hr:Absence:Request:Delete'),
+      button('Submit', '提交与撤销休假', 'Hr:Absence:Submit'),
+      button('Approve', '审批休假申请', 'Hr:Absence:Approve'),
+      button('ReasonView', '查看休假原因与证明', 'Hr:Absence:Reason:View')
+    ]
+  },
+  {
+    menuName: 'HrWorkforceRisk',
+    buttons: [button('View', '查看人力风险', 'Hr:WorkforceRisk:View')]
+  },
+  {
+    menuName: 'HrTalentInventory',
+    buttons: [button('View', '查看人才盘点', 'Hr:TalentInventory:View')]
+  },
+  {
+    menuName: 'HrSuccession',
+    buttons: [
+      button('View', '查看继任规划', 'Hr:Succession:View'),
+      button('PlanAdd', '新增继任计划', 'Hr:Succession:Plan:Add'),
+      button('PlanEdit', '编辑继任计划', 'Hr:Succession:Plan:Edit'),
+      button('PlanDelete', '删除继任计划', 'Hr:Succession:Plan:Delete'),
+      button('CandidateAdd', '提名继任候选人', 'Hr:Succession:Candidate:Add'),
+      button('CandidateEdit', '编辑继任候选人', 'Hr:Succession:Candidate:Edit'),
+      button('CandidateDelete', '删除继任候选人', 'Hr:Succession:Candidate:Delete'),
+      button('CandidateReview', '评审继任候选人', 'Hr:Succession:Candidate:Review'),
+      button('ActionAdd', '新增发展行动', 'Hr:Succession:Action:Add'),
+      button('ActionEdit', '编辑发展行动', 'Hr:Succession:Action:Edit'),
+      button('ActionDelete', '删除发展行动', 'Hr:Succession:Action:Delete')
+    ]
+  },
+  {
+    menuName: 'HrAttendance',
+    buttons: [
+      button('View', '查看考勤', 'Hr:Attendance:View'),
+      button('Add', '新增考勤排班', 'Hr:Attendance:Add'),
+      button('Edit', '编辑考勤排班', 'Hr:Attendance:Edit'),
+      button('Delete', '删除考勤排班', 'Hr:Attendance:Delete'),
+      button('Evaluate', '执行工时核算', 'Hr:Attendance:Evaluate'),
+      button('ReviewCorrection', '审核考勤修正', 'Hr:Attendance:ReviewCorrection'),
+      button('ClosePeriod', '考勤期间封账', 'Hr:Attendance:ClosePeriod')
+    ]
+  },
+  {
+    menuName: 'HrSelfService',
+    buttons: [
+      button('View', '查看员工申请', 'Hr:SelfService:View'),
+      button('Add', '新增员工申请', 'Hr:SelfService:Add'),
+      button('Edit', '编辑员工申请', 'Hr:SelfService:Edit'),
+      button('Delete', '删除员工申请', 'Hr:SelfService:Delete'),
+      button('Submit', '提交员工服务工单', 'Hr:SelfService:Submit'),
+      button('Assign', '分派员工服务工单', 'Hr:SelfService:Assign'),
+      button('Resolve', '处理员工服务工单', 'Hr:SelfService:Resolve'),
+      button('CatalogManage', '管理员工服务目录', 'Hr:SelfService:Catalog:Manage')
+    ]
+  },
+  {
+    menuName: 'HrPerformance',
+    buttons: [
+      button('View', '查看绩效', 'Hr:Performance:View'),
+      button('Add', '新增绩效', 'Hr:Performance:Add'),
+      button('Edit', '编辑绩效', 'Hr:Performance:Edit'),
+      button('Delete', '删除绩效', 'Hr:Performance:Delete'),
+      button('Activate', '启动或取消绩效周期', 'Hr:Performance:Activate'),
+      button('Review', '提交绩效评价', 'Hr:Performance:Review'),
+      button('Calibrate', '维护绩效校准结果', 'Hr:Performance:Calibrate'),
+      button('Complete', '定案绩效结果', 'Hr:Performance:Complete')
+    ]
+  },
+  {
+    menuName: 'HrTalentDevelopment',
+    buttons: [
+      button('View', '查看人才发展', 'Hr:Talent:View'),
+      button('Add', '新增人才发展记录', 'Hr:Talent:Add'),
+      button('Edit', '编辑人才发展记录', 'Hr:Talent:Edit'),
+      button('Delete', '删除人才发展记录', 'Hr:Talent:Delete'),
+      button('PlanTransition', '推进培养计划', 'Hr:Talent:Plan:Transition'),
+      button('CourseAdd', '新增课程', 'Hr:Talent:Course:Add'),
+      button('CourseEdit', '编辑课程', 'Hr:Talent:Course:Edit'),
+      button('CoursePublish', '发布与停用课程', 'Hr:Talent:Course:Publish'),
+      button('CourseCompetency', '维护课程能力映射', 'Hr:Talent:Course:Competency'),
+      button('SessionAdd', '新增培训班次', 'Hr:Talent:Session:Add'),
+      button('SessionEdit', '编辑培训班次', 'Hr:Talent:Session:Edit'),
+      button('SessionTransition', '推进培训班次', 'Hr:Talent:Session:Transition'),
+      button('EnrollmentAdd', '安排员工学习', 'Hr:Talent:Enrollment:Add'),
+      button('EnrollmentManage', '登记学习结果', 'Hr:Talent:Enrollment:Manage'),
+      button('CertificateManage', '管理学习证书', 'Hr:Talent:Certificate:Manage')
+    ]
+  },
+  {
+    menuName: 'HrRecruitment',
+    buttons: [
+      button('View', '查看招聘', 'Hr:Recruitment:View'),
+      button('Add', '新增招聘记录', 'Hr:Recruitment:Add'),
+      button('Edit', '编辑招聘记录', 'Hr:Recruitment:Edit'),
+      button('Delete', '删除招聘记录', 'Hr:Recruitment:Delete'),
+      button('Submit', '提交招聘审批', 'Hr:Recruitment:Submit'),
+      button('Effect', '启动招聘', 'Hr:Recruitment:Effect'),
+      button('CandidateMove', '推进候选人阶段', 'Hr:Recruitment:Candidate:Move'),
+      button('SensitiveView', '查看招聘敏感信息', 'Hr:Recruitment:Sensitive:View'),
+      button('InterviewAdd', '安排面试', 'Hr:Recruitment:Interview:Add'),
+      button('InterviewEdit', '调整或取消面试', 'Hr:Recruitment:Interview:Edit'),
+      button('InterviewComplete', '提交面试评价', 'Hr:Recruitment:Interview:Complete'),
+      button('OfferAdd', '创建 Offer', 'Hr:Recruitment:Offer:Add'),
+      button('OfferEdit', '编辑 Offer', 'Hr:Recruitment:Offer:Edit'),
+      button('OfferSubmit', '提交 Offer 审批', 'Hr:Recruitment:Offer:Submit'),
+      button('OfferApprove', '审批 Offer', 'Hr:Recruitment:Offer:Approve'),
+      button('OfferSend', '发送或撤回 Offer', 'Hr:Recruitment:Offer:Send'),
+      button('OfferRespond', '登记 Offer 反馈', 'Hr:Recruitment:Offer:Respond'),
+      button('HandoffAdd', '创建入职交接', 'Hr:Recruitment:Handoff:Add'),
+      button('HandoffEdit', '编辑入职交接', 'Hr:Recruitment:Handoff:Edit'),
+      button('HandoffComplete', '推进入职交接', 'Hr:Recruitment:Handoff:Complete'),
+      button('TaskManage', '管理入职任务', 'Hr:Recruitment:Task:Manage')
+    ]
+  },
   {
     menuName: 'FinanceExceptionCenter',
     buttons: [button('View', '查看财务异常', 'FinanceExceptionCenter:View')]

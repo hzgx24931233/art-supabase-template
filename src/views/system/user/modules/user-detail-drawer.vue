@@ -92,17 +92,36 @@
     {
       key: 'employeeStatus',
       label: '关联状态',
-      value: (row: UserListItem) => Boolean(row.hrEmployeeId),
+      value: (row: UserListItem) => Boolean(row.hrEmployee),
       render: (value) =>
         h(ElTag, { type: value ? 'success' : 'warning', effect: 'light', size: 'small' }, () =>
-          value ? '已关联档案' : '尚未关联'
+          value ? '已关联员工' : '尚未关联'
         )
     },
     {
-      key: 'employeeId',
-      label: '员工档案 ID',
-      field: 'hrEmployeeId',
-      copyable: true
+      key: 'employeeNo',
+      label: '员工工号',
+      value: (row: UserListItem) => row.hrEmployee?.employeeNo
+    },
+    {
+      key: 'employeeName',
+      label: '员工姓名',
+      value: (row: UserListItem) => row.hrEmployee?.employeeName
+    },
+    {
+      key: 'jobTitle',
+      label: '岗位',
+      value: (row: UserListItem) => row.hrEmployee?.jobTitle
+    },
+    {
+      key: 'employeeOrganization',
+      label: '员工所属组织',
+      value: (row: UserListItem) => row.hrEmployee?.organization?.organizationName
+    },
+    {
+      key: 'employmentStatus',
+      label: '在职状态',
+      value: (row: UserListItem) => row.hrEmployee?.employmentStatus
     }
   ]
 

@@ -24,5 +24,6 @@ export const hostedModuleSharedDependencies = [
  * `src/config/application.ts` 的应用档案、`.gitmodules` 的子仓声明。
  */
 export const hostedApplicationSourceDirectories = {
-  '@fms': 'modules/art-supabase-fms/src'
+  '@fms': 'modules/art-supabase-fms/src',
+  '@hr': 'modules/art-supabase-hr/src'
 } as const

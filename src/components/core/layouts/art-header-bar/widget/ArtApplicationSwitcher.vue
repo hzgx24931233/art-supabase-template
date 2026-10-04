@@ -101,6 +101,7 @@
   // 业务仓固定的是平台历史版本，新增应用码时不应让旧版本子仓类型检查失败。
   const iconByApplication: Partial<Record<SwitcherEntryCode, string>> = {
     platform: 'ri:building-4-line',
+    hr: 'ri:team-line',
     fms: 'ri:bank-card-line',
     docs: 'ri:book-open-line'
   }

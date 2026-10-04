@@ -1,5 +1,6 @@
 @import 'tailwindcss' source('../../..');
 @source '../../../../modules/art-supabase-fms/src';
+@source '../../../../modules/art-supabase-hr/src';
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ==================== Light Mode Variables ==================== */

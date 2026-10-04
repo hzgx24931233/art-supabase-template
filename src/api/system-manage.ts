@@ -44,6 +44,15 @@ interface DeleteUserSyncPayload {
   auth_user_id?: string
 }
 
+/** HR 模块提供的人事档案引用（子仓未接入时接口返回空记录）。 */
+interface UserEmployeeReference extends NonNullable<Api.SystemManage.UserListItem['hrEmployee']> {
+  userId: string
+}
+
+interface UserEmployeeReferencePayload {
+  records?: UserEmployeeReference[]
+}
+
 // 获取用户列表
 export async function fetchGetUserList(params: Api.SystemManage.UserSearchParams) {
   const {
@@ -123,6 +132,30 @@ export async function fetchGetUserList(params: Api.SystemManage.UserSearchParams
     showErrorMessage: true,
     breakReturn: true,
     errorMessage: '用户列表加载失败，请重试'
+  })
+  const rows = response.data ?? []
+  const userIds = rows.map((row) => row.id).filter((id): id is string => Boolean(id))
+  if (!userIds.length) return response
+
+  // 员工档案含敏感字段，不能通过 PostgREST 关系查询放大 sys_user 的读取权限。
+  // 独立的安全函数仅返回用户页所需引用；引用加载失败时仍保留用户主列表。
+  const employeeResponse = await responseHandle<UserEmployeeReferencePayload>(
+    () =>
+      supabase.rpc('system_list_user_employee_references_secure', {
+        p_user_ids: userIds
+      }),
+    {}
+  )
+  const employeeByUserId = new Map(
+    (employeeResponse.data?.records ?? []).map((employee) => [employee.userId, employee])
+  )
+  response.data = rows.map((row) => {
+    const employee = row.id ? employeeByUserId.get(row.id) : undefined
+    if (!employee) return row
+    return {
+      ...row,
+      hrEmployee: employee
+    }
   })
   return response
 }

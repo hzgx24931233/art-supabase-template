@@ -159,6 +159,25 @@ declare namespace Api {
       > | null
       accountIdentityType?: UserAccountIdentityType
       hrEmployeeId?: string | null
+      /** HR 模块提供的人事档案引用（子仓未接入时为空） */
+      hrEmployee?: {
+        id: string
+        tenantId?: string
+        organizationId?: string | null
+        employeeNo: string
+        employeeName: string
+        avatarUrl?: string | null
+        jobTitle?: string | null
+        employmentStatus: string
+        gender?: string | null
+        phone?: string | null
+        email?: string | null
+        organization?: {
+          id: string
+          organizationCode: string
+          organizationName: string
+        } | null
+      } | null
       avatar?: string | null
       status?: string
       password: string

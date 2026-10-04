@@ -1,5 +1,5 @@
 /** 业务子应用的路由前缀；新增业务模块时在这里登记前缀。 */
-const BUSINESS_ROUTE_PREFIXES = ['/fms'] as const
+const BUSINESS_ROUTE_PREFIXES = ['/fms', '/hr'] as const
 
 const ACTION_ALIASES: Record<string, string> = {
   add: 'Add',

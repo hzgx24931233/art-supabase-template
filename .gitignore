@@ -17,3 +17,7 @@ test-results/
 public/flyfish-viewer-assets.json
 public/vendor/
 public/wasm/
+
+# 迁移生成物含用户邮箱与密码哈希，不提交
+user-migration.sql
+supabase/user-migration/user-migration.sql

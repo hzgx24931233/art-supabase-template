@@ -19,24 +19,246 @@ const requiredPermissionMigrations = [
 ] as const
 // Local migration SQL is intentionally absent; new migrations must remain unique.
 const remoteDuplicateMigrationAllowlist = new Set<string>()
-type ManagedModule = 'fms' | 'system' | 'workflow'
+type ManagedModule =
+  | 'tms'
+  | 'vms'
+  | 'fms'
+  | 'hr'
+  | 'mdm'
+  | 'mes'
+  | 'pmis'
+  | 'smis'
+  | 'wms'
+  | 'scm'
+  | 'ctm'
+  | 'system'
+  | 'workflow'
 
 const managedViewRoots = new Map<ManagedModule, string>([
+  ['hr', join(projectRoot, 'modules/art-supabase-hr/src/views')],
+  ['fms', join(projectRoot, 'modules/art-supabase-fms/src/views')],
   ['system', join(projectRoot, 'src/views/system')],
-  ['workflow', join(projectRoot, 'src/views/workflow')],
-  ['fms', join(projectRoot, 'modules/art-supabase-fms/src/views')]
+  ['workflow', join(projectRoot, 'src/views/workflow')]
 ])
-const businessModules = new Set<ManagedModule>(['fms'])
+const businessModules = new Set<ManagedModule>(['fms', 'hr'])
 const sourceExtensions = new Set(['.ts', '.tsx', '.vue'])
 const permissionPattern =
-  /['"`]((?:System|Workflow|Finance)[A-Za-z0-9]*(?::[A-Za-z][A-Za-z0-9]*)+)['"`]/g
+  /['"`]((?:System|Workflow|Tms|Finance|Hr|Mdm|Pmis|Smis|Scm|Wms|Ctm|Vehicle|Insurance|Parts|PartsCategory|Supplier)[A-Za-z0-9]*(?::[A-Za-z][A-Za-z0-9]*)+)['"`]/g
 const platformSuperPattern = /isPlatformSuper|平台超级管理员|仅平台|platform super administrator/i
 
 // These files use platform-super only for cross-tenant context or controlled writes where explicitly required.
 // Adding a file here requires an explicit security rationale; normal business maintenance is forbidden.
+const platformSuperAllowlist = new Map<string, string>([
+  [
+    'modules/art-supabase-fms/src/views/account-set/index.vue',
+    'cross-tenant account-set selector and tenant columns'
+  ],
+  [
+    'modules/art-supabase-fms/src/views/expense-item/index.vue',
+    'cross-tenant expense-item selector and tenant columns'
+  ],
+  [
+    'modules/art-supabase-fms/src/views/cash-transaction/modules/cash-bank-batch-import-dialog.vue',
+    'controlled AI batch write'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/employee-roster/index.vue',
+    'cross-tenant employee selector'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/employee-profile/index.vue',
+    'cross-tenant employee context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/position/index.vue',
+    'cross-tenant position selector and tenant columns'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/position/modules/position-dialog.vue',
+    'cross-tenant position tenant assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/absence/index.vue',
+    'cross-tenant absence workspace context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/absence/modules/absence-dialog.vue',
+    'cross-tenant absence assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/attendance/index.vue',
+    'cross-tenant attendance context and controlled period reopen'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/attendance/modules/attendance-dialog.vue',
+    'cross-tenant attendance assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/benefits/index.vue',
+    'cross-tenant benefits workspace context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/benefits/modules/benefit-record-dialog.vue',
+    'cross-tenant benefit assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/compensation-review/modules/compensation-review-dialog.vue',
+    'cross-tenant compensation-review assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/compensation/index.vue',
+    'cross-tenant compensation context and sensitive columns'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/compensation/modules/compensation-dialog.vue',
+    'cross-tenant compensation assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/contingent-workforce/modules/contingent-workforce-dialog.vue',
+    'cross-tenant contingent-workforce assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/employee-experience/index.vue',
+    'cross-tenant employee-experience context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/employee-experience/modules/experience-action-dialog.vue',
+    'cross-tenant experience-action assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/employee-experience/modules/experience-survey-dialog.vue',
+    'cross-tenant experience-survey assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/employee-relations/index.vue',
+    'cross-tenant employee-relations context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/employee-relations/modules/employee-relation-record-dialog.vue',
+    'cross-tenant employee-relation assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/headcount/index.vue',
+    'cross-tenant workforce-planning context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/headcount/modules/workforce-planning-dialog.vue',
+    'cross-tenant workforce-plan assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/policy-acknowledgement/modules/policy-document-dialog.vue',
+    'cross-tenant policy-document assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/self-service/index.vue',
+    'cross-tenant service-delivery context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/operations/self-service/modules/service-delivery-dialog.vue',
+    'cross-tenant service-delivery assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/compliance/index.vue',
+    'cross-tenant compliance workspace context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/compliance/modules/compliance-record-dialog.vue',
+    'cross-tenant compliance-record assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/job-architecture/index.vue',
+    'cross-tenant job-architecture context and tenant columns'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/job-architecture/modules/job-architecture-dialog.vue',
+    'cross-tenant job-architecture assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/lifecycle/index.vue',
+    'cross-tenant lifecycle workspace context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/lifecycle/modules/lifecycle-dialog.vue',
+    'cross-tenant lifecycle assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/personnel/organization-design/modules/organization-design-dialog.vue',
+    'cross-tenant organization-design assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/recruitment/workbench/index.vue',
+    'cross-tenant recruitment workspace context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/recruitment/workbench/modules/recruitment-dialog.vue',
+    'cross-tenant recruitment assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/talent/development/index.vue',
+    'cross-tenant learning workspace context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/talent/development/modules/learning-dialog.vue',
+    'cross-tenant learning assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/talent/internal-mobility/index.vue',
+    'cross-tenant internal-mobility context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/talent/internal-mobility/modules/internal-mobility-dialog.vue',
+    'cross-tenant internal-opportunity assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/talent/performance/index.vue',
+    'cross-tenant performance workspace context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/talent/performance/modules/performance-dialog.vue',
+    'cross-tenant performance assignment'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/talent/succession/index.vue',
+    'cross-tenant succession workspace context'
+  ],
+  [
+    'modules/art-supabase-hr/src/views/talent/succession/modules/succession-dialog.vue',
+    'cross-tenant succession assignment'
+  ]
+])
 
-// Catalogued actions must declare their exact code in page source unless listed here.
-const sourceReferenceExemptions = new Map<string, string>([])
+const sourceReferenceExemptions = new Map<string, string>([
+  // 资产应付页的按钮码由 SCM 采购单据工作区声明；SCM 未接入模板，这里登记为例外
+  ['FinanceAssetPayable:Add', 'declared in the SCM module (not part of this template)'],
+  ['Hr:JobFamily:View', 'page-route or server-side authorization boundary'],
+  ['Hr:Grade:View', 'page-route or server-side authorization boundary'],
+  ['Hr:EmployeeRelations:Sensitive:View', 'page-route or server-side authorization boundary'],
+  ['Hr:Benefits:Amount:View', 'page-route or server-side authorization boundary'],
+  ['Hr:Benefits:Payroll:Export', 'page-route or server-side authorization boundary'],
+  ['Hr:Benefits:Evidence:View', 'page-route or server-side authorization boundary'],
+  ['Hr:Experience:Comments:View', 'page-route or server-side authorization boundary'],
+  ['Hr:Compensation:Amount:View', 'page-route or server-side authorization boundary'],
+  ['Hr:Compensation:Amount:Edit', 'page-route or server-side authorization boundary'],
+  ['Hr:CompensationReview:Amount:View', 'page-route or server-side authorization boundary'],
+  ['Hr:ContingentWorkforce:PII:View', 'page-route or server-side authorization boundary'],
+  ['Hr:ContingentWorkforce:Cost:View', 'page-route or server-side authorization boundary'],
+  ['Hr:PolicyAcknowledgement:Evidence:View', 'page-route or server-side authorization boundary'],
+  ['Hr:Absence:Reason:View', 'page-route or server-side authorization boundary'],
+  ['Hr:Lifecycle:Add', 'page-route or server-side authorization boundary'],
+  ['Hr:Lifecycle:Edit', 'page-route or server-side authorization boundary'],
+  ['Hr:Lifecycle:Delete', 'page-route or server-side authorization boundary'],
+  ['Hr:Succession:Plan:Add', 'page-route or server-side authorization boundary'],
+  ['Hr:Succession:Plan:Edit', 'page-route or server-side authorization boundary'],
+  ['Hr:Succession:Plan:Delete', 'page-route or server-side authorization boundary'],
+  ['Hr:Succession:Candidate:Add', 'page-route or server-side authorization boundary'],
+  ['Hr:Succession:Candidate:Edit', 'page-route or server-side authorization boundary'],
+  ['Hr:Succession:Candidate:Delete', 'page-route or server-side authorization boundary'],
+  ['Hr:Succession:Action:Add', 'page-route or server-side authorization boundary'],
+  ['Hr:Succession:Action:Edit', 'page-route or server-side authorization boundary'],
+  ['Hr:Succession:Action:Delete', 'page-route or server-side authorization boundary'],
+  ['Hr:Performance:Edit', 'page-route or server-side authorization boundary'],
+  ['Hr:Performance:Delete', 'page-route or server-side authorization boundary']
+])
 
 function walkSourceFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
@@ -51,9 +273,11 @@ function toProjectPath(filePath: string): string {
   return relative(projectRoot, filePath).replaceAll('\\', '/')
 }
 
-/** 新增业务模块时在这里登记菜单前缀与模块归属。 */
 function resolveBusinessCatalogOwner(menuName: string): ManagedModule {
   if (menuName.startsWith('Finance')) return 'fms'
+  if (menuName.startsWith('Hr')) return 'hr'
+  // TMS 页面不在模板范围内，但 FMS 页面会引用它们的页面级查看权限
+  if (menuName.startsWith('Tms')) return 'fms'
   throw new Error(`未登记的业务菜单归属：${menuName}`)
 }
 

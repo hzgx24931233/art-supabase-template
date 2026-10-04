@@ -36,3 +36,12 @@ registerHostedApplication(
     '!../modules/art-supabase-fms/src/views/**/components/**/*.vue'
   ])
 )
+registerHostedApplication(
+  'hr',
+  '../modules/art-supabase-hr/src/views',
+  import.meta.glob<HostedRouteComponentModule>([
+    '../modules/art-supabase-hr/src/views/**/*.vue',
+    '!../modules/art-supabase-hr/src/views/**/modules/**/*.vue',
+    '!../modules/art-supabase-hr/src/views/**/components/**/*.vue'
+  ])
+)

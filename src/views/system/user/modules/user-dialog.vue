@@ -39,6 +39,31 @@
         :show-submit="false"
         :validate-on-rule-change="false"
       >
+        <template #hrEmployeeId>
+          <div class="user-dialog__employee-link">
+            <ArtEmployeeSelect
+              :model-value="formData.hrEmployeeId || undefined"
+              :selected-data="employeeSelection.selectedRows"
+              :tenant-id="formData.tenantId || undefined"
+              title="从员工花名册选择"
+              :subtitle="employeeSelectorSubtitle"
+              :disabled="!formData.tenantId"
+              :placeholder="formData.tenantId ? '请选择员工档案' : '请先选择所属租户'"
+              search-placeholder="员工工号、姓名、手机、邮箱或岗位"
+              @update:model-value="handleEmployeeValueChange"
+              @update:selected-data="handleEmployeeRowsChange"
+              @confirm="handleEmployeeConfirm"
+              @clear="handleEmployeeClear"
+            />
+            <div v-if="isEdit && !formData.hrEmployeeId" class="user-dialog__employee-guide">
+              <span>花名册中找不到本人？请先完成实名员工建档，再回来关联。</span>
+              <ElButton type="primary" link @click="openEmployeeProfile">
+                去新建员工档案
+                <ArtSvgIcon icon="ri:arrow-right-line" />
+              </ElButton>
+            </div>
+          </div>
+        </template>
         <template #avatar>
           <ArtUploadImage v-model="formData.avatar" :resource-tenant-id="formData.tenantId || ''" />
         </template>
@@ -56,10 +81,12 @@
   import ArtForm from '@/components/core/forms/art-form/index.vue'
   import type { FormItem } from '@/components/core/forms/art-form/index.vue'
   import ArtUploadImage from '@/components/core/forms/art-upload-image/index.vue'
+  import ArtEmployeeSelect from '@/components/business/art-employee-select/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { useUserStore } from '@/store/modules/user'
   import { addUser, editUser, fetchGetEnableOrganizationTree } from '@/api/system-manage'
   import { fetchGetEnableTenantList } from '@/api/system-manage/tenant'
+  import type { EmployeeIntegrationItem } from '@/api/integration/employees'
   import { useSystemParam } from '@/hooks'
 
   type UserListItem = Api.SystemManage.UserListItem
@@ -76,8 +103,13 @@
     reloadOptions: (key?: string) => Promise<void>
   }
 
+  interface EmployeeSelectionGroup {
+    selectedRows: EmployeeIntegrationItem[]
+  }
+
   const emit = defineEmits<Emits>()
   const userStore = useUserStore()
+  const router = useRouter()
   const { getDictMap, getUserInfo, isPlatformSuper } = storeToRefs(userStore)
   const { t } = useI18n()
   const {
@@ -112,6 +144,9 @@
   })
 
   const formData = ref<UserListItem>(createInitialForm())
+  const employeeSelection = reactive<EmployeeSelectionGroup>({
+    selectedRows: []
+  })
   const isEdit = computed(() => !!formData.value.id)
   const isEmployeeAccount = computed(() => formData.value.accountIdentityType === 'employee')
   const requiresIdentityReason = computed(() =>
@@ -121,7 +156,10 @@
     () => isEdit.value && getUserInfo.value.email === formData.value.userEmail
   )
   const isProtectedSuperUser = computed(
-    () => isEdit.value && Boolean(formData.value.userRoles?.includes('R_SUPER'))
+    () =>
+      isEdit.value &&
+      (String(formData.value.userEmail ?? '').toLowerCase() === '869123771@qq.com' ||
+        Boolean(formData.value.userRoles?.includes('R_SUPER')))
   )
   const canSelectTenant = computed(() => isPlatformSuper.value)
   const currentTenantId = computed(() => getUserInfo.value.tenantId)
@@ -130,8 +168,13 @@
   )
   const contextDescription = computed(() =>
     isEdit.value
-      ? '账号邮箱保持锁定；历史待确认账号需先完成身份归类。'
-      : '先确认账号身份；外部或服务账号需说明用途。'
+      ? '账号邮箱保持锁定；员工账号必须与花名册一一关联，历史待确认账号需先完成身份归类。'
+      : '先确认账号身份；员工账号必须从当前租户花名册选择，外部或服务账号需说明用途。'
+  )
+  const employeeSelectorSubtitle = computed(() =>
+    isEdit.value
+      ? '保留当前关联，或改选当前租户内在岗且尚未开通账号的员工'
+      : '仅展示当前租户内在岗、且尚未开通账号的员工'
   )
   const identityTypeOptions = computed(() => {
     const options = getDictMap.value.sysUserIdentityType ?? []
@@ -182,8 +225,8 @@
         onChange: handleAccountIdentityTypeChange
       },
       description: isProtectedSuperUser.value
-        ? '平台治理账号由系统保护，不关联人事档案。'
-        : '员工用于企业内部人员；外部协作和服务账号不进入人事档案，必须说明用途。'
+        ? '平台治理账号由系统保护，不属于员工花名册。'
+        : '员工用于企业内部人员；外部协作和服务账号不进入员工花名册，必须说明用途。'
     },
     {
       label: '所属租户',
@@ -204,13 +247,11 @@
       }
     },
     {
-      label: 'HR 员工 ID',
+      label: '花名册员工',
       key: 'hrEmployeeId',
-      type: 'input',
       span: 24,
       hidden: !isEmployeeAccount.value,
-      props: { placeholder: '请输入员工档案 ID', clearable: true },
-      description: '员工账号需关联人事档案；接入自定义人事模块后可在这里换成人员选择器。'
+      description: '必选；选择后自动回填员工身份、组织与联系方式。'
     },
     {
       label: '所属组织',
@@ -391,11 +432,11 @@
     callback: (error?: Error) => void
   ) {
     if (isEmployeeAccount.value && !value) {
-      callback(new Error('员工账号必须关联人事档案'))
+      callback(new Error('员工账号必须选择花名册员工'))
       return
     }
     if (!isEmployeeAccount.value && value) {
-      callback(new Error('非员工账号不能关联人事档案'))
+      callback(new Error('非员工账号不能关联花名册员工'))
       return
     }
     callback()
@@ -437,6 +478,7 @@
 
   const resetForm = async (): Promise<void> => {
     formData.value = cloneDeep(createInitialForm())
+    employeeSelection.selectedRows = []
     await nextTick()
     formRef.value?.clearValidate()
   }
@@ -449,6 +491,14 @@
         ...formData.value,
         ...cloneDeep(row)
       }
+      employeeSelection.selectedRows = row.hrEmployee
+        ? [
+            {
+              ...cloneDeep(row.hrEmployee),
+              tenantId: row.hrEmployee.tenantId ?? row.tenantId ?? ''
+            }
+          ]
+        : []
     } else if (!canSelectTenant.value) {
       formData.value.tenantId = currentTenantId.value
     }
@@ -456,13 +506,57 @@
 
   const handleTenantChange = (): void => {
     formData.value.organizationId = null
-    formData.value.hrEmployeeId = null
+    handleEmployeeClear()
     void formRef.value?.reloadOptions('organizationId')
   }
 
   const handleAccountIdentityTypeChange = (value: UserAccountIdentityType): void => {
     formData.value.accountIdentityType = value
-    if (value !== 'employee') formData.value.hrEmployeeId = null
+    if (value !== 'employee') handleEmployeeClear()
+  }
+
+  const handleEmployeeValueChange = (value: string | string[] | undefined): void => {
+    formData.value.hrEmployeeId = (Array.isArray(value) ? value[0] : value) ?? null
+  }
+
+  const handleEmployeeRowsChange = (rows: EmployeeIntegrationItem[]): void => {
+    employeeSelection.selectedRows = rows
+  }
+
+  const handleEmployeeConfirm = (_value: unknown, rows: EmployeeIntegrationItem[]): void => {
+    const employee = rows[0]
+    if (!employee) return
+
+    Object.assign(formData.value, {
+      accountIdentityType: 'employee',
+      hrEmployeeId: employee.id,
+      organizationId: employee.organizationId ?? null,
+      avatar: employee.avatarUrl ?? null,
+      userName: employee.employeeNo,
+      nickName: employee.employeeName,
+      userPhone: employee.phone ?? '',
+      userEmail: employee.email ?? '',
+      userGender: employee.gender ?? '1'
+    })
+    employeeSelection.selectedRows = [employee]
+  }
+
+  const handleEmployeeClear = (): void => {
+    formData.value.hrEmployeeId = null
+    employeeSelection.selectedRows = []
+  }
+
+  const openEmployeeProfile = (): void => {
+    void router.push({
+      path: '/hr/personnel/employee-profile',
+      query: {
+        sourceUserId: formData.value.id,
+        tenantId: formData.value.tenantId,
+        organizationId: formData.value.organizationId || undefined,
+        email: formData.value.userEmail || undefined,
+        returnPath: '/system/user'
+      }
+    })
   }
 
   const handleSubmit = async (): Promise<boolean> => {
@@ -484,6 +578,7 @@
         'password',
         'tenant',
         'organization',
+        'hrEmployee',
         'createBy',
         'createTime',
         'updateBy',
@@ -606,6 +701,32 @@
       }
     }
 
+    &__employee-link {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    &__employee-guide {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--el-text-color-secondary);
+      background: var(--el-color-warning-light-9);
+      border: 1px solid var(--el-color-warning-light-8);
+      border-radius: var(--el-border-radius-base);
+
+      .el-button {
+        flex: none;
+        margin: 0;
+      }
+    }
+
     @media (width <= 640px) {
       &__context {
         grid-template-columns: auto minmax(0, 1fr);
@@ -614,6 +735,10 @@
           grid-column: 2;
           justify-self: start;
         }
+      }
+
+      &__employee-guide {
+        align-items: flex-start;
       }
     }
   }

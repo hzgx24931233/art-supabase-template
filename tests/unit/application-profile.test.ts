@@ -30,7 +30,8 @@ test('resolves every GitHub Pages application from the current account domain', 
 
   const expectedUrls = {
     platform: 'https://example.github.io/',
-    fms: 'https://example.github.io/art-supabase-fms/'
+    fms: 'https://example.github.io/art-supabase-fms/',
+    hr: 'https://example.github.io/art-supabase-hr/'
   } as const
 
   for (const code of APPLICATION_CODES) {

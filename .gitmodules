@@ -2,3 +2,7 @@
 	path = modules/art-supabase-fms
 	url = https://gitee.com/hz24931233/art-supabase-fms.git
 	branch = master
+[submodule "modules/art-supabase-hr"]
+	path = modules/art-supabase-hr
+	url = https://gitee.com/hz24931233/art-supabase-hr.git
+	branch = master
