@@ -10,7 +10,7 @@
 | 维度 | 现状 |
 | --- | --- |
 | 前端 | Vue 3 + TypeScript + Element Plus + Vite，Art 组件库与数据中心、系统管理、工作流、AI 基座页面齐全 |
-| 业务子应用 | 仅保留 FMS 财务模块（`modules/art-supabase-fms`，Git submodule）作为机制示例 |
+| 业务子应用 | FMS 财务模块与 HR 人事模块（`modules/art-supabase-fms`、`modules/art-supabase-hr`，Git submodule）作为机制示例 |
 | Edge Functions | 24 个：通用平台 9 + AI 基座 6 + FMS 相关 9 |
 | 数据库 | 仓库内不含 schema/迁移；通过 `supabase/backup-*.ps1` / `restore-*.ps1` 交付 |
 | 品牌与密钥 | 品牌为中性占位（`管理平台`）；Supabase 已绑定当前项目 xmgl（`.env` 与 `.mcp.json` 为真实值） |

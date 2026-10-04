@@ -1,15 +1,13 @@
 /**
- * 从 supabase 备份快照里抽出一份「平台基线 SQL」。
+ * 从 supabase 备份快照里抽出一份可复用的数据库交付物。
  *
  * 用法：
- *   tsx scripts/build-platform-baseline.ts --backup <快照目录> [--report] [--out <输出目录>]
+ *   tsx scripts/build-platform-baseline.ts --backup <快照目录> [--profile platform|hr] [--report] [--out <目录>]
+ *
+ * profile=platform（默认）：输出平台内核 schema + 基线数据（租户、内置角色、平台菜单、字典、参数）。
+ * profile=hr：输出 HR 模块的领域 schema + 模块数据（HR 菜单、HR 角色授权、HR 字典）。
  *
  * 输入是 supabase/backup-supabase.ps1 产出的快照（database/schema.sql、database/data.sql）。
- * 输出：
- *   <out>/platform-baseline.sql   平台内核 schema：保留表 + 策略 + 函数 + 索引 + ACL
- *   <out>/platform-seed.sql       平台基线数据（租户、内置角色、平台菜单、平台字典、参数）
- *   <out>/platform-baseline-report.json  分类统计、依赖闭包与未解析引用
- *
  * 保留判据：从「保留代码实际调用的表与 RPC」出发做依赖闭包，而不是按表名前缀猜。
  * 未解析引用（引用到被移除对象或托管对象）会写进报告；`--report` 只统计不写文件。
  */
@@ -20,28 +18,64 @@ import { join, resolve } from 'node:path'
 // 配置：保留 / 丢弃判定
 // ---------------------------------------------------------------------------
 
-/** 平台内核表与视图前缀。 */
-const CORE_PREFIXES = ['sys_', 'wf_', 'ai_'] as const
+const cliArgs = process.argv.slice(2)
+const profileArgIndex = cliArgs.indexOf('--profile')
+const profile = (profileArgIndex >= 0 ? cliArgs[profileArgIndex + 1] : 'platform') as
+  'platform' | 'hr'
+if (!['platform', 'hr'].includes(profile)) throw new Error(`未知 profile：${profile}`)
 
-/**
- * 平台代码仍然依赖的跨域契约对象（读取型集成、识别工件、FMS 相关收发货目标）。
- * 这些名字带业务前缀，但属于平台自身集成契约；移除它们会让保留代码在运行时报错。
- */
-const CONTRACT_TABLES = [
-  'sync_user_audit',
-  'mdm_organization',
-  'mdm_carrier',
-  'mdm_customer',
-  'mdm_employee',
-  'mdm_material',
-  'mdm_project',
-  'mdm_project_construction',
-  'mdm_warehouse',
-  'mdm_warehouse_bin',
-  'scm_receipt_target_document',
-  'scm_receipt_target_line',
-  'tms_invoice'
-] as const
+interface ProfileConfig {
+  /** 该交付物自有的表/视图前缀。 */
+  corePrefixes: readonly string[]
+  /** 代码仍然依赖、但名字不带自有前缀的契约对象。 */
+  contractTables: readonly string[]
+  /** 扫描数据库依赖的代码根目录。 */
+  codeRoots: readonly string[]
+  /** 输出文件前缀。 */
+  filePrefix: string
+}
+
+const PROFILES: Record<'platform' | 'hr', ProfileConfig> = {
+  platform: {
+    corePrefixes: ['sys_', 'wf_', 'ai_'],
+    // 平台代码仍然依赖的跨域契约对象（读取型集成、识别工件、收发货目标）
+    contractTables: [
+      'sync_user_audit',
+      'mdm_organization',
+      'mdm_carrier',
+      'mdm_customer',
+      'mdm_employee',
+      'mdm_material',
+      'mdm_project',
+      'mdm_project_construction',
+      'mdm_warehouse',
+      'mdm_warehouse_bin',
+      'scm_receipt_target_document',
+      'scm_receipt_target_line',
+      'tms_invoice'
+    ],
+    codeRoots: ['src', 'supabase/functions'],
+    filePrefix: 'platform'
+  },
+  hr: {
+    corePrefixes: ['hr_'],
+    // HR 依赖的组织/人员/岗位主数据（这些表在平台基线里已存在，这里只做外键闭包与重建保护）
+    contractTables: [
+      'mdm_organization',
+      'mdm_employee',
+      'mdm_position',
+      'mdm_job_profile',
+      'mdm_job_family',
+      'mdm_grade'
+    ],
+    codeRoots: ['modules/art-supabase-hr/src'],
+    filePrefix: 'hr'
+  }
+}
+
+const activeProfile = PROFILES[profile]
+const CORE_PREFIXES = activeProfile.corePrefixes
+const CONTRACT_TABLES = activeProfile.contractTables
 
 /** 历史备份/审计快照表，任何 schema 下都丢弃。 */
 const DROP_TABLE_PATTERN = /^(backup_|codex_backup_)/
@@ -310,7 +344,7 @@ function scanCodeDependencies(codeRoots: string[]): {
   return { tables, rpcs }
 }
 
-const codeDependencies = scanCodeDependencies(['src', 'supabase/functions'])
+const codeDependencies = scanCodeDependencies([...activeProfile.codeRoots])
 const codeTableNames = new Set([...codeDependencies.tables].map((name) => name.toLowerCase()))
 const codeRpcNames = new Set([...codeDependencies.rpcs].map((name) => name.toLowerCase()))
 
@@ -973,7 +1007,7 @@ const PREAMBLE = `-- ===========================================================
 --
 -- 来源快照：${backupRoot}
 -- 生成时间：${new Date().toISOString()}
--- 保留：平台内核（sys_* / wf_* / ai_* / app_private 助手层）+ 保留代码依赖的跨域契约对象
+-- 保留：${profile === 'platform' ? '平台内核（sys_* / wf_* / ai_* / app_private 助手层）+ 保留代码依赖的跨域契约对象' : '该模块的领域表/视图/函数/策略 + 其依赖的主数据表'}
 -- 丢弃：业务域表、视图、策略、函数与历史备份表
 --
 -- 应用方式：在全新的空 Supabase 项目上执行本文件，再执行 platform-seed.sql。
@@ -1004,13 +1038,58 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE ALL ON SEQUENCES FROM anon, authenticated, service_role, PUBLIC;
 `
 
+/**
+ * 让交付物可以叠加执行：平台基线已经建过的索引/约束、策略等在模块 SQL 里要能安全重放。
+ *   - INDEX：加 IF NOT EXISTS
+ *   - POLICY：先 DROP IF EXISTS 再建
+ *   - CONSTRAINT / FK CONSTRAINT / CHECK CONSTRAINT：按约束名判断后再 ADD
+ * 其余对象本身已经幂等（IF NOT EXISTS / OR REPLACE / REVOKE+GRANT）。
+ */
+function toIdempotentSql(block: Block): string {
+  const sql = block.sql
+  if (block.type === 'INDEX') {
+    return sql.replace(/^CREATE (UNIQUE )?INDEX /m, 'CREATE $1INDEX IF NOT EXISTS ')
+  }
+  if (block.type === 'POLICY') {
+    // pg_dump 的块名是「表名 策略名」，真实策略名要从 CREATE POLICY 语句里取
+    const target = /\bON\s+"([a-z_][a-z0-9_]*)"\."([a-z_][a-z0-9_]*)"/i.exec(sql)
+    const policyName = /CREATE\s+POLICY\s+"([^"]+)"/i.exec(sql)?.[1]
+    if (!target || !policyName) return sql
+    return `DROP POLICY IF EXISTS "${policyName}" ON "${target[1]}"."${target[2]}";\n${sql}`
+  }
+  if (['CONSTRAINT', 'FK CONSTRAINT', 'CHECK CONSTRAINT'].includes(block.type)) {
+    const [tablePart, ...rest] = quoteStripped(block.name).split(' ')
+    const constraintName = rest.join(' ').trim()
+    if (!tablePart || !constraintName) return sql
+    const statement = sql
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .replace(/;?\s*$/, '')
+    return [
+      'DO $already_exists$',
+      'BEGIN',
+      '  IF NOT EXISTS (',
+      '    SELECT 1 FROM pg_constraint c',
+      `     WHERE c.conname = '${constraintName.replace(/'/g, "''")}'`,
+      `       AND c.conrelid = '${block.schema}.${tablePart}'::regclass`,
+      '  ) THEN',
+      statement,
+      '  END IF;',
+      'END',
+      '$already_exists$;'
+    ].join('\n')
+  }
+  return sql
+}
+
 const baselineSql = [
   PREAMBLE,
   ...[...keptBlocks]
     .sort((a, b) => a.index - b.index)
     .map(
       (block) =>
-        `--\n-- Name: ${block.name}; Type: ${block.type}; Schema: ${block.schema}\n--\n\n${block.sql}\n`
+        `--\n-- Name: ${block.name}; Type: ${block.type}; Schema: ${block.schema}\n--\n\n${toIdempotentSql(block)}\n`
     )
 ].join('\n')
 
@@ -1071,7 +1150,8 @@ if (tenantBlock) {
   }
 }
 
-// 菜单：只保留 app_code = platform 且页面文件仍然存在的行（含其按钮与文件夹祖先）
+// 菜单：只保留目标应用（platform / hr）下、且页面文件仍然存在的行（含其按钮与文件夹祖先）
+const targetAppCode = profile === 'platform' ? 'platform' : 'hr'
 const menuBlock = rowsOf('sys_menu')
 const keptMenuIds = new Set<string>()
 const droppedMenuRows: string[] = []
@@ -1084,15 +1164,17 @@ if (menuBlock) {
   const nameIndex = columnIndex(menuBlock.columns, 'name')
   const rowsById = new Map(menuBlock.rows.map((row) => [row[idIndex], row]))
 
+  // 平台页面在 src/views，模块页面在各自子仓的 src/views
+  const viewRoots =
+    profile === 'platform' ? ['src/views'] : [`modules/art-supabase-${profile}/src/views`]
   const componentExists = (value: string): boolean => {
     if (!value) return true
     const clean = value.replace(/^\//, '')
-    return (
-      existsSync(join('src/views', clean, 'index.vue')) ||
-      existsSync(join('src/views', `${clean}.vue`))
+    return viewRoots.some(
+      (root) => existsSync(join(root, clean, 'index.vue')) || existsSync(join(root, `${clean}.vue`))
     )
   }
-  const isPlatformRow = (row: string[]): boolean => row[appCode] === 'platform'
+  const isPlatformRow = (row: string[]): boolean => row[appCode] === targetAppCode
   const parentOf = (row: string[]): string | null => {
     const parent = row[parentIndex]
     return parent && parent !== '\\N' && rowsById.has(parent) ? parent : null
@@ -1162,7 +1244,8 @@ if (dictTypeBlock) {
   const parentIndex = columnIndex(dictTypeBlock.columns, 'parent_id')
   const byId = new Map(dictTypeBlock.rows.map((row) => [row[idIndex], row]))
   for (const row of dictTypeBlock.rows) {
-    if (!PLATFORM_DICT_CODE_PATTERN.test(row[codeIndex])) continue
+    const dictPattern = profile === 'platform' ? PLATFORM_DICT_CODE_PATTERN : /^hr/
+    if (!dictPattern.test(row[codeIndex])) continue
     keptDictTypeIds.add(row[idIndex])
   }
   let grew = true
@@ -1228,12 +1311,12 @@ if (menuBlock) {
       if (grantableMenuIds.has(row[parentIndex])) grantableMenuIds.add(row[idIndex])
       continue
     }
-    if (row[appCode] === 'platform') grantableMenuIds.add(row[idIndex])
+    if (row[appCode] === targetAppCode) grantableMenuIds.add(row[idIndex])
   }
 }
 
 /** 为满足外键而保留的菜单所引用的应用行。 */
-const referencedApplicationCodes = new Set<string>(['platform'])
+const referencedApplicationCodes = new Set<string>([targetAppCode])
 if (menuBlock) {
   const appCode = columnIndex(menuBlock.columns, 'app_code')
   const idIndex = columnIndex(menuBlock.columns, 'id')
@@ -1250,7 +1333,7 @@ const seedContext: SeedContext = {
   keptDictTypeIds
 }
 
-const seedPlans: SeedTablePlan[] = [
+const PLATFORM_SEED_PLANS: SeedTablePlan[] = [
   {
     table: 'sys_tenant',
     where: (row, columns) => KEPT_TENANT_CODES.includes(row[columnIndex(columns, 'builtin_type')]),
@@ -1326,6 +1409,38 @@ const seedPlans: SeedTablePlan[] = [
     note: '指向平台菜单的编号场景；租户初始化触发器会据此为新建租户写入编号规则'
   }
 ]
+
+/** 模块交付物的数据计划：只搬模块自己的菜单、授权与字典。 */
+const MODULE_SEED_PLANS: Record<string, SeedTablePlan[]> = {
+  hr: [
+    {
+      table: 'sys_menu',
+      where: (row, columns, context) => context.keptMenuIds.has(row[columnIndex(columns, 'id')]),
+      note: 'app_code = hr 且页面文件存在的菜单、按钮与文件夹'
+    },
+    {
+      table: 'sys_role_menu',
+      where: (row, columns, context) =>
+        context.keptMenuIds.has(row[columnIndex(columns, 'menu_id')]),
+      note: '只保留指向 HR 菜单的角色授权（角色本身已在项目里）'
+    },
+    {
+      table: 'sys_dict_type',
+      where: (row, columns, context) =>
+        context.keptDictTypeIds.has(row[columnIndex(columns, 'id')]),
+      note: 'HR 命名字典类型及其祖先目录'
+    },
+    {
+      table: 'sys_dictionary',
+      where: (row, columns, context) =>
+        context.keptDictTypeIds.has(row[columnIndex(columns, 'type_id')]),
+      note: '仅保留类型被保留的字典项'
+    }
+  ]
+}
+
+const seedPlans: SeedTablePlan[] =
+  profile === 'platform' ? PLATFORM_SEED_PLANS : MODULE_SEED_PLANS[profile]
 
 const seedStatements: string[] = []
 const seedReport: Record<string, { kept: number; total: number }> = {}
@@ -1404,8 +1519,11 @@ const rootOrgTenantTriggers = blocks
   .filter((block) => triggerFunctionKey(block) === 'public.trg_create_tenant_root_organization')
   .map((block) => quoteStripped(block.name).split(' ')[1])
 
+const MODULE_SEED_ORDER = ['sys_menu', 'sys_role_menu', 'sys_dict_type', 'sys_dictionary']
+const activeSeedOrder = profile === 'platform' ? SEED_ORDER : MODULE_SEED_ORDER
+
 const orderedSeedPlans = [...seedPlans].sort(
-  (a, b) => SEED_ORDER.indexOf(a.table) - SEED_ORDER.indexOf(b.table)
+  (a, b) => activeSeedOrder.indexOf(a.table) - activeSeedOrder.indexOf(b.table)
 )
 
 for (const plan of orderedSeedPlans) {
@@ -1430,7 +1548,8 @@ for (const plan of orderedSeedPlans) {
           .join(', ')})`
     )
     .join(',\n')
-  const statement = `-- ${plan.table}${plan.note ? `：${plan.note}` : ''}\nINSERT INTO "public"."${plan.table}" (${columnList}) VALUES\n${values};`
+  // on conflict do nothing：交付物可能叠加执行（例如模块 SQL 建在平台基线之上），必须可重放
+  const statement = `-- ${plan.table}${plan.note ? `：${plan.note}` : ''}\nINSERT INTO "public"."${plan.table}" (${columnList}) VALUES\n${values}\non conflict do nothing;`
 
   if (plan.table === 'sys_tenant') {
     seedStatements.push(
@@ -1511,8 +1630,8 @@ SET check_function_bodies = false;
 ].join('\n\n')
 
 mkdirSync(outputDirectory, { recursive: true })
-writeFileSync(join(outputDirectory, 'platform-baseline.sql'), `${baselineSql}\n`)
-writeFileSync(join(outputDirectory, 'platform-seed.sql'), `${seedSql}\n`)
+writeFileSync(join(outputDirectory, `${activeProfile.filePrefix}-schema.sql`), `${baselineSql}\n`)
+writeFileSync(join(outputDirectory, `${activeProfile.filePrefix}-data.sql`), `${seedSql}\n`)
 
 const seedSummary = Object.fromEntries(
   Object.entries(seedReport).map(([table, counts]) => [table, `${counts.kept}/${counts.total}`])
@@ -1524,7 +1643,7 @@ const finalReport = {
   seedNotes
 }
 writeFileSync(
-  join(outputDirectory, 'platform-baseline-report.json'),
+  join(outputDirectory, `${activeProfile.filePrefix}-report.json`),
   `${JSON.stringify(finalReport, null, 2)}\n`
 )
 
@@ -1534,5 +1653,5 @@ console.log(
 )
 console.log('种子行：', JSON.stringify(seedSummary))
 console.log(
-  `输出：platform-baseline.sql、platform-seed.sql、platform-baseline-report.json → ${outputDirectory}`
+  `输出：${activeProfile.filePrefix}-schema.sql、${activeProfile.filePrefix}-data.sql、${activeProfile.filePrefix}-report.json → ${outputDirectory}`
 )

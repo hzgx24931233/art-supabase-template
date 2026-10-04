@@ -135,6 +135,37 @@ pnpm baseline:platform --backup supabase/backups/<时间戳>
 平台 AI 功能配置，以及被保留 SQL 引用到的编号场景。所有 `create_by` / `update_by` 中的
 邮箱与负责人字段会被清洗为占位值或置空。
 
+## 业务模块交付物
+
+模块的库结构不由平台基线承担：每个模块产生自己的交付物，叠加在平台基线之上执行。
+当前仓库自带 HR 模块的交付物（`supabase/modules/hr/`）：
+
+| 文件 | 内容 |
+| --- | --- |
+| `hr-schema.sql` | HR 领域 schema：86 张 `hr_*` 表、7 个视图、263 个函数、326 条策略、193 个触发器，以及它们依赖的组织/岗位/职级等主数据表 |
+| `hr-data.sql` | HR 数据：HR 菜单与按钮（app_code=hr）、指向这些菜单的角色授权、HR 字典类型与字典项 |
+| `hr-report.json` | 保留/裁剪清单与原因 |
+
+生成方式：
+
+```powershell
+pnpm exec tsx scripts/build-platform-baseline.ts --backup supabase/backups/<时间戳> --profile hr --out supabase/modules/hr
+```
+
+应用顺序（叠加执行，全部幂等）：
+
+```powershell
+supabase db query --linked --file supabase/baseline/platform-baseline.sql
+supabase db query --linked --file supabase/baseline/platform-seed.sql
+supabase db query --linked --file supabase/modules/hr/hr-schema.sql
+supabase db query --linked --file supabase/modules/hr/hr-data.sql
+```
+
+幂等性约定：索引补 `IF NOT EXISTS`、策略先 `DROP POLICY IF EXISTS`、约束用
+`DO $$ ... IF NOT EXISTS (pg_constraint)` 包裹、数据行用 `on conflict do nothing`，
+因此模块交付物可以反复重放，也可以建在平台基线之上。新增模块时按同样方式扩一份 profile
+（见 `scripts/build-platform-baseline.ts` 顶部的 `PROFILES`）。
+
 ## 已知取舍
 
 - **保留的跨域契约表**（`mdm_*`、`scm_*`、`tms_invoice`）与它们的少量外键依赖表仍在基线内，

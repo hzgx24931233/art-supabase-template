@@ -4,7 +4,7 @@
 它不只是一个展示表格和表单的 UI 模板：平台自带多租户、RBAC 与字段权限、动态菜单、工作流引擎、
 数据字典、编号规则、AI 助手与 SQL 工作台，并按「平台宿主 + 业务子应用」的方式组织业务能力。
 
-模板已经去除具体业务与品牌信息，只保留一个真实的业务子应用接入示例（FMS 财务模块）。
+模板已经去除具体业务与品牌信息，只保留两个真实的业务子应用接入示例（FMS 财务模块、HR 人事模块）。
 
 ## 模板里保留了什么
 
@@ -65,19 +65,19 @@ src/
   store/          Pinia stores
   utils/          工具与通用能力
   views/          平台页面（system / workflow / data-center / dashboard / auth / examples ...）
-modules/          业务子应用（Git submodule，当前仅 art-supabase-fms）
+modules/          业务子应用（Git submodule：art-supabase-fms、art-supabase-hr）
 supabase/         Edge Functions、config.toml、备份/恢复脚本
 scripts/          构建、审计、模块管理工具
 tests/            单元测试与 Playwright e2e
 ```
 
-## 业务子应用（FMS）与新增模块
+## 业务子应用（FMS / HR）与新增模块
 
-FMS 作为模块化宿主机制的示例保留，同时也是机制可用的活样本：
+FMS 与 HR 作为模块化宿主机制的示例保留，同时也是机制可用的活样本：
 
 ```bash
-pnpm modules:install fms    # 初始化子仓并安装依赖
-pnpm modules:build fms      # 构建子仓
+pnpm modules:install fms hr # 初始化子仓并安装依赖
+pnpm modules:build fms hr   # 构建子仓
 pnpm modules:status         # 查看子仓状态
 pnpm build:all              # 构建全部子仓 + 平台
 ```
