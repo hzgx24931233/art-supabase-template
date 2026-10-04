@@ -1,0 +1,102 @@
+import { useSupabase } from '@/hooks'
+import { fetchAllRangePages } from '@/utils/supabase/pagination'
+import type { DeleteReferenceContext } from '@/utils/supabase/delete-reference'
+
+export interface RecordDeleteDependency extends Omit<
+  MasterDataDeleteDependencyDetail,
+  'dependencyCode' | 'cleanupAllowed' | 'createdAt'
+> {
+  sourceTable: string
+  createdAt: string | null
+}
+
+export async function fetchRecordDeleteDependencies(
+  context: DeleteReferenceContext
+): Promise<RecordDeleteDependency[]> {
+  const { data, error } = await fetchAllRangePages<RecordDeleteDependency>(({ from, to }) =>
+    responseHandle<RecordDeleteDependency[]>(
+      () =>
+        supabase
+          .rpc('get_record_delete_dependency_details', {
+            p_table: context.table,
+            p_ids: context.ids,
+            p_constraint: context.constraint ?? null
+          })
+          .range(from, to),
+      { breakReturn: true, showErrorMessage: false, errorMessage: '关联记录检查失败，请重试' }
+    )
+  )
+  if (error || !data) throw new Error('关联记录检查失败，请重试', { cause: error })
+  return data
+}
+
+export type MasterDataDeleteResourceType =
+  'organization' | 'role' | 'menu' | 'dict_type' | 'dictionary' | 'attachment'
+
+export interface MasterDataDeleteDependencyDetail {
+  resourceId: string
+  dependencyCode: string
+  recordId: string
+  targetId: string
+  recordNo: string
+  recordSummary?: string | null
+  recordStatus?: string | null
+  recordAmount?: number | null
+  createdAt: string
+  cleanupAllowed: boolean
+}
+
+export interface CleanupMasterDataDeleteDependencyPayload {
+  resourceType: MasterDataDeleteResourceType
+  resourceIds: string[]
+  dependencyCode: string
+  recordIds: string[]
+}
+
+const { supabase, responseHandle } = useSupabase()
+
+export async function fetchMasterDataDeleteDependencies(
+  resourceType: MasterDataDeleteResourceType,
+  resourceIds: string[]
+): Promise<MasterDataDeleteDependencyDetail[]> {
+  if (!resourceIds.length) return []
+  const { data } = await responseHandle<MasterDataDeleteDependencyDetail[]>(
+    () => {
+      if (resourceType === 'attachment') {
+        return supabase.rpc('get_attachment_delete_dependency_details', {
+          p_resource_ids: resourceIds
+        })
+      }
+      return supabase.rpc('get_governed_delete_dependency_details', {
+        p_resource_type: resourceType,
+        p_resource_ids: resourceIds
+      })
+    },
+    { breakReturn: true, showErrorMessage: false }
+  )
+  return (data ?? []).map((item) => ({
+    ...item,
+    cleanupAllowed: Boolean(item.cleanupAllowed),
+    recordAmount:
+      item.recordAmount === null || item.recordAmount === undefined
+        ? null
+        : Number(item.recordAmount)
+  }))
+}
+
+export async function cleanupMasterDataDeleteDependencies(
+  payload: CleanupMasterDataDeleteDependencyPayload
+): Promise<number> {
+  if (!payload.resourceIds.length || !payload.recordIds.length) return 0
+  const { data } = await responseHandle<number>(
+    () =>
+      supabase.rpc('cleanup_governed_delete_dependencies', {
+        p_resource_type: payload.resourceType,
+        p_resource_ids: payload.resourceIds,
+        p_dependency_code: payload.dependencyCode,
+        p_record_ids: payload.recordIds
+      }),
+    { breakReturn: true }
+  )
+  return Number(data) || 0
+}

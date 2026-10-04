@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "jsxImportSource": "vue",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "lib": ["esnext", "dom"],
+    "types": ["vite/client", "node", "element-plus/global"],
+    "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@fms/*": ["modules/art-supabase-fms/src/*"],
+      "@/*": ["src/*"],
+      "@views/*": ["src/views/*"],
+      "@imgs/*": ["src/assets/images/*"],
+      "@icons/*": ["src/assets/icons/*"],
+      "@utils/*": ["src/utils/*"],
+      "@stores/*": ["src/store/*"],
+      "@plugins/*": ["src/plugins/*"],
+      "@styles/*": ["src/assets/styles/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "modules/art-supabase-fms/src/**/*.ts",
+    "modules/art-supabase-fms/src/**/*.vue"
+  ],
+  "exclude": ["node_modules", "dist", "supabase", "**/*.js", "src/types/import/components.d.ts"]
+}

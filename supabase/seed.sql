@@ -1,0 +1,7 @@
+-- 本地开发种子数据（supabase db reset 时执行）。
+--
+-- 平台基线数据（字典、参数、菜单、权限、内置角色）由数据库内部的 seed 函数负责，
+-- 这里只放派生项目自己的本地开发示例数据，例如：
+--   insert into sys_tenant (tenant_code, tenant_name) values ('demo', '演示租户');
+--
+-- 生产数据请用 supabase/README.md 里的备份/恢复流程导入，不要写进这个文件。

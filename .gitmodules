@@ -1,0 +1,4 @@
+[submodule "modules/art-supabase-fms"]
+	path = modules/art-supabase-fms
+	url = https://gitee.com/hz24931233/art-supabase-fms.git
+	branch = master

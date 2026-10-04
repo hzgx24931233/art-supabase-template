@@ -1,0 +1,139 @@
+<template>
+  <aside v-if="isActive" class="master-delete-notice art-card-xs" aria-live="polite">
+    <div class="master-delete-notice__content">
+      <div class="master-delete-notice__title">
+        <ArtSvgIcon icon="ri:links-line" aria-hidden="true" />
+        <strong>正在处理“{{ resourceName }}”的删除前置资料</strong>
+        <ElTag type="warning" effect="light" size="small">已精确过滤</ElTag>
+      </div>
+      <p>{{ props.actionHint }}</p>
+    </div>
+    <div class="master-delete-notice__actions">
+      <ElButton @click="clearLocation">清除定位</ElButton>
+      <ElButton type="primary" plain @click="goBack">
+        <template #icon><ArtSvgIcon icon="ri:arrow-left-line" /></template>
+        返回{{ resourceLabel }}管理
+      </ElButton>
+    </div>
+  </aside>
+</template>
+
+<script setup lang="ts">
+  import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
+
+  const props = withDefaults(
+    defineProps<{
+      actionHint?: string
+      customerId?: string
+      customerName?: string
+    }>(),
+    {
+      actionHint: '当前列表已按关联记录自动过滤。请处理完成后返回原页面继续删除。',
+      customerId: '',
+      customerName: ''
+    }
+  )
+
+  const route = useRoute()
+  const router = useRouter()
+  const isMasterDelete = computed(() => route.query.fromMasterDelete === '1')
+  const isActive = computed(() => isMasterDelete.value || route.query.fromCustomerDelete === '1')
+  const resourceLabel = computed(() =>
+    isMasterDelete.value ? String(route.query.resourceLabel || '主数据') : '客户'
+  )
+  const resourceName = computed(() =>
+    isMasterDelete.value
+      ? String(route.query.resourceName || '当前资料')
+      : props.customerName || '该客户'
+  )
+
+  const goBack = (): void => {
+    const returnPath = typeof route.query.returnPath === 'string' ? route.query.returnPath : ''
+    if (returnPath) {
+      void router.push({ path: returnPath })
+      return
+    }
+
+    if (isMasterDelete.value) {
+      void router.push({ path: '/' })
+      return
+    }
+
+    router.back()
+  }
+
+  const clearLocation = (): void => {
+    void router.replace({ path: route.path })
+  }
+</script>
+
+<style scoped lang="scss">
+  .master-delete-notice {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    padding: 12px 16px;
+    border-color: var(--el-color-warning-light-7);
+
+    &__content {
+      min-width: 0;
+
+      p {
+        margin: 3px 0 0;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--el-text-color-secondary);
+      }
+    }
+
+    &__title {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      min-width: 0;
+
+      > svg {
+        flex: none;
+        color: var(--el-color-warning-dark-2);
+      }
+
+      strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--el-text-color-primary);
+        white-space: nowrap;
+      }
+    }
+
+    &__actions {
+      display: flex;
+      flex: none;
+      gap: 8px;
+
+      .el-button + .el-button {
+        margin-left: 0;
+      }
+    }
+
+    .el-button {
+      flex: none;
+    }
+
+    @media (width <= 720px) {
+      flex-direction: column;
+      align-items: stretch;
+
+      &__actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .el-button {
+        width: 100%;
+      }
+    }
+  }
+</style>
