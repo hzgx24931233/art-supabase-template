@@ -1,0 +1,1487 @@
+/**
+ * 从 supabase 备份快照里抽出一份「平台基线 SQL」。
+ *
+ * 用法：
+ *   tsx scripts/build-platform-baseline.ts --backup <快照目录> [--report] [--out <输出目录>]
+ *
+ * 输入是 supabase/backup-supabase.ps1 产出的快照（database/schema.sql、database/data.sql）。
+ * 输出：
+ *   <out>/platform-baseline.sql   平台内核 schema：保留表 + 策略 + 函数 + 索引 + ACL
+ *   <out>/platform-seed.sql       平台基线数据（租户、内置角色、平台菜单、平台字典、参数）
+ *   <out>/platform-baseline-report.json  分类统计、依赖闭包与未解析引用
+ *
+ * 保留判据：从「保留代码实际调用的表与 RPC」出发做依赖闭包，而不是按表名前缀猜。
+ * 未解析引用（引用到被移除对象或托管对象）会写进报告；`--report` 只统计不写文件。
+ */
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+
+// ---------------------------------------------------------------------------
+// 配置：保留 / 丢弃判定
+// ---------------------------------------------------------------------------
+
+/** 平台内核表与视图前缀。 */
+const CORE_PREFIXES = ['sys_', 'wf_', 'ai_'] as const
+
+/**
+ * 平台代码仍然依赖的跨域契约对象（读取型集成、识别工件、FMS 相关收发货目标）。
+ * 这些名字带业务前缀，但属于平台自身集成契约；移除它们会让保留代码在运行时报错。
+ */
+const CONTRACT_TABLES = [
+  'sync_user_audit',
+  'mdm_organization',
+  'mdm_carrier',
+  'mdm_customer',
+  'mdm_employee',
+  'mdm_material',
+  'mdm_project',
+  'mdm_project_construction',
+  'mdm_warehouse',
+  'mdm_warehouse_bin',
+  'scm_receipt_target_document',
+  'scm_receipt_target_line',
+  'tms_invoice'
+] as const
+
+/** 历史备份/审计快照表，任何 schema 下都丢弃。 */
+const DROP_TABLE_PATTERN = /^(backup_|codex_backup_)/
+
+/** 备份里携带的临时 schema。 */
+const DROP_SCHEMAS = ['backup_mdm_mes_20260909']
+
+/**
+ * 代码不会用 `.rpc()` 直接调用、但平台运行必需的函数（数据库内部种子与调度入口）。
+ * 观察未解析引用报告后按需补充。
+ */
+const CODE_SEED_FUNCTIONS = new Set<string>([
+  'seed_field_permission_catalog',
+  'seed_field_permission_catalog_for_tenant',
+  'seed_notification_defaults',
+  'seed_notification_defaults_for_new_tenant',
+  'seed_document_number_rules',
+  'seed_document_number_rules_for_tenant',
+  'seed_notification_scenarios_for_tenant'
+])
+
+/** 托管 schema：由 Supabase 管理，基线不创建也不引用。 */
+const MANAGED_SCHEMAS = [
+  'auth',
+  'storage',
+  'extensions',
+  'pg_catalog',
+  'information_schema',
+  'realtime',
+  'vault',
+  'net',
+  'graphql',
+  'graphql_public',
+  'supabase_migrations',
+  'supabase_functions',
+  'pgsodium',
+  'pgsodium_masks',
+  'cron',
+  'pgbouncer'
+]
+
+/** 备份里出现的扩展；带 IF NOT EXISTS，重复执行安全。 */
+const KEEP_EXTENSIONS = true
+
+// ---------------------------------------------------------------------------
+// 解析
+// ---------------------------------------------------------------------------
+
+interface Block {
+  schema: string
+  type: string
+  name: string
+  sql: string
+  index: number
+}
+
+interface CopyBlock {
+  schema: string
+  table: string
+  columns: string[]
+  rows: string[][]
+}
+
+const args = process.argv.slice(2)
+const backupArgIndex = args.indexOf('--backup')
+if (backupArgIndex < 0 || !args[backupArgIndex + 1]) {
+  console.error(
+    '用法：tsx scripts/build-platform-baseline.ts --backup <快照目录> [--report] [--out <目录>]'
+  )
+  process.exit(1)
+}
+const backupRoot = resolve(args[backupArgIndex + 1])
+const reportOnly = args.includes('--report')
+const outIndex = args.indexOf('--out')
+const outputDirectory = resolve(outIndex >= 0 ? args[outIndex + 1] : 'supabase/baseline')
+
+const schemaSource = readFileSync(join(backupRoot, 'database', 'schema.sql'), 'utf8')
+const dataSource = readFileSync(join(backupRoot, 'database', 'data.sql'), 'utf8')
+
+const headerPattern =
+  /^-- Name: (?<name>.+?); Type: (?<type>[A-Z_ ]+); Schema: (?<schema>[^;]+); Owner: (?<owner>.*)$/gm
+
+function parseBlocks(source: string): Block[] {
+  const headers = [...source.matchAll(headerPattern)]
+  return headers.map((match, index) => {
+    const start = match.index + match[0].length
+    const end = index + 1 < headers.length ? headers[index + 1].index : source.length
+    return {
+      schema: match.groups!.schema.trim(),
+      type: match.groups!.type.trim(),
+      name: match.groups!.name.trim(),
+      sql: source.slice(start, end).trim(),
+      index
+    }
+  })
+}
+
+function parseCopyBlocks(source: string): CopyBlock[] {
+  const blocks: CopyBlock[] = []
+  const lines = source.split('\n')
+  let current: (Omit<CopyBlock, 'rows'> & { rows: string[][] }) | null = null
+  for (const line of lines) {
+    const copyMatch = /^COPY "([^"]+)"\."([^"]+)" \(([^)]*)\) FROM stdin;$/.exec(line)
+    if (copyMatch) {
+      current = {
+        schema: copyMatch[1],
+        table: copyMatch[2],
+        columns: copyMatch[3].split(',').map((column) => column.trim().replace(/"/g, '')),
+        rows: []
+      }
+      continue
+    }
+    if (current) {
+      if (line === '\\.') {
+        blocks.push(current)
+        current = null
+        continue
+      }
+      current.rows.push(line.split('\t'))
+    }
+  }
+  return blocks
+}
+
+const blocks = parseBlocks(schemaSource)
+const copyBlocks = parseCopyBlocks(dataSource)
+
+// ---------------------------------------------------------------------------
+// 取名字：不同 block 类型里 name 的含义不一样，统一成「对象键」
+// ---------------------------------------------------------------------------
+
+const quoteStripped = (value: string): string => value.replace(/"/g, '').trim()
+
+/** 从 SQL 文本里找出所有 schema 限定引用（带引号或不带引号），区分函数调用与关系引用。 */
+function extractReferences(sql: string): {
+  functions: Set<string>
+  relations: Set<string>
+} {
+  const functions = new Set<string>()
+  const relations = new Set<string>()
+  // 同时匹配 "public"."t" 与 public.t 两种写法：函数体里未加引号的引用同样要参与闭包
+  const pattern =
+    /(?:"([a-z_][a-z0-9_]*)"|(?<![\w."])([a-z_][a-z0-9_]*))\.(?:"([a-z_][a-z0-9_]*)"|([a-z_][a-z0-9_]*))(\s*\()?/gi
+  const relationKeywords =
+    /\b(references|from|join|into|update|table|on|only|exists|create\s+table(\s+if\s+not\s+exists)?|delete\s+from|alter\s+table)\s*$/i
+  for (const match of sql.matchAll(pattern)) {
+    const schema = (match[1] ?? match[2]).toLowerCase()
+    const name = (match[3] ?? match[4]).toLowerCase()
+    const key = `${schema}.${name}`
+    const preceding = sql.slice(Math.max(0, (match.index ?? 0) - 32), match.index ?? 0)
+    // REFERENCES "t"."c"(...) / ON "t" 都是关系引用，括号属于列清单或 JOIN 条件
+    if (relationKeywords.test(preceding)) relations.add(key)
+    else if (match[5]) functions.add(key)
+    else relations.add(key)
+  }
+  return { functions, relations }
+}
+
+function tableBlockName(block: Block): string {
+  if (typeof block?.name !== 'string') {
+    throw new Error(
+      'block without name: ' +
+        JSON.stringify({
+          schema: block?.schema,
+          type: block?.type,
+          keys: block ? Object.keys(block) : null
+        })
+    )
+  }
+  return quoteStripped(block.name)
+}
+
+function relationNameFromSql(sql: string): string | null {
+  const match =
+    /(?:ALTER\s+TABLE(?:\s+ONLY)?|CREATE(?:\s+OR\s+REPLACE)?\s+(?:TRIGGER|RULE)|ON)\s+"([a-z_][a-z0-9_]*)"\."([a-z_][a-z0-9_]*)"|CREATE\s+(?:UNIQUE\s+)?INDEX\s+"[^"]+"\s+ON\s+"([a-z_][a-z0-9_]*)"\."([a-z_][a-z0-9_]*)"|COMMENT\s+ON\s+(?:TABLE|VIEW|COLUMN)\s+"([a-z_][a-z0-9_]*)"\."([a-z_][a-z0-9_]*)"/i.exec(
+      sql
+    )
+  if (!match) return null
+  const schema = match[1] ?? match[3] ?? match[5]
+  const name = match[2] ?? match[4] ?? match[6]
+  return `${schema.toLowerCase()}.${name.toLowerCase()}`
+}
+
+const isCoreName = (name: string): boolean =>
+  CORE_PREFIXES.some((prefix) => name.startsWith(prefix)) ||
+  (CONTRACT_TABLES as readonly string[]).includes(name)
+
+const isDroppableRelation = (schema: string, name: string): boolean => {
+  if (DROP_SCHEMAS.includes(schema)) return true
+  if (MANAGED_SCHEMAS.includes(schema)) return true
+  if (schema === 'public' && DROP_TABLE_PATTERN.test(name)) return true
+  if (schema === 'app_private' && DROP_TABLE_PATTERN.test(name)) return true
+  return false
+}
+
+// ---------------------------------------------------------------------------
+// 保留集合：种子 + 依赖闭包
+// ---------------------------------------------------------------------------
+
+const tableByName = new Map<string, Block>()
+const viewByName = new Map<string, Block>()
+const functionByKey = new Map<string, Block[]>()
+for (const block of blocks) {
+  const plainName = quoteStripped(block.name)
+  if (block.type === 'TABLE') tableByName.set(`${block.schema}.${plainName}`, block)
+  if (block.type === 'VIEW') viewByName.set(`${block.schema}.${plainName}`, block)
+  if (block.type === 'FUNCTION') {
+    const base = plainName.split('(')[0]
+    const key = `${block.schema}.${base}`
+    const list = functionByKey.get(key) ?? []
+    list.push(block)
+    functionByKey.set(key, list)
+  }
+}
+
+const runtimeOptionalRelations = new Map<string, Set<string>>()
+const keptBlocks = new Set<Block>()
+const keepReasons = new Map<string, string>()
+const unresolved = new Map<string, Set<string>>()
+
+function keep(block: Block, reason: string): boolean {
+  if (keptBlocks.has(block)) return false
+  keptBlocks.add(block)
+  keepReasons.set(`${block.type} ${block.schema}.${block.name}`, reason)
+  return true
+}
+
+function recordUnresolved(key: string, from: string): void {
+  // COMMENT/SEQUENCE 等 block 的对象标识本身会被当成引用，这里剔除这类自引用噪声，
+  // 只保留真正找不到的定义（真实缺口以 verify-baseline.ps1 的连库校验为准）。
+  const [schema, name] = key.split('.')
+  if (tableByName.has(`${schema}.${name}`) || viewByName.has(`${schema}.${name}`)) return
+  const fromName = from.split(':').slice(1).join(':')
+  if (fromName.includes(name)) return
+  const set = unresolved.get(key) ?? new Set<string>()
+  set.add(from)
+  unresolved.set(key, set)
+}
+
+// ---------------------------------------------------------------------------
+// 从保留代码扫描数据库依赖：表 + RPC + 视图。这是保留集合的真正种子，
+// 表名前缀只用来补充平台内核（sys_/wf_/ai_），避免「按名字猜」漏掉契约对象。
+// ---------------------------------------------------------------------------
+
+function walkSourceFiles(directory: string): string[] {
+  return readdirSync(directory).flatMap((entry) => {
+    const absolutePath = join(directory, entry)
+    if (entry === 'node_modules' || entry === 'dist' || entry === '.git') return []
+    const stats = statSync(absolutePath)
+    if (stats.isDirectory()) return walkSourceFiles(absolutePath)
+    return /\.(ts|vue|tsx)$/.test(entry) ? [absolutePath] : []
+  })
+}
+
+function scanCodeDependencies(codeRoots: string[]): {
+  tables: Set<string>
+  rpcs: Set<string>
+} {
+  const tables = new Set<string>()
+  const rpcs = new Set<string>()
+  for (const file of codeRoots.flatMap((root) => walkSourceFiles(resolve(root)))) {
+    const source = readFileSync(file, 'utf8')
+    for (const match of source.matchAll(/\.from\(\s*'([a-z_][a-z0-9_]*)'/g)) tables.add(match[1])
+    for (const match of source.matchAll(/\.rpc\(\s*'([a-z_][a-z0-9_]*)'/g)) rpcs.add(match[1])
+  }
+  return { tables, rpcs }
+}
+
+const codeDependencies = scanCodeDependencies(['src', 'supabase/functions'])
+const codeTableNames = new Set([...codeDependencies.tables].map((name) => name.toLowerCase()))
+const codeRpcNames = new Set([...codeDependencies.rpcs].map((name) => name.toLowerCase()))
+
+// 种子 1：平台内核表/视图 + 代码直接读写的表 + 代码调用的 RPC
+const missingCodeTables: string[] = []
+for (const name of codeTableNames) {
+  if (!tableByName.has(`public.${name}`) && !viewByName.has(`public.${name}`)) {
+    missingCodeTables.push(name)
+  }
+}
+const seededRpcNames = new Set<string>()
+for (const block of blocks) {
+  if (block.type === 'TABLE') {
+    const name = quoteStripped(block.name)
+    if (isDroppableRelation(block.schema, name)) continue
+    if (block.schema !== 'public') continue
+    if (isCoreName(name) || codeTableNames.has(name.toLowerCase())) {
+      keep(block, isCoreName(name) ? 'core-prefix' : 'code-table')
+    }
+  }
+  if (block.type === 'VIEW') {
+    const name = quoteStripped(block.name)
+    if (MANAGED_SCHEMAS.includes(block.schema)) continue
+    if (!['public', 'app_private'].includes(block.schema)) continue
+    const lower = name.toLowerCase()
+    if (isCoreName(name) || codeTableNames.has(lower)) {
+      keep(block, codeTableNames.has(lower) ? 'code-view' : 'core-prefix')
+    }
+  }
+  if (block.type === 'FUNCTION') {
+    if (!['public', 'app_private'].includes(block.schema)) continue
+    const base = quoteStripped(block.name).split('(')[0]
+    if (CODE_SEED_FUNCTIONS.has(base)) {
+      keep(block, 'code-seed-function')
+      continue
+    }
+    if (codeRpcNames.has(base.toLowerCase())) {
+      keep(block, 'code-rpc')
+      seededRpcNames.add(base)
+    }
+  }
+  if (block.type === 'EXTENSION' && KEEP_EXTENSIONS) keep(block, 'extension')
+  if (block.type === 'SCHEMA') {
+    const name = quoteStripped(block.name)
+    if (!DROP_SCHEMAS.includes(name)) keep(block, 'schema')
+  }
+}
+
+// 种子 2：被保留表引用的外键目标表
+let changed = true
+let pass = 0
+const relationConsumers = new Map<string, string[]>()
+
+while (changed && pass < 40) {
+  changed = false
+  pass += 1
+  for (const block of blocks) {
+    if (keptBlocks.has(block)) continue
+    const key = `${block.schema}.${quoteStripped(block.name)}`
+
+    const belongsToKeptRelation = (relationKey: string): boolean => {
+      const owner = tableByName.get(relationKey) ?? viewByName.get(relationKey)
+      return Boolean(owner && keptBlocks.has(owner))
+    }
+
+    const includeRelation = (relationKey: string, why: string): boolean => {
+      const [schema, name] = relationKey.split('.')
+      const target = tableByName.get(relationKey) ?? viewByName.get(relationKey)
+      if (!target) {
+        if (!MANAGED_SCHEMAS.includes(schema)) recordUnresolved(relationKey, why)
+        return false
+      }
+      if (isDroppableRelation(schema, name) && !keptBlocks.has(target)) {
+        recordUnresolved(relationKey, why)
+        return false
+      }
+      return keep(target, why)
+    }
+
+    switch (block.type) {
+      case 'ROW SECURITY':
+      case 'POLICY':
+      case 'TRIGGER':
+      case 'RULE':
+      case 'INDEX':
+      case 'CONSTRAINT':
+      case 'CHECK CONSTRAINT':
+      case 'COMMENT':
+      case 'DEFAULT ACL':
+      case 'PUBLICATION TABLE': {
+        const ownerKey = relationNameFromSql(block.sql)
+        if (block.type === 'TRIGGER' && key.startsWith('public.')) {
+          // TRIGGER 的 name 形如 "table trigger_name"
+          const [tablePart] = tableBlockName(block).split(' ')
+          const triggerKey = `${block.schema}.${tablePart}`
+          if (belongsToKeptRelation(triggerKey))
+            changed = keep(block, `trigger-of:${triggerKey}`) || changed
+        } else if (
+          block.type === 'COMMENT' ||
+          block.type === 'INDEX' ||
+          block.type === 'POLICY' ||
+          block.type === 'ROW SECURITY'
+        ) {
+          if (ownerKey && belongsToKeptRelation(ownerKey))
+            changed = keep(block, `owned-by:${ownerKey}`) || changed
+        } else if (block.type === 'PUBLICATION TABLE') {
+          if (belongsToKeptRelation(key)) changed = keep(block, `realtime:${key}`) || changed
+        } else if (block.type === 'CONSTRAINT' || block.type === 'CHECK CONSTRAINT') {
+          const [tablePart] = tableBlockName(block).split(' ')
+          const owner = `${block.schema}.${tablePart}`
+          if (belongsToKeptRelation(owner))
+            changed = keep(block, `constraint-of:${owner}`) || changed
+        } else if (block.type === 'RULE') {
+          // `_RETURN` 规则是视图定义的重复（VIEW block 已含完整定义），其余规则按所属关系保留
+          const ruleName = quoteStripped(block.name)
+          if (ruleName.endsWith('_RETURN')) break
+          if (belongsToKeptRelation(key)) changed = keep(block, `rule-of:${key}`) || changed
+        } else if (block.type === 'DEFAULT ACL') {
+          changed = keep(block, 'default-acl') || changed
+        }
+        break
+      }
+      case 'FK CONSTRAINT': {
+        const [tablePart] = tableBlockName(block).split(' ')
+        const owner = `${block.schema}.${tablePart}`
+        if (!belongsToKeptRelation(owner)) break
+        changed = keep(block, `fk-of:${owner}`) || changed
+        for (const referenced of extractReferences(block.sql).relations) {
+          changed = includeRelation(referenced, `fk-target-of:${owner}`) || changed
+        }
+        break
+      }
+      case 'FUNCTION': {
+        // 只保留被显式需要的函数（种子 RPC、触发器函数、策略依赖），由后续规则加入
+        break
+      }
+      case 'ACL': {
+        // ACL block 的 name 形如 `FUNCTION "f"(...)` / `TABLE "t"` / `SCHEMA "public"`
+        const plainName = quoteStripped(
+          quoteStripped(block.name).replace(/^(FUNCTION|TABLE|SEQUENCE|VIEW|SCHEMA)\s+/i, '')
+        )
+        const baseName = plainName.split('(')[0]
+        const objectKey = `${block.schema}.${baseName}`
+        const owner = tableByName.get(objectKey) ?? viewByName.get(objectKey)
+        if (owner && keptBlocks.has(owner)) changed = keep(block, `acl-of:${objectKey}`) || changed
+        const functionOwners = functionByKey.get(objectKey) ?? []
+        if (functionOwners.some((candidate) => keptBlocks.has(candidate))) {
+          changed = keep(block, `acl-of:${objectKey}`) || changed
+        }
+        if (block.schema === '-') changed = keep(block, 'acl-schema') || changed
+        break
+      }
+      case 'SEQUENCE': {
+        // 身份列序列：SEQUENCE block 里带 ALTER TABLE <owner> ADD GENERATED ...
+        const ownerKey = relationNameFromSql(block.sql)
+        if (ownerKey && belongsToKeptRelation(ownerKey))
+          changed = keep(block, `sequence-of:${ownerKey}`) || changed
+        break
+      }
+      default:
+        break
+    }
+  }
+
+  // 函数闭包：被保留对象引用的函数要一起保留，并继续它们的依赖。
+  //
+  // 关系引用分两类：
+  //  - 建表期就必须存在（策略 / 视图 / 外键 / 索引 / 序列 / 触发器）→ 一并保留；
+  //  - 只出现在函数体里（check_function_bodies = false，运行时才解析）→ 记为
+  //    runtimeOptional，不强制保留，避免平台通用 RPC 把整套业务表拉进基线。
+  for (const block of [...keptBlocks]) {
+    const consumers = relationConsumers.get(`${block.schema}.${block.name}`) ?? []
+    const { functions, relations } = extractReferences(block.sql)
+    for (const functionKey of functions) {
+      const candidates = functionByKey.get(functionKey)
+      if (!candidates) {
+        const [schema] = functionKey.split('.')
+        if (['public', 'app_private'].includes(schema)) {
+          recordUnresolved(functionKey, `called-by:${block.schema}.${block.name}`)
+        }
+        continue
+      }
+      for (const candidate of candidates) {
+        if (keep(candidate, `called-by:${block.schema}.${block.name}`)) changed = true
+        consumers.push(`${block.schema}.${block.name}`)
+      }
+    }
+    for (const relationKey of relations) {
+      const target = tableByName.get(relationKey) ?? viewByName.get(relationKey)
+      if (!target || keptBlocks.has(target)) continue
+      const [schema, name] = relationKey.split('.')
+      if (isDroppableRelation(schema, name)) {
+        recordUnresolved(relationKey, `referenced-by:${block.schema}.${block.name}`)
+        continue
+      }
+      if (block.type === 'FUNCTION' && !isCoreName(name)) {
+        const set = runtimeOptionalRelations.get(relationKey) ?? new Set<string>()
+        set.add(`${block.schema}.${block.name}`)
+        runtimeOptionalRelations.set(relationKey, set)
+        continue
+      }
+      changed = keep(target, `referenced-by:${block.schema}.${block.name}`) || changed
+    }
+    relationConsumers.set(`${block.schema}.${block.name}`, consumers)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 收尾裁剪：签名（参数/返回类型）依赖已丢弃对象的函数无法创建，必须整块移除；
+// 只出现在函数体里的依赖可以保留（check_function_bodies = false，运行时才解析）。
+// ---------------------------------------------------------------------------
+
+const prunedFunctions: Record<string, string> = {}
+const signatureObjectPattern = /\bAS\s+\$/i
+
+function signatureDependsOnDropped(block: Block): string | null {
+  const [signature] = block.sql.split(signatureObjectPattern)
+  const refs = extractReferences(signature ?? block.sql)
+  for (const key of [...refs.relations, ...refs.functions]) {
+    const [schema, name] = key.split('.')
+    if (!['public', 'app_private'].includes(schema)) continue
+    if (isDroppableRelation(schema, name)) return key
+    // 签名里的类型/函数必须已经保留，否则函数根本创建不出来
+    const relation = tableByName.get(key) ?? viewByName.get(key)
+    if (relation) {
+      if (!keptBlocks.has(relation)) return key
+      continue
+    }
+    const candidates = functionByKey.get(key)
+    if (!candidates || !candidates.some((candidate) => keptBlocks.has(candidate))) return key
+  }
+  return null
+}
+
+let pruned = true
+while (pruned) {
+  pruned = false
+  for (const block of [...keptBlocks]) {
+    if (block.type !== 'FUNCTION') continue
+    const missing = signatureDependsOnDropped(block)
+    if (!missing) continue
+    keptBlocks.delete(block)
+    prunedFunctions[`${block.schema}.${quoteStripped(block.name)}`] =
+      `签名依赖已丢弃对象：${missing}`
+    pruned = true
+  }
+  // 被剪函数的 ACL / COMMENT 一并移除，避免残留悬空授权
+  for (const block of [...keptBlocks]) {
+    if (block.type !== 'ACL' && block.type !== 'COMMENT') continue
+    if (!block.name.includes('FUNCTION')) continue
+    const plainName = quoteStripped(
+      quoteStripped(block.name)
+        .replace(/^(FUNCTION|TABLE|SEQUENCE|VIEW|SCHEMA)\s+/i, '')
+        .replace(/^(TABLE|COLUMN|VIEW)\s+/i, '')
+    )
+    const baseName = plainName.split('(')[0]
+    const key = `${block.schema}.${baseName}`
+    if (keptBlocks.has(block) && !(functionByKey.get(key) ?? []).some((fn) => keptBlocks.has(fn))) {
+      keptBlocks.delete(block)
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 收尾裁剪 1：业务模块的租户初始化触发器不能进基线。
+//
+// 例如 trg_seed_tms_basic_number_rules 会在新建租户时写入 tms.* 编号规则，
+// 而基线里没有这些业务表；保留它会让「新建租户」直接失败。
+// 判据：触发器函数体引用了已丢弃的关系 → 连同触发器一起移除（函数若无其他触发器使用也移除）。
+// ---------------------------------------------------------------------------
+
+const triggerFunctionKey = (block: Block): string | null => {
+  // 早期触发器可能写成 EXECUTE PROCEDURE，两种写法都要识别
+  const match =
+    /EXECUTE\s+(?:FUNCTION|PROCEDURE)\s+"([a-z_][a-z0-9_]*)"\."([a-z_][a-z0-9_]*)"/i.exec(block.sql)
+  return match ? `${match[1].toLowerCase()}.${match[2].toLowerCase()}` : null
+}
+
+const bodyReferencesDropped = (block: Block): string | null => {
+  const [body] = block.sql.split(signatureObjectPattern).slice(1)
+  if (!body) return null
+  const { relations } = extractReferences(body)
+  for (const key of relations) {
+    const [schema, name] = key.split('.')
+    if (!['public', 'app_private'].includes(schema)) continue
+    const target = tableByName.get(key) ?? viewByName.get(key)
+    if (target && !keptBlocks.has(target)) return key
+    if (!target && isDroppableRelation(schema, name)) return key
+  }
+  return null
+}
+
+const prunedTriggers: Record<string, string> = {}
+const prunedBusinessFunctions: Record<string, string> = {}
+
+const isTriggerFunction = (block: Block): boolean =>
+  block.type === 'FUNCTION' && /RETURNS\s+"trigger"/i.test(block.sql)
+
+/** 源库里全部编号场景键：租户初始化写编号规则时必须都能对上。 */
+const sceneKeySet = new Set<string>()
+{
+  const sceneCopy = copyBlocks.find((block) => block.table === 'sys_document_number_scene')
+  if (sceneCopy) {
+    const keyIndex = sceneCopy.columns.indexOf('rule_key')
+    for (const row of sceneCopy.rows) sceneKeySet.add(row[keyIndex])
+  }
+}
+
+const NUMBER_RULE_INSERT_PATTERN = /insert\s+into\s+public\.sys_document_number_rule/i
+const SCENE_KEY_PATTERN = /'([a-z][a-z0-9_]*\.[a-z0-9_]+)'/g
+
+/** 函数自身或其调用链上会写编号规则的判断。 */
+function functionWritesNumberRules(functionKey: string, seen = new Set<string>()): boolean {
+  if (seen.has(functionKey)) return false
+  seen.add(functionKey)
+  for (const candidate of functionByKey.get(functionKey) ?? []) {
+    if (NUMBER_RULE_INSERT_PATTERN.test(candidate.sql)) return true
+    const { functions } = extractReferences(candidate.sql)
+    for (const callee of functions) {
+      if (functionWritesNumberRules(callee, seen)) return true
+    }
+  }
+  return false
+}
+
+/** 收集函数调用链上会写入的编号规则键。 */ function ruleKeysInsertedBy(
+  functionKey: string,
+  seen = new Set<string>()
+): string[] {
+  if (seen.has(functionKey)) return []
+  seen.add(functionKey)
+  const keys: string[] = []
+  for (const candidate of functionByKey.get(functionKey) ?? []) {
+    if (NUMBER_RULE_INSERT_PATTERN.test(candidate.sql)) {
+      for (const match of candidate.sql.matchAll(SCENE_KEY_PATTERN)) keys.push(match[1])
+    }
+    const { functions } = extractReferences(candidate.sql)
+    for (const callee of functions) keys.push(...ruleKeysInsertedBy(callee, seen))
+  }
+  return keys
+}
+
+/**
+ * 调用链完整性：触发器会在写入时立刻执行，链上任何一个 public/app_private 函数
+ * 在快照里不存在（或已被裁剪），触发器就一定会报错。
+ */
+function missingCalleeInChain(functionKey: string, seen = new Set<string>()): string | null {
+  if (seen.has(functionKey)) return null
+  seen.add(functionKey)
+  const definitions = functionByKey.get(functionKey)
+  if (!definitions || !definitions.some((candidate) => keptBlocks.has(candidate)))
+    return functionKey
+  for (const definition of definitions) {
+    const { functions } = extractReferences(definition.sql)
+    for (const callee of functions) {
+      const [schema] = callee.split('.')
+      if (!['public', 'app_private'].includes(schema)) continue
+      const missing = missingCalleeInChain(callee, seen)
+      if (missing) return missing
+    }
+  }
+  return null
+}
+
+/** 调用链上任一函数引用了已丢弃的关系。 */
+function droppedRelationInChain(functionKey: string, seen = new Set<string>()): string | null {
+  if (seen.has(functionKey)) return null
+  seen.add(functionKey)
+  for (const definition of functionByKey.get(functionKey) ?? []) {
+    if (!keptBlocks.has(definition)) continue
+    const direct = bodyReferencesDropped(definition)
+    if (direct) return direct
+    const { functions } = extractReferences(definition.sql)
+    for (const callee of functions) {
+      const [schema] = callee.split('.')
+      if (!['public', 'app_private'].includes(schema)) continue
+      const offender = droppedRelationInChain(callee, seen)
+      if (offender) return offender
+    }
+  }
+  return null
+}
+
+// 触发器与触发器函数必须一起收敛：被移除的触发器函数不能再被别的触发器引用，
+// 引用了已丢弃对象的触发器也要连同其专属函数一起退出基线。
+let triggerFixpoint = true
+let triggerPass = 0
+while (triggerFixpoint && triggerPass < 20) {
+  triggerFixpoint = false
+  triggerPass += 1
+
+  // 触发器函数缺失，或调用链上引用了已丢弃的关系 → 触发器必须退出基线
+  for (const block of [...keptBlocks]) {
+    if (block.type !== 'TRIGGER') continue
+    const functionKey = triggerFunctionKey(block)
+    if (!functionKey) continue
+    const keptCandidates = (functionByKey.get(functionKey) ?? []).filter((candidate) =>
+      keptBlocks.has(candidate)
+    )
+    if (keptCandidates.length === 0) {
+      keptBlocks.delete(block)
+      prunedTriggers[`${block.schema}.${quoteStripped(block.name)}`] =
+        `触发器函数不在基线内：${functionKey}`
+      triggerFixpoint = true
+      continue
+    }
+    const offender = droppedRelationInChain(functionKey)
+    if (!offender) continue
+    keptBlocks.delete(block)
+    prunedTriggers[`${block.schema}.${quoteStripped(block.name)}`] =
+      `触发器逻辑依赖已丢弃对象：${offender}`
+    triggerFixpoint = true
+  }
+
+  // 租户编号规则初始化触发器：它插入的规则键必须都有对应场景，否则新建租户一定会失败
+  // （源库里也存在同样的缺口时，这里会把它挡在基线之外并写进报告）。
+  for (const block of [...keptBlocks]) {
+    if (block.type !== 'TRIGGER') continue
+    if (quoteStripped(block.name).split(' ')[0] !== 'sys_tenant') continue
+    const functionKey = triggerFunctionKey(block)
+    if (!functionKey) continue
+    if (!functionWritesNumberRules(functionKey)) continue
+    const keys = ruleKeysInsertedBy(functionKey)
+    const missingKey = keys.find((key) => !sceneKeySet.has(key))
+    if (!missingKey) continue
+    keptBlocks.delete(block)
+    prunedTriggers[`${block.schema}.${quoteStripped(block.name)}`] =
+      `编号规则键缺少对应场景（${missingKey}），在源库同样会失败`
+    triggerFixpoint = true
+  }
+
+  // 调用链完整性：链上有函数在快照里缺失时，触发器一旦触发就会报错
+  for (const block of [...keptBlocks]) {
+    if (block.type !== 'TRIGGER') continue
+    const functionKey = triggerFunctionKey(block)
+    if (!functionKey) continue
+    const missing = missingCalleeInChain(functionKey)
+    if (!missing) continue
+    keptBlocks.delete(block)
+    prunedTriggers[`${block.schema}.${quoteStripped(block.name)}`] =
+      `调用链上的函数缺失（${missing}），在源库同样会失败`
+    triggerFixpoint = true
+  }
+
+  const referencedFunctions = new Set(
+    [...keptBlocks]
+      .filter((block) => block.type === 'TRIGGER')
+      .map((block) => triggerFunctionKey(block))
+      .filter((key): key is string => Boolean(key))
+  )
+  for (const block of [...keptBlocks]) {
+    if (!isTriggerFunction(block)) continue
+    const key = `${block.schema}.${quoteStripped(block.name).split('(')[0]}`
+    if (referencedFunctions.has(key)) continue
+    keptBlocks.delete(block)
+    prunedBusinessFunctions[`${block.schema}.${quoteStripped(block.name)}`] =
+      '触发器函数已无触发器引用（业务初始化逻辑随业务域移除）'
+    triggerFixpoint = true
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 收尾裁剪 2：ACL / COMMENT 必须指向仍然保留的对象。
+// 触发器、函数、表在上面的裁剪中被移除后，它们的授权与注释块不能再留在文件里，
+// 否则 REVOKE/COMMENT 会因为对象不存在而失败。
+// ---------------------------------------------------------------------------
+
+const objectNameFromBlockName = (block: Block): string => {
+  const withoutType = quoteStripped(block.name).replace(
+    /^(FUNCTION|TABLE|SEQUENCE|VIEW|SCHEMA|COLUMN|CONSTRAINT|TRIGGER|POLICY|INDEX)\s+/i,
+    ''
+  )
+  const beforeArgs = withoutType.split('(')[0]
+  const firstQuoted = beforeArgs.split('"').filter(Boolean)[0]
+  if (firstQuoted) return firstQuoted
+  return beforeArgs.split('.')[0].trim()
+}
+
+const objectIsKept = (schema: string, name: string): boolean => {
+  const key = `${schema}.${name}`
+  const relation = tableByName.get(key) ?? viewByName.get(key)
+  if (relation) return keptBlocks.has(relation)
+  const functions = functionByKey.get(key)
+  if (functions?.some((candidate) => keptBlocks.has(candidate))) return true
+  const sequence = blocks.find(
+    (candidate) =>
+      candidate.type === 'SEQUENCE' &&
+      `${candidate.schema}.${quoteStripped(candidate.name)}` === key
+  )
+  if (sequence && keptBlocks.has(sequence)) return true
+  if (schema === '-' || name.toLowerCase() === 'schema') return true
+  return false
+}
+
+const prunedAclBlocks: string[] = []
+for (const block of [...keptBlocks]) {
+  if (block.type !== 'ACL' && block.type !== 'COMMENT') continue
+  const name = objectNameFromBlockName(block)
+  if (objectIsKept(block.schema, name)) continue
+  keptBlocks.delete(block)
+  prunedAclBlocks.push(`${block.type} ${block.schema}.${name}`)
+}
+
+// ===========================================================================
+// 报告
+// ===========================================================================
+
+const byType = new Map<string, number>()
+for (const block of keptBlocks) byType.set(block.type, (byType.get(block.type) ?? 0) + 1)
+
+const keptTables = [...keptBlocks]
+  .filter((block) => block.type === 'TABLE')
+  .map((block) => `${block.schema}.${quoteStripped(block.name)}`)
+  .sort()
+const keptViews = [...keptBlocks]
+  .filter((block) => block.type === 'VIEW')
+  .map((block) => `${block.schema}.${quoteStripped(block.name)}`)
+  .sort()
+const droppedTables = blocks
+  .filter((block) => block.type === 'TABLE')
+  .map((block) => `${block.schema}.${quoteStripped(block.name)}`)
+  .filter((key) => !keptTables.includes(key))
+  .sort()
+
+const droppedByDomain = new Map<string, number>()
+for (const key of droppedTables) {
+  const name = key.split('.')[1]
+  const prefix = name.split('_')[0]
+  droppedByDomain.set(prefix, (droppedByDomain.get(prefix) ?? 0) + 1)
+}
+
+const report = {
+  backup: backupRoot,
+  passes: pass,
+  codeDependencyCounts: {
+    tables: codeTableNames.size,
+    rpcs: codeRpcNames.size
+  },
+  codeTablesMissingFromDump: missingCodeTables.sort(),
+  codeRpcsMissingFromDump: [...codeRpcNames]
+    .filter(
+      (name) =>
+        ![...functionByKey.keys()].some((key) => key.endsWith(`.${name}`)) &&
+        !seededRpcNames.has(name)
+    )
+    .sort(),
+  keptBlockCounts: Object.fromEntries([...byType.entries()].sort((a, b) => b[1] - a[1])),
+  keptTables,
+  keptViews,
+  droppedTableCount: droppedTables.length,
+  droppedTablePrefixes: Object.fromEntries(
+    [...droppedByDomain.entries()].sort((a, b) => b[1] - a[1])
+  ),
+  keptFunctions: [...keptBlocks]
+    .filter((block) => block.type === 'FUNCTION')
+    .map((block) => `${block.schema}.${quoteStripped(block.name)}`)
+    .sort(),
+  prunedFunctions,
+  prunedTriggers,
+  prunedAclBlocks,
+  prunedBusinessFunctions,
+  keptTableReasons: Object.fromEntries(
+    keptTables.map((key) => [key, keepReasons.get(`TABLE ${key}`) ?? ''])
+  ),
+  runtimeOptionalRelations: Object.fromEntries(
+    [...runtimeOptionalRelations.entries()]
+      .sort()
+      .map(([key, from]) => [key, [...from].sort().slice(0, 3)])
+  ),
+  unresolved: Object.fromEntries(
+    [...unresolved.entries()].sort().map(([key, from]) => [key, [...from].sort().slice(0, 5)])
+  )
+}
+
+if (reportOnly) {
+  console.log(JSON.stringify(report, null, 2))
+  process.exit(0)
+}
+
+// ===========================================================================
+// 生成 SQL
+// ===========================================================================
+
+/** COPY 文本格式的反向转义。 */
+function unescapeCopyValue(value: string): string | null {
+  if (value === '\\N') return null
+  return value
+    .replace(/\\r/g, '\r')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t')
+    .replace(/\\b/g, '\b')
+    .replace(/\\f/g, '\f')
+    .replace(/\\v/g, '\v')
+    .replace(/\\\\/g, '\\')
+}
+
+function sqlLiteral(value: string | null): string {
+  if (value === null) return 'NULL'
+  return `'${value.replace(/'/g, "''")}'`
+}
+
+/** 审计列里出现的账号邮箱属于个人信息，导出前统一替换为中性标记。 */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const AUDIT_COLUMNS = new Set([
+  'create_by',
+  'update_by',
+  'created_by',
+  'updated_by',
+  'published_by'
+])
+/** 引用了未导出用户的负责人字段，导出时置空。 */
+const PERSON_REFERENCE_COLUMNS = new Set(['leader_user_id', 'leaderUserId'])
+
+function scrubSeedValue(column: string, value: string | null): string | null {
+  if (value === null) return null
+  if (EMAIL_PATTERN.test(value.trim())) return 'baseline'
+  if (AUDIT_COLUMNS.has(column) && value === 'system-reminder') return 'baseline'
+  if (PERSON_REFERENCE_COLUMNS.has(column)) return null
+  return value
+}
+
+const PREAMBLE = `-- ===========================================================================
+-- 平台基线 schema（由 scripts/build-platform-baseline.ts 生成，请勿手工编辑）
+--
+-- 来源快照：${backupRoot}
+-- 生成时间：${new Date().toISOString()}
+-- 保留：平台内核（sys_* / wf_* / ai_* / app_private 助手层）+ 保留代码依赖的跨域契约对象
+-- 丢弃：业务域表、视图、策略、函数与历史备份表
+--
+-- 应用方式：在全新的空 Supabase 项目上执行本文件，再执行 platform-seed.sql。
+-- 详细说明见同目录 README.md。
+-- ===========================================================================
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SET check_function_bodies = false;
+SET client_min_messages = warning;
+SET row_security = off;
+`
+
+const baselineSql = [
+  PREAMBLE,
+  ...[...keptBlocks]
+    .sort((a, b) => a.index - b.index)
+    .map(
+      (block) =>
+        `--\n-- Name: ${block.name}; Type: ${block.type}; Schema: ${block.schema}\n--\n\n${block.sql}\n`
+    )
+].join('\n')
+
+// ---------------------------------------------------------------------------
+// 种子数据：只取平台自己的行；业务行、历史行与个人信息一律不导出
+// ---------------------------------------------------------------------------
+
+/** 平台命名的字典类型（含目录），其余视为业务字典。 */
+const PLATFORM_DICT_CODE_PATTERN =
+  /^(ai|common|sys|workflow|menu|status|sex|userType|organization|notification|documentNumber|i18n|systemParam|enterpriseNature|supplier|FILE_EXTENSION_LABEL_MAP)/
+
+/** 保留的 AI 功能配置（对应模板保留的 AI Edge Function），其余是业务功能。 */
+const PLATFORM_AI_FEATURES = new Set([
+  'project_assistant',
+  'project_planner',
+  'operations_diagnosis',
+  'sql_assistant',
+  'run_diagnosis',
+  'website_wordmark',
+  'feedback_resolution'
+])
+
+const KEPT_TENANT_CODES = ['platform', 'public_register']
+
+interface SeedTablePlan {
+  table: string
+  where?: (row: string[], columns: string[], context: SeedContext) => boolean
+  note?: string
+}
+
+interface SeedContext {
+  keptTenantIds: Set<string>
+  keptRoleIds: Set<string>
+  keptMenuIds: Set<string>
+  keptDictTypeIds: Set<string>
+}
+
+const copyByTable = new Map(copyBlocks.map((block) => [block.table, block]))
+const seedNotes: string[] = []
+
+function columnIndex(columns: string[], name: string): number {
+  return columns.indexOf(name)
+}
+
+function rowsOf(table: string): CopyBlock | undefined {
+  return copyByTable.get(table)
+}
+
+// ---- 计算过滤器依赖的集合 ----
+
+const tenantBlock = rowsOf('sys_tenant')
+const keptTenantIds = new Set<string>()
+if (tenantBlock) {
+  const builtin = columnIndex(tenantBlock.columns, 'builtin_type')
+  const idIndex = columnIndex(tenantBlock.columns, 'id')
+  for (const row of tenantBlock.rows) {
+    if (KEPT_TENANT_CODES.includes(row[builtin])) keptTenantIds.add(row[idIndex])
+  }
+}
+
+// 菜单：只保留 app_code = platform 且页面文件仍然存在的行（含其按钮与文件夹祖先）
+const menuBlock = rowsOf('sys_menu')
+const keptMenuIds = new Set<string>()
+const droppedMenuRows: string[] = []
+if (menuBlock) {
+  const appCode = columnIndex(menuBlock.columns, 'app_code')
+  const component = columnIndex(menuBlock.columns, 'component')
+  const idIndex = columnIndex(menuBlock.columns, 'id')
+  const parentIndex = columnIndex(menuBlock.columns, 'parent_id')
+  const typeIndex = columnIndex(menuBlock.columns, 'type')
+  const nameIndex = columnIndex(menuBlock.columns, 'name')
+  const rowsById = new Map(menuBlock.rows.map((row) => [row[idIndex], row]))
+
+  const componentExists = (value: string): boolean => {
+    if (!value) return true
+    const clean = value.replace(/^\//, '')
+    return (
+      existsSync(join('src/views', clean, 'index.vue')) ||
+      existsSync(join('src/views', `${clean}.vue`))
+    )
+  }
+  const isPlatformRow = (row: string[]): boolean => row[appCode] === 'platform'
+  const parentOf = (row: string[]): string | null => {
+    const parent = row[parentIndex]
+    return parent && parent !== '\\N' && rowsById.has(parent) ? parent : null
+  }
+  const hasKeptAncestor = (row: string[]): boolean => {
+    let current = parentOf(row)
+    while (current) {
+      const parentRow = rowsById.get(current)!
+      if (isPlatformRow(parentRow)) return true
+      current = parentOf(parentRow)
+    }
+    return false
+  }
+
+  // 1) 组件文件存在的平台菜单/文件夹
+  for (const row of menuBlock.rows) {
+    const isPlatform = isPlatformRow(row)
+    const keepsItself =
+      isPlatform &&
+      (row[typeIndex] === 'button' ? hasKeptAncestor(row) : componentExists(row[component]))
+    if (keepsItself) keptMenuIds.add(row[idIndex])
+    else if (isPlatform)
+      droppedMenuRows.push(`${row[nameIndex]} (${row[component] || row[typeIndex]})`)
+  }
+  // 2) 补齐仍然有子节点的文件夹
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const row of menuBlock.rows) {
+      if (keptMenuIds.has(row[idIndex])) continue
+      if (row[typeIndex] !== 'folder' || !isPlatformRow(row)) continue
+      const parent = parentOf(row)
+      const childKept = menuBlock.rows.some(
+        (candidate) => parentOf(candidate) === row[idIndex] && keptMenuIds.has(candidate[idIndex])
+      )
+      if (childKept && (!parent || keptMenuIds.has(parent))) {
+        keptMenuIds.add(row[idIndex])
+        grew = true
+      }
+    }
+  }
+}
+
+// 角色：保留平台租户内的内置角色，以及平台代码引用的 R_ADMIN / R_USER
+const roleBlock = rowsOf('sys_role')
+const keptRoleIds = new Set<string>()
+const keptRoleCodes = new Set(['R_ADMIN', 'R_USER'])
+if (roleBlock) {
+  const idIndex = columnIndex(roleBlock.columns, 'id')
+  const builtin = columnIndex(roleBlock.columns, 'builtin_type')
+  const tenantId = columnIndex(roleBlock.columns, 'tenant_id')
+  const roleCode = columnIndex(roleBlock.columns, 'role_code')
+  for (const row of roleBlock.rows) {
+    const isPlatformRole = keptTenantIds.has(row[tenantId])
+    const isBuiltin = Boolean(row[builtin]) && row[builtin] !== '\\N'
+    if (isPlatformRole && (isBuiltin || keptRoleCodes.has(row[roleCode])))
+      keptRoleIds.add(row[idIndex])
+  }
+}
+
+// 字典类型：平台命名的类型 + 它们的祖先目录（保持字典树完整）
+const dictTypeBlock = rowsOf('sys_dict_type')
+const keptDictTypeIds = new Set<string>()
+if (dictTypeBlock) {
+  const idIndex = columnIndex(dictTypeBlock.columns, 'id')
+  const codeIndex = columnIndex(dictTypeBlock.columns, 'code')
+  const parentIndex = columnIndex(dictTypeBlock.columns, 'parent_id')
+  const byId = new Map(dictTypeBlock.rows.map((row) => [row[idIndex], row]))
+  for (const row of dictTypeBlock.rows) {
+    if (!PLATFORM_DICT_CODE_PATTERN.test(row[codeIndex])) continue
+    keptDictTypeIds.add(row[idIndex])
+  }
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const id of [...keptDictTypeIds]) {
+      const parent = byId.get(id)?.[parentIndex]
+      if (parent && parent !== '\\N' && !keptDictTypeIds.has(parent) && byId.has(parent)) {
+        keptDictTypeIds.add(parent)
+        grew = true
+      }
+    }
+  }
+}
+
+// 编号场景：保留「被保留 SQL 引用到的场景」——这些是留存表上的编号触发器、以及租户初始化
+// 触发器真正会用到的场景（如 FMS 发票号、承运商编码）。场景的外键指向菜单，
+// 因此这些场景指向的业务菜单也要作为引用行一起保留（它们属于各自应用的 app_code，
+// 不会出现在平台宿主的菜单树里）。
+const sceneBlock = rowsOf('sys_document_number_scene')
+const keptSceneKeys = new Set<string>()
+const keptSceneMenuIds = new Set<string>()
+if (sceneBlock) {
+  const sceneMenuIndex = columnIndex(sceneBlock.columns, 'menu_id')
+  const sceneKeyIndex = columnIndex(sceneBlock.columns, 'rule_key')
+  for (const row of sceneBlock.rows) {
+    if (baselineSql.includes(`'${row[sceneKeyIndex]}'`)) {
+      keptSceneKeys.add(row[sceneKeyIndex])
+      keptSceneMenuIds.add(row[sceneMenuIndex])
+    }
+  }
+}
+
+// 场景引用的菜单 + 它们的祖先（保持菜单树完整）
+if (menuBlock && keptSceneMenuIds.size > 0) {
+  const idIndex = columnIndex(menuBlock.columns, 'id')
+  const parentIndex = columnIndex(menuBlock.columns, 'parent_id')
+  const rowsById = new Map(menuBlock.rows.map((row) => [row[idIndex], row]))
+  for (const id of [...keptSceneMenuIds]) {
+    let current = rowsById.get(id)?.[parentIndex]
+    while (current && current !== '\\N' && rowsById.has(current)) {
+      keptSceneMenuIds.add(current)
+      current = rowsById.get(current)![parentIndex]
+    }
+  }
+  for (const id of keptSceneMenuIds) keptMenuIds.add(id)
+}
+
+/**
+ * 可授权菜单：只有指向平台页面的菜单才授予角色。
+ * 为满足编号场景外键而保留的业务菜单只是引用行，不参与授权，
+ * 这样平台宿主的菜单树与应用切换器不会出现没有前端页面的应用。
+ */
+const grantableMenuIds = new Set<string>()
+if (menuBlock) {
+  const appCode = columnIndex(menuBlock.columns, 'app_code')
+  const typeIndex = columnIndex(menuBlock.columns, 'type')
+  const idIndex = columnIndex(menuBlock.columns, 'id')
+  const parentIndex = columnIndex(menuBlock.columns, 'parent_id')
+  for (const row of menuBlock.rows) {
+    if (!keptMenuIds.has(row[idIndex])) continue
+    if (row[typeIndex] === 'button') {
+      if (grantableMenuIds.has(row[parentIndex])) grantableMenuIds.add(row[idIndex])
+      continue
+    }
+    if (row[appCode] === 'platform') grantableMenuIds.add(row[idIndex])
+  }
+}
+
+/** 为满足外键而保留的菜单所引用的应用行。 */
+const referencedApplicationCodes = new Set<string>(['platform'])
+if (menuBlock) {
+  const appCode = columnIndex(menuBlock.columns, 'app_code')
+  const idIndex = columnIndex(menuBlock.columns, 'id')
+  for (const row of menuBlock.rows) {
+    if (!keptMenuIds.has(row[idIndex])) continue
+    if (row[appCode] && row[appCode] !== '\\N') referencedApplicationCodes.add(row[appCode])
+  }
+}
+
+const seedContext: SeedContext = {
+  keptTenantIds,
+  keptRoleIds,
+  keptMenuIds,
+  keptDictTypeIds
+}
+
+const seedPlans: SeedTablePlan[] = [
+  {
+    table: 'sys_tenant',
+    where: (row, columns) => KEPT_TENANT_CODES.includes(row[columnIndex(columns, 'builtin_type')]),
+    note: '仅内置租户：platform（平台管理租户）与 public-register（自助注册租户）'
+  },
+  {
+    table: 'mdm_organization',
+    where: (row, columns, context) =>
+      context.keptTenantIds.has(row[columnIndex(columns, 'tenant_id')]),
+    note: '内置租户的组织行：基线按源库 ID 写入，角色/用户按原组织归属'
+  },
+  {
+    table: 'sys_role',
+    where: (row, columns, context) => context.keptRoleIds.has(row[columnIndex(columns, 'id')]),
+    note: '平台租户内置角色与代码引用的 R_ADMIN / R_USER'
+  },
+  {
+    table: 'sys_menu',
+    where: (row, columns, context) => context.keptMenuIds.has(row[columnIndex(columns, 'id')]),
+    note: 'app_code = platform 且对应页面文件仍存在的菜单、按钮与文件夹'
+  },
+  {
+    table: 'sys_role_menu',
+    where: (row, columns, context) =>
+      context.keptRoleIds.has(row[columnIndex(columns, 'role_id')]) &&
+      grantableMenuIds.has(row[columnIndex(columns, 'menu_id')]),
+    note: '仅保留角色的平台页面/按钮授权；引用型业务菜单不参与授权'
+  },
+  {
+    table: 'sys_dict_type',
+    where: (row, columns, context) => context.keptDictTypeIds.has(row[columnIndex(columns, 'id')]),
+    note: '平台命名字典类型及其祖先目录'
+  },
+  {
+    table: 'sys_dictionary',
+    where: (row, columns, context) =>
+      context.keptDictTypeIds.has(row[columnIndex(columns, 'type_id')]),
+    note: '仅保留类型被保留的字典项'
+  },
+  {
+    table: 'sys_param',
+    where: (row, columns, context) =>
+      context.keptTenantIds.has(row[columnIndex(columns, 'tenant_id')]),
+    note: '平台参数（含安全策略、注册默认值与站点配置）'
+  },
+  {
+    table: 'sys_application',
+    where: (row, columns) => referencedApplicationCodes.has(row[columnIndex(columns, 'app_code')]),
+    note: '平台应用 + 引用型菜单所属应用；未授权应用不会出现在应用切换器里'
+  },
+  {
+    table: 'ai_feature_config',
+    where: (row, columns, context) =>
+      context.keptTenantIds.has(row[columnIndex(columns, 'tenant_id')]) &&
+      PLATFORM_AI_FEATURES.has(row[columnIndex(columns, 'feature')]),
+    note: '模板保留的 AI 功能配置（provider/model 需按新项目调整）'
+  },
+  {
+    table: 'ai_prompt_template',
+    where: (row, columns, context) =>
+      context.keptTenantIds.has(row[columnIndex(columns, 'tenant_id')]) &&
+      PLATFORM_AI_FEATURES.has(row[columnIndex(columns, 'feature')]),
+    note: '平台 AI 功能的内置 Prompt，可在 AI Prompt 页面继续维护'
+  },
+  {
+    table: 'sys_notification_scenario',
+    where: (row, columns) => row[columnIndex(columns, 'module_code')] === 'system',
+    note: '仅系统模块通知场景；业务场景随业务模块自行注册'
+  },
+  {
+    table: 'sys_document_number_scene',
+    where: (row, columns) => keptSceneKeys.has(row[columnIndex(columns, 'rule_key')]),
+    note: '指向平台菜单的编号场景；租户初始化触发器会据此为新建租户写入编号规则'
+  }
+]
+
+const seedStatements: string[] = []
+const seedReport: Record<string, { kept: number; total: number }> = {}
+
+/**
+ * 种子写入顺序。租户插入会触发一系列初始化触发器（编号规则、通知默认值、
+ * 字段权限目录），其中编号规则需要 sys_document_number_scene 先存在，
+ * 而场景又通过外键引用租户——这是一个环。处理方式：
+ *   1. 先插租户，期间临时关闭「写编号规则」的初始化触发器；
+ *   2. 再插编号场景；
+ *   3. 重新启用触发器，并为已插入的租户补跑编号规则初始化。
+ * 最终状态与源库一致，且新建租户的初始化逻辑保持可用。
+ */
+const numberRuleTenantTriggers = blocks
+  .filter((block) => block.type === 'TRIGGER' && block.schema === 'public' && keptBlocks.has(block))
+  .map((block) => {
+    const [tableName, triggerName] = quoteStripped(block.name).split(' ')
+    const functionKey = triggerFunctionKey(block)
+    return tableName === 'sys_tenant' && triggerName && functionKey
+      ? { triggerName, functionKey }
+      : null
+  })
+  .filter((entry): entry is { triggerName: string; functionKey: string } => Boolean(entry))
+  .filter((entry) => functionWritesNumberRules(entry.functionKey))
+  .map((entry) => ({
+    ...entry,
+    // 补跑要调用真正接收租户 id 的种子函数，而不是触发器函数本身
+    seedFunctions: [
+      ...new Set(
+        (functionByKey.get(entry.functionKey) ?? []).flatMap((definition) =>
+          [...extractReferences(definition.sql).functions].filter((callee) => {
+            if (callee === entry.functionKey) return false
+            if (!['public', 'app_private'].includes(callee.split('.')[0])) return false
+            if (!functionWritesNumberRules(callee)) return false
+            // 触发器函数没有参数，这里只挑带 uuid 形参的种子函数
+            return (functionByKey.get(callee) ?? []).some((candidate) =>
+              /"uuid"/i.test(candidate.name)
+            )
+          })
+        )
+      )
+    ]
+  }))
+
+for (const entry of numberRuleTenantTriggers) {
+  if (entry.seedFunctions.length === 0) {
+    seedNotes.push(
+      `${entry.triggerName} 的编号规则写入在触发器函数内部完成，无法单独补跑；新建租户时仍会正常执行`
+    )
+  }
+}
+
+const SEED_ORDER = [
+  'sys_application',
+  'sys_menu',
+  'sys_notification_scenario',
+  'sys_tenant',
+  'sys_document_number_scene',
+  'mdm_organization',
+  'sys_role',
+  'sys_role_menu',
+  'sys_dict_type',
+  'sys_dictionary',
+  'sys_param',
+  'ai_feature_config',
+  'ai_prompt_template'
+]
+
+/** 保留集合中、负责为新建租户创建根组织的触发器。 */
+const rootOrgTenantTriggers = blocks
+  .filter((block) => block.type === 'TRIGGER' && block.schema === 'public' && keptBlocks.has(block))
+  .filter((block) => {
+    const [tableName, triggerName] = quoteStripped(block.name).split(' ')
+    return Boolean(tableName === 'sys_tenant' && triggerName)
+  })
+  .filter((block) => triggerFunctionKey(block) === 'public.trg_create_tenant_root_organization')
+  .map((block) => quoteStripped(block.name).split(' ')[1])
+
+const orderedSeedPlans = [...seedPlans].sort(
+  (a, b) => SEED_ORDER.indexOf(a.table) - SEED_ORDER.indexOf(b.table)
+)
+
+for (const plan of orderedSeedPlans) {
+  const block = rowsOf(plan.table)
+  if (!block) {
+    seedNotes.push(`快照里没有 ${plan.table}，已跳过`)
+    continue
+  }
+  const rows = plan.where
+    ? block.rows.filter((row) => plan.where!(row, block.columns, seedContext))
+    : block.rows
+  seedReport[plan.table] = { kept: rows.length, total: block.rows.length }
+  if (!rows.length) continue
+  const columnList = block.columns.map((column) => `"${column}"`).join(', ')
+  const values = rows
+    .map(
+      (row) =>
+        `  (${row
+          .map((value, index) =>
+            sqlLiteral(scrubSeedValue(block.columns[index], unescapeCopyValue(value)))
+          )
+          .join(', ')})`
+    )
+    .join(',\n')
+  const statement = `-- ${plan.table}${plan.note ? `：${plan.note}` : ''}\nINSERT INTO "public"."${plan.table}" (${columnList}) VALUES\n${values};`
+
+  if (plan.table === 'sys_tenant') {
+    seedStatements.push(
+      [
+        '-- 先临时关闭两类租户初始化触发器：',
+        '--   ① 根组织触发器——基线直接写入源库的根组织行，保留原有组织 ID；',
+        '--   ② 编号规则触发器——它们依赖的编号场景还需要租户行才能插入（见下方「恢复并补跑」）。',
+        '-- 关掉后触发器的最终效果由后面的种子数据与补跑语句等价补回。',
+        ...rootOrgTenantTriggers.map(
+          (entry) => `ALTER TABLE "public"."sys_tenant" DISABLE TRIGGER "${entry}";`
+        ),
+        ...numberRuleTenantTriggers.map(
+          (entry) => `ALTER TABLE "public"."sys_tenant" DISABLE TRIGGER "${entry.triggerName}";`
+        ),
+        statement
+      ].join('\n')
+    )
+    continue
+  }
+
+  if (plan.table === 'mdm_organization') {
+    seedStatements.push(
+      [
+        statement,
+        rootOrgTenantTriggers.length
+          ? '-- 根组织已按源库 ID 写入，恢复租户根组织触发器供后续新建租户使用'
+          : '',
+        ...rootOrgTenantTriggers.map(
+          (entry) => `ALTER TABLE "public"."sys_tenant" ENABLE TRIGGER "${entry}";`
+        )
+      ]
+        .filter(Boolean)
+        .join('\n')
+    )
+    continue
+  }
+
+  if (plan.table === 'sys_document_number_scene') {
+    seedStatements.push(
+      [
+        statement,
+        numberRuleTenantTriggers.length
+          ? '-- 场景就绪后恢复触发器，并为已插入的租户补跑编号规则初始化'
+          : '',
+        ...numberRuleTenantTriggers.map(
+          (entry) => `ALTER TABLE "public"."sys_tenant" ENABLE TRIGGER "${entry.triggerName}";`
+        ),
+        ...numberRuleTenantTriggers.flatMap((entry) =>
+          entry.seedFunctions.map(
+            (functionKey) =>
+              `SELECT "app_private"."${functionKey.split('.')[1]}"("id") FROM "public"."sys_tenant";`
+          )
+        )
+      ]
+        .filter(Boolean)
+        .join('\n')
+    )
+    continue
+  }
+
+  seedStatements.push(statement)
+}
+
+const seedSql = [
+  `-- ===========================================================================
+-- 平台基线数据（由 scripts/build-platform-baseline.ts 生成，请勿手工编辑）
+--
+-- 来源快照：${backupRoot}
+-- 生成时间：${new Date().toISOString()}
+--
+-- 不含任何真实用户、审计日志、通知记录、AI 会话与业务数据。
+-- 首个超级管理员需要通过 Supabase Auth 注册后按 README 的引导步骤提升。
+-- ===========================================================================
+
+SET check_function_bodies = false;
+`,
+  ...seedStatements
+].join('\n\n')
+
+mkdirSync(outputDirectory, { recursive: true })
+writeFileSync(join(outputDirectory, 'platform-baseline.sql'), `${baselineSql}\n`)
+writeFileSync(join(outputDirectory, 'platform-seed.sql'), `${seedSql}\n`)
+
+const seedSummary = Object.fromEntries(
+  Object.entries(seedReport).map(([table, counts]) => [table, `${counts.kept}/${counts.total}`])
+)
+const finalReport = {
+  ...report,
+  seedRows: seedSummary,
+  droppedMenuRows,
+  seedNotes
+}
+writeFileSync(
+  join(outputDirectory, 'platform-baseline-report.json'),
+  `${JSON.stringify(finalReport, null, 2)}\n`
+)
+
+console.log(
+  `保留 ${keptTables.length} 张表 / ${keptViews.length} 个视图 / ${report.keptFunctions.length} 个函数；` +
+    `丢弃 ${droppedTables.length} 张表；未解析引用 ${Object.keys(report.unresolved).length} 处`
+)
+console.log('种子行：', JSON.stringify(seedSummary))
+console.log(
+  `输出：platform-baseline.sql、platform-seed.sql、platform-baseline-report.json → ${outputDirectory}`
+)

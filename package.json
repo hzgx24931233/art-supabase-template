@@ -36,6 +36,7 @@
     "build:analyze": "tsx scripts/analyze-build.ts",
     "bundle:check": "tsx scripts/check-bundle-budget.ts",
     "database:security:audit": "tsx scripts/audit-database-security.ts",
+    "baseline:platform": "tsx scripts/build-platform-baseline.ts",
     "permissions:audit": "tsx scripts/audit-business-permissions.ts",
     "reuse:audit": "tsx scripts/audit-shared-reuse.ts",
     "snapshot:ai": "tsx scripts/generate-ai-project-snapshot.ts",

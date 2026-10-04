@@ -84,11 +84,17 @@ pnpm build:all              # 构建全部子仓 + 平台
 
 ## 数据库
 
-本仓库不保存迁移 SQL，数据库通过备份/恢复流程交付：
+本仓库不保存迁移 SQL。新项目的库结构有两种来源：
 
-- `supabase/backup-supabase.ps1 -ProjectRef <ref>` 导出远端项目快照；
-- `supabase/restore-supabase.ps1` 恢复到新的远端项目；
-- `supabase/restore-local-supabase.ps1` 恢复到本地 Supabase 栈。
+- **平台基线（推荐）**：`supabase/baseline/platform-baseline.sql` + `platform-seed.sql`，
+  在空项目上直接执行即可得到平台内核（租户、权限、菜单、字典、工作流、AI 基座）与开箱可用的基础数据；
+  生成与校验见 [supabase/baseline/README.md](supabase/baseline/README.md)。
+- **整库快照**：`supabase/backup-supabase.ps1 -ProjectRef <ref>` 导出远端项目快照，
+  `supabase/restore-supabase.ps1` 恢复到新项目（含业务数据）。
+
+```bash
+pnpm baseline:platform --backup supabase/backups/<时间戳>   # 从快照重新生成平台基线
+```
 
 详见 [supabase/README.zh-CN.md](supabase/README.zh-CN.md)。
 

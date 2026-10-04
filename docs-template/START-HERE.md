@@ -44,12 +44,14 @@
 1. 在 Supabase 控制台新建空项目，记下 project ref。
 2. 替换 `.mcp.json` 中的 `your-project-ref`（AI 编码会话的 MCP 作用域），并同步更新
    `AGENTS.md` 中同名占位与 `supabase/README*.md`。
-3. 建库：用 `supabase/README.zh-CN.md` 的备份/恢复流程把一份快照恢复到新项目；
-   若从零开始，先在控制台执行平台基线 SQL 再逐步补业务表。
+3. 建库，二选一：
+   - **平台基线（推荐）**：在空项目上依次执行 `supabase/baseline/platform-baseline.sql` 与
+     `supabase/baseline/platform-seed.sql`，得到平台内核与内置租户/角色/菜单/字典；
+     然后用 [supabase/baseline/README.md](../supabase/baseline/README.md) 里的引导 SQL 提升首个超级管理员。
+   - **整库快照**：用 `supabase/README.zh-CN.md` 的恢复流程把一份快照恢复到新项目（含业务数据）。
 
-> 平台页面依赖的数据库对象包括 `sys_*` 系统表、`app_private` 助手函数、
-> `sys_organization`/`mdm_organization` 组织数据，以及若干历史命名的 RPC
-> （例如 `tms_*`、`smis_*` 系列）。这些名字来自平台历史，属于现有数据库契约；
+> 平台页面依赖的数据库对象包括 `sys_*` 系统表、`app_private` 助手函数、组织数据，以及若干历史命名的
+> RPC（例如 `tms_*`、`smis_*` 系列）。这些名字来自平台历史，属于现有数据库契约；
 > 如果派生项目要重命名，需同时改数据库函数、`src/api/**` 调用点与 Edge Function。
 
 4. 部署 Edge Functions：
@@ -144,8 +146,7 @@ pnpm test:e2e
 
 ## 后续可选任务（本模板未完成）
 
-- **平台基线 SQL**：从现有备份抽取 `sys_*` / `wf_*` / `ai_*` 与 `app_private` 助手层，
-  剔除业务域表、策略与函数，形成模板自带的 `baseline + seed`，让新项目不必先恢复整库快照。
-  工作量与风险都明显高于本轮精简，需要连库验证。
 - 业务子仓重命名/去品牌；`tms_*`、`smis_*` 等历史 RPC 与表名的统一改名。
 - e2e 用例在真实项目上的视觉基线补录（`pnpm test:e2e:update`）。
+- 如果希望模板自带更干净的业务命名：调整 `scripts/build-platform-baseline.ts` 的
+  `CONTRACT_TABLES` 与平台侧集成代码，重新生成 `supabase/baseline/` 下的基线 SQL。

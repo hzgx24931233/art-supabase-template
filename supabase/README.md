@@ -8,9 +8,18 @@
 - `functions/` 保存经过评审、可直接部署的 Edge Function 源码。部署示例：
   `supabase functions deploy <name> --project-ref <your-project-ref> --use-api`。
 - `migrations/` 不保存迁移 SQL。经过评审的生产 SQL 在完成备份与校验后，通过项目级 Supabase MCP 直接执行。
+- `baseline/` 保存平台基线：`platform-baseline.sql` + `platform-seed.sql`，用于在空项目上快速得到
+  平台内核结构。生成与校验方式见 [baseline/README.md](baseline/README.md)。
 - `backup-supabase.ps1` 把一个远端项目导出为带时间戳、被 Git 忽略的备份目录；
   `package-supabase-backup.ps1` 打包以便校验下载；`restore-local-supabase.ps1` 恢复到隔离的本地栈；
   `restore-supabase.ps1` 恢复到新的远端项目。
+
+两条建库路径：
+
+| 目标 | 用哪个 |
+| --- | --- |
+| 只要平台内核（推荐给新项目） | `baseline/platform-baseline.sql` + `baseline/platform-seed.sql` |
+| 连业务数据一起搬（迁移/复制现网） | 备份快照 + `restore-supabase.ps1` |
 
 数据库结构、数据与迁移历史一起存放在备份目录里；导出不会在仓库中生成逐条迁移 SQL。
 
