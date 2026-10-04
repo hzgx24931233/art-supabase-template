@@ -1045,8 +1045,15 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
  *   - CONSTRAINT / FK CONSTRAINT / CHECK CONSTRAINT：按约束名判断后再 ADD
  * 其余对象本身已经幂等（IF NOT EXISTS / OR REPLACE / REVOKE+GRANT）。
  */
+const EMAIL_LITERAL_RE = /'([A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)'/g
+
+/** 交付物里不保留真实个人邮箱：函数体、注释、默认值里的邮箱字面量统一换成占位地址。 */
+function redactEmails(sql: string): string {
+  return sql.replace(EMAIL_LITERAL_RE, "'platform-owner@example.com'")
+}
+
 function toIdempotentSql(block: Block): string {
-  const sql = block.sql
+  const sql = redactEmails(block.sql)
   if (block.type === 'INDEX') {
     return sql.replace(/^CREATE (UNIQUE )?INDEX /m, 'CREATE $1INDEX IF NOT EXISTS ')
   }
@@ -1078,6 +1085,33 @@ function toIdempotentSql(block: Block): string {
       '  END IF;',
       'END',
       '$already_exists$;'
+    ].join('\n')
+  }
+  if (block.type === 'SEQUENCE') {
+    // 身份列：pg_dump 会单独发 ALTER TABLE ... ADD GENERATED，重复执行会撞已存在的序列
+    const identity =
+      /ALTER TABLE\s+"([a-z_][a-z0-9_]*)"\."([a-z_][a-z0-9_]*)"\s+ALTER COLUMN\s+"([a-z_][a-z0-9_]*)"/i.exec(
+        sql
+      )
+    if (!identity) return sql
+    const statement = sql
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .replace(/;?\s*$/, '')
+    return [
+      'DO $identity_column$',
+      'BEGIN',
+      '  IF NOT EXISTS (',
+      '    SELECT 1 FROM pg_attribute a',
+      `     WHERE a.attrelid = '${identity[1]}.${identity[2]}'::regclass`,
+      `       AND a.attname = '${identity[3]}'`,
+      "       AND a.attidentity <> ''",
+      '  ) THEN',
+      statement,
+      '  END IF;',
+      'END',
+      '$identity_column$;'
     ].join('\n')
   }
   return sql
@@ -1169,9 +1203,17 @@ if (menuBlock) {
     profile === 'platform' ? ['src/views'] : [`modules/art-supabase-${profile}/src/views`]
   const componentExists = (value: string): boolean => {
     if (!value) return true
-    const clean = value.replace(/^\//, '')
-    return viewRoots.some(
-      (root) => existsSync(join(root, clean, 'index.vue')) || existsSync(join(root, `${clean}.vue`))
+    // 模块菜单的 component 带应用前缀（/hr/personnel/position），
+    // 而模块视图文件不含前缀，两种写法都试一遍。
+    const candidates = [value.replace(/^\//, '')]
+    const withoutAppPrefix = value.replace(new RegExp(`^/?${targetAppCode}/`), '')
+    if (withoutAppPrefix !== candidates[0]) candidates.push(withoutAppPrefix)
+    return viewRoots.some((root) =>
+      candidates.some(
+        (candidate) =>
+          existsSync(join(root, candidate, 'index.vue')) ||
+          existsSync(join(root, `${candidate}.vue`))
+      )
     )
   }
   const isPlatformRow = (row: string[]): boolean => row[appCode] === targetAppCode
@@ -1179,42 +1221,47 @@ if (menuBlock) {
     const parent = row[parentIndex]
     return parent && parent !== '\\N' && rowsById.has(parent) ? parent : null
   }
-  const hasKeptAncestor = (row: string[]): boolean => {
-    let current = parentOf(row)
-    while (current) {
-      const parentRow = rowsById.get(current)!
-      if (isPlatformRow(parentRow)) return true
-      current = parentOf(parentRow)
-    }
-    return false
+
+  // 1) 页面菜单：组件文件确实存在
+  for (const row of menuBlock.rows) {
+    if (!isPlatformRow(row) || row[typeIndex] === 'button') continue
+    if (componentExists(row[component])) keptMenuIds.add(row[idIndex])
   }
 
-  // 1) 组件文件存在的平台菜单/文件夹
-  for (const row of menuBlock.rows) {
-    const isPlatform = isPlatformRow(row)
-    const keepsItself =
-      isPlatform &&
-      (row[typeIndex] === 'button' ? hasKeptAncestor(row) : componentExists(row[component]))
-    if (keepsItself) keptMenuIds.add(row[idIndex])
-    else if (isPlatform)
-      droppedMenuRows.push(`${row[nameIndex]} (${row[component] || row[typeIndex]})`)
-  }
-  // 2) 补齐仍然有子节点的文件夹
+  // 2) 收敛补全：按钮跟随其父菜单，文件夹跟随其子节点
   let grew = true
   while (grew) {
     grew = false
     for (const row of menuBlock.rows) {
-      if (keptMenuIds.has(row[idIndex])) continue
-      if (row[typeIndex] !== 'folder' || !isPlatformRow(row)) continue
+      if (keptMenuIds.has(row[idIndex]) || !isPlatformRow(row)) continue
       const parent = parentOf(row)
-      const childKept = menuBlock.rows.some(
+      if (row[typeIndex] === 'button') {
+        // 父菜单必须已经保留（页面不存在时按钮也应一并移除）
+        if (parent && keptMenuIds.has(parent)) {
+          keptMenuIds.add(row[idIndex])
+          grew = true
+        }
+        continue
+      }
+      if (row[typeIndex] !== 'folder') continue
+      const hasKeptChild = menuBlock.rows.some(
         (candidate) => parentOf(candidate) === row[idIndex] && keptMenuIds.has(candidate[idIndex])
       )
-      if (childKept && (!parent || keptMenuIds.has(parent))) {
+      // 父节点属于别的应用（或被裁掉）时，这个文件夹就是本应用的树根，允许保留
+      const parentKeptOrForeign =
+        !parent || keptMenuIds.has(parent) || !isPlatformRow(rowsById.get(parent)!)
+      if (hasKeptChild && parentKeptOrForeign) {
         keptMenuIds.add(row[idIndex])
         grew = true
       }
     }
+  }
+
+  // 3) 报告：收敛之后依然没被保留的平台菜单/文件夹
+  for (const row of menuBlock.rows) {
+    if (!isPlatformRow(row) || keptMenuIds.has(row[idIndex]) || row[typeIndex] === 'button')
+      continue
+    droppedMenuRows.push(`${row[nameIndex]} (${row[component] || row[typeIndex]})`)
   }
 }
 

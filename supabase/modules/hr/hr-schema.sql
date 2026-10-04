@@ -2,7 +2,7 @@
 -- 平台基线 schema（由 scripts/build-platform-baseline.ts 生成，请勿手工编辑）
 --
 -- 来源快照：D:\art-supabase-pro\supabase\backups\20261004-111116
--- 生成时间：2026-10-04T10:19:51.505Z
+-- 生成时间：2026-10-04T11:07:24.753Z
 -- 保留：该模块的领域表/视图/函数/策略 + 其依赖的主数据表
 -- 丢弃：业务域表、视图、策略、函数与历史备份表
 --
@@ -3066,7 +3066,7 @@ CREATE OR REPLACE FUNCTION "app_private"."is_platform_super"() RETURNS boolean
      and r.builtin_type = 'platform_super'
      and r.role_code = any(coalesce(u.user_roles, array[]::text[]))
     where u.auth_user_id = auth.uid()
-      and lower(u.user_email) = '869123771@qq.com'
+      and lower(u.user_email) = 'platform-owner@example.com'
       and t.builtin_type = 'platform'
       and u.status = '1'
       and r.enabled is true
@@ -3982,7 +3982,7 @@ begin
     tenant_id, resource_key, resource_label, menu_name, owner_column, create_by, update_by
   ) values (
     p_tenant_id, 'vms.supplier', '车辆供应厂商', 'Supplier', 'created_by_user_id',
-    '624944977@qq.com', '624944977@qq.com'
+    'platform-owner@example.com', 'platform-owner@example.com'
   )
   on conflict (tenant_id, resource_key) do update
     set resource_label=excluded.resource_label, menu_name=excluded.menu_name,
@@ -3994,9 +3994,9 @@ begin
     tenant_id, resource_id, field_key, field_label, default_access, mask_strategy,
     owner_override_enabled, sensitive, enabled, sort, create_by, update_by
   ) values
-    (p_tenant_id,v_resource_id,'contactDetails','联系人与联系电话','hidden','none',true,true,true,10,'624944977@qq.com','624944977@qq.com'),
-    (p_tenant_id,v_resource_id,'addressDetails','所在地区与详细地址','hidden','none',true,true,true,20,'624944977@qq.com','624944977@qq.com'),
-    (p_tenant_id,v_resource_id,'internalNotes','供应商内部备注','hidden','none',true,true,true,30,'624944977@qq.com','624944977@qq.com')
+    (p_tenant_id,v_resource_id,'contactDetails','联系人与联系电话','hidden','none',true,true,true,10,'platform-owner@example.com','platform-owner@example.com'),
+    (p_tenant_id,v_resource_id,'addressDetails','所在地区与详细地址','hidden','none',true,true,true,20,'platform-owner@example.com','platform-owner@example.com'),
+    (p_tenant_id,v_resource_id,'internalNotes','供应商内部备注','hidden','none',true,true,true,30,'platform-owner@example.com','platform-owner@example.com')
   on conflict (tenant_id, resource_id, field_key) do update
     set field_label=excluded.field_label, mask_strategy=excluded.mask_strategy,
         owner_override_enabled=true, sensitive=true, enabled=true, sort=excluded.sort,
@@ -4029,7 +4029,7 @@ begin
   ) values (
     p_tenant_id, 'vms.vehicle_part_usage', '车辆配件使用记录',
     'VehiclePartsManage', 'created_by_user_id',
-    '624944977@qq.com', '624944977@qq.com'
+    'platform-owner@example.com', 'platform-owner@example.com'
   )
   on conflict (tenant_id, resource_key) do update
     set resource_label = excluded.resource_label,
@@ -4045,13 +4045,13 @@ begin
     owner_override_enabled, sensitive, enabled, sort, create_by, update_by
   ) values
     (p_tenant_id, v_resource_id, 'supplierDetails', '供应商与联系人',
-      'hidden', 'none', true, true, true, 10, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 10, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'traceabilityTag', 'RFID 追溯标签',
-      'hidden', 'none', true, true, true, 20, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 20, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'lifecycleLimits', '启用、质保与寿命数据',
-      'hidden', 'none', true, true, true, 30, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 30, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'dispositionNotes', '报废原因与备注',
-      'hidden', 'none', true, true, true, 40, '624944977@qq.com', '624944977@qq.com')
+      'hidden', 'none', true, true, true, 40, 'platform-owner@example.com', 'platform-owner@example.com')
   on conflict (tenant_id, resource_id, field_key) do update
     set field_label = excluded.field_label,
         mask_strategy = excluded.mask_strategy,
@@ -4089,7 +4089,7 @@ begin
   ) values (
     p_tenant_id, 'vms.vehicle_routine_inspection', '车辆例检记录',
     'VehicleRoutineInspection', 'created_by_user_id',
-    '624944977@qq.com', '624944977@qq.com'
+    'platform-owner@example.com', 'platform-owner@example.com'
   )
   on conflict (tenant_id, resource_key) do update
     set resource_label = excluded.resource_label,
@@ -4105,13 +4105,13 @@ begin
     owner_override_enabled, sensitive, enabled, sort, create_by, update_by
   ) values
     (p_tenant_id, v_resource_id, 'responsiblePeople', '检查人与驾驶员',
-      'hidden', 'none', true, true, true, 10, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 10, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'inspectionFindings', '检查结果与检查情况',
-      'hidden', 'none', true, true, true, 20, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 20, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'remediationDetails', '处理方式与备注',
-      'hidden', 'none', true, true, true, 30, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 30, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'documents', '例检附件',
-      'hidden', 'none', true, true, true, 40, '624944977@qq.com', '624944977@qq.com')
+      'hidden', 'none', true, true, true, 40, 'platform-owner@example.com', 'platform-owner@example.com')
   on conflict (tenant_id, resource_id, field_key) do update
     set field_label = excluded.field_label,
         mask_strategy = excluded.mask_strategy,
@@ -21443,8 +21443,8 @@ begin
     0,
     '租户根组织，由系统自动维护',
     true,
-    coalesce(new.create_by, '624944977@qq.com'),
-    coalesce(new.update_by, new.create_by, '624944977@qq.com')
+    coalesce(new.create_by, 'platform-owner@example.com'),
+    coalesce(new.update_by, new.create_by, 'platform-owner@example.com')
   )
   on conflict (tenant_id, organization_code) do nothing;
 

@@ -2,7 +2,7 @@
 -- 平台基线 schema（由 scripts/build-platform-baseline.ts 生成，请勿手工编辑）
 --
 -- 来源快照：D:\art-supabase-pro\supabase\backups\20261004-111116
--- 生成时间：2026-10-04T07:51:16.284Z
+-- 生成时间：2026-10-04T11:07:22.595Z
 -- 保留：平台内核（sys_* / wf_* / ai_* / app_private 助手层）+ 保留代码依赖的跨域契约对象
 -- 丢弃：业务域表、视图、策略、函数与历史备份表
 --
@@ -1834,7 +1834,7 @@ begin
 
   if tg_op = 'DELETE' then
     v_old_is_protected :=
-      lower(old.user_email) = '869123771@qq.com'
+      lower(old.user_email) = 'platform-owner@example.com'
       or (
         old.tenant_id = v_platform_tenant_id
         and v_super_role_code = any(coalesce(old.user_roles, array[]::text[]))
@@ -1850,20 +1850,20 @@ begin
   v_is_platform_tenant := new.tenant_id = v_platform_tenant_id;
   v_has_super_role := v_super_role_code = any(coalesce(new.user_roles, array[]::text[]));
 
-  if v_is_platform_tenant and lower(new.user_email) <> '869123771@qq.com' then
+  if v_is_platform_tenant and lower(new.user_email) <> 'platform-owner@example.com' then
     raise exception '平台租户只允许系统超级管理员账号';
   end if;
 
   if v_has_super_role and (
     not v_is_platform_tenant
-    or lower(new.user_email) <> '869123771@qq.com'
+    or lower(new.user_email) <> 'platform-owner@example.com'
   ) then
     raise exception '平台超级角色只能分配给平台租户的系统超级管理员';
   end if;
 
   if tg_op = 'UPDATE' then
     v_old_is_protected :=
-      lower(old.user_email) = '869123771@qq.com'
+      lower(old.user_email) = 'platform-owner@example.com'
       or (
         old.tenant_id = v_platform_tenant_id
         and v_super_role_code = any(coalesce(old.user_roles, array[]::text[]))
@@ -1921,12 +1921,12 @@ begin
     raise exception 'Tenant not found';
   end if;
 
-  if v_tenant_code = 'platform' and v_user_email <> '869123771@qq.com' then
+  if v_tenant_code = 'platform' and v_user_email <> 'platform-owner@example.com' then
     raise exception 'Only 869123771@qq.com can be assigned to platform tenant';
   end if;
 
   if 'R_SUPER' = any(coalesce(new.role_codes, array[]::text[]))
-     and (v_tenant_code <> 'platform' or v_user_email <> '869123771@qq.com') then
+     and (v_tenant_code <> 'platform' or v_user_email <> 'platform-owner@example.com') then
     raise exception 'R_SUPER can only be assigned to 869123771@qq.com in platform tenant';
   end if;
 
@@ -5743,7 +5743,7 @@ CREATE OR REPLACE FUNCTION "app_private"."is_platform_super"() RETURNS boolean
      and r.builtin_type = 'platform_super'
      and r.role_code = any(coalesce(u.user_roles, array[]::text[]))
     where u.auth_user_id = auth.uid()
-      and lower(u.user_email) = '869123771@qq.com'
+      and lower(u.user_email) = 'platform-owner@example.com'
       and t.builtin_type = 'platform'
       and u.status = '1'
       and r.enabled is true
@@ -7553,7 +7553,7 @@ begin
     tenant_id, resource_key, resource_label, menu_name, owner_column, create_by, update_by
   ) values (
     p_tenant_id, 'vms.supplier', '车辆供应厂商', 'Supplier', 'created_by_user_id',
-    '624944977@qq.com', '624944977@qq.com'
+    'platform-owner@example.com', 'platform-owner@example.com'
   )
   on conflict (tenant_id, resource_key) do update
     set resource_label=excluded.resource_label, menu_name=excluded.menu_name,
@@ -7565,9 +7565,9 @@ begin
     tenant_id, resource_id, field_key, field_label, default_access, mask_strategy,
     owner_override_enabled, sensitive, enabled, sort, create_by, update_by
   ) values
-    (p_tenant_id,v_resource_id,'contactDetails','联系人与联系电话','hidden','none',true,true,true,10,'624944977@qq.com','624944977@qq.com'),
-    (p_tenant_id,v_resource_id,'addressDetails','所在地区与详细地址','hidden','none',true,true,true,20,'624944977@qq.com','624944977@qq.com'),
-    (p_tenant_id,v_resource_id,'internalNotes','供应商内部备注','hidden','none',true,true,true,30,'624944977@qq.com','624944977@qq.com')
+    (p_tenant_id,v_resource_id,'contactDetails','联系人与联系电话','hidden','none',true,true,true,10,'platform-owner@example.com','platform-owner@example.com'),
+    (p_tenant_id,v_resource_id,'addressDetails','所在地区与详细地址','hidden','none',true,true,true,20,'platform-owner@example.com','platform-owner@example.com'),
+    (p_tenant_id,v_resource_id,'internalNotes','供应商内部备注','hidden','none',true,true,true,30,'platform-owner@example.com','platform-owner@example.com')
   on conflict (tenant_id, resource_id, field_key) do update
     set field_label=excluded.field_label, mask_strategy=excluded.mask_strategy,
         owner_override_enabled=true, sensitive=true, enabled=true, sort=excluded.sort,
@@ -7600,7 +7600,7 @@ begin
   ) values (
     p_tenant_id, 'vms.vehicle_part_usage', '车辆配件使用记录',
     'VehiclePartsManage', 'created_by_user_id',
-    '624944977@qq.com', '624944977@qq.com'
+    'platform-owner@example.com', 'platform-owner@example.com'
   )
   on conflict (tenant_id, resource_key) do update
     set resource_label = excluded.resource_label,
@@ -7616,13 +7616,13 @@ begin
     owner_override_enabled, sensitive, enabled, sort, create_by, update_by
   ) values
     (p_tenant_id, v_resource_id, 'supplierDetails', '供应商与联系人',
-      'hidden', 'none', true, true, true, 10, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 10, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'traceabilityTag', 'RFID 追溯标签',
-      'hidden', 'none', true, true, true, 20, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 20, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'lifecycleLimits', '启用、质保与寿命数据',
-      'hidden', 'none', true, true, true, 30, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 30, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'dispositionNotes', '报废原因与备注',
-      'hidden', 'none', true, true, true, 40, '624944977@qq.com', '624944977@qq.com')
+      'hidden', 'none', true, true, true, 40, 'platform-owner@example.com', 'platform-owner@example.com')
   on conflict (tenant_id, resource_id, field_key) do update
     set field_label = excluded.field_label,
         mask_strategy = excluded.mask_strategy,
@@ -7660,7 +7660,7 @@ begin
   ) values (
     p_tenant_id, 'vms.vehicle_routine_inspection', '车辆例检记录',
     'VehicleRoutineInspection', 'created_by_user_id',
-    '624944977@qq.com', '624944977@qq.com'
+    'platform-owner@example.com', 'platform-owner@example.com'
   )
   on conflict (tenant_id, resource_key) do update
     set resource_label = excluded.resource_label,
@@ -7676,13 +7676,13 @@ begin
     owner_override_enabled, sensitive, enabled, sort, create_by, update_by
   ) values
     (p_tenant_id, v_resource_id, 'responsiblePeople', '检查人与驾驶员',
-      'hidden', 'none', true, true, true, 10, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 10, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'inspectionFindings', '检查结果与检查情况',
-      'hidden', 'none', true, true, true, 20, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 20, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'remediationDetails', '处理方式与备注',
-      'hidden', 'none', true, true, true, 30, '624944977@qq.com', '624944977@qq.com'),
+      'hidden', 'none', true, true, true, 30, 'platform-owner@example.com', 'platform-owner@example.com'),
     (p_tenant_id, v_resource_id, 'documents', '例检附件',
-      'hidden', 'none', true, true, true, 40, '624944977@qq.com', '624944977@qq.com')
+      'hidden', 'none', true, true, true, 40, 'platform-owner@example.com', 'platform-owner@example.com')
   on conflict (tenant_id, resource_id, field_key) do update
     set field_label = excluded.field_label,
         mask_strategy = excluded.mask_strategy,
@@ -14611,6 +14611,135 @@ ALTER FUNCTION "public"."get_workflow_operational_analytics"("p_days" integer) O
 --
 
 --
+-- Name: hr_list_employee_selector_secure(integer, integer, "uuid", "text"); Type: FUNCTION; Schema: public
+--
+
+--
+
+CREATE OR REPLACE FUNCTION "public"."hr_list_employee_selector_secure"("p_from" integer DEFAULT 0, "p_to" integer DEFAULT 19, "p_tenant_id" "uuid" DEFAULT NULL::"uuid", "p_keyword" "text" DEFAULT NULL::"text") RETURNS "jsonb"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+declare
+  v_tenant_id uuid := app_private.current_user_tenant_id();
+  v_target_tenant_id uuid;
+  v_from integer := greatest(coalesce(p_from, 0), 0);
+  v_limit integer := least(
+    greatest(coalesce(p_to, 19) - greatest(coalesce(p_from, 0), 0) + 1, 1),
+    200
+  );
+  v_keyword text := nullif(btrim(p_keyword), '');
+  v_has_hr_menu boolean := app_private.can_execute_business_action(
+    'HrEmployeeRoster', null, null, false
+  );
+  v_contact_access text := case when v_has_hr_menu then app_private.resolve_field_access(
+    'hr.employee', 'contactDetails', null
+  ) else 'hidden' end;
+  v_identity_access text := case when v_has_hr_menu then app_private.resolve_field_access(
+    'hr.employee', 'identityDetails', null
+  ) else 'hidden' end;
+  v_total bigint;
+  v_records jsonb;
+begin
+  if not (
+    app_private.can_execute_business_action(
+      'HrEmployeeRoster', 'Hr:Employee:View', null, false
+    )
+    or app_private.can_execute_business_action('User', 'System:User:Add', null, false)
+    or app_private.can_execute_business_action('User', 'System:User:Edit', null, false)
+  ) then
+    raise exception 'Missing employee selector permission' using errcode = '42501';
+  end if;
+
+  v_target_tenant_id := case
+    when app_private.is_platform_super() and p_tenant_id is not null then p_tenant_id
+    else v_tenant_id
+  end;
+  if v_target_tenant_id is null then
+    return jsonb_build_object('records', '[]'::jsonb, 'total', 0);
+  end if;
+
+  with filtered as materialized (
+    select
+      employee_row.*,
+      organization_row.organization_code,
+      organization_row.organization_name
+    from public.mdm_employee employee_row
+    left join public.mdm_organization organization_row
+      on organization_row.id = employee_row.organization_id
+     and organization_row.tenant_id = employee_row.tenant_id
+    where employee_row.tenant_id = v_target_tenant_id
+      and employee_row.employment_status in ('probation', 'active')
+      and not exists (
+        select 1
+        from public.sys_user user_row
+        where user_row.hr_employee_id = employee_row.id
+          and user_row.tenant_id = employee_row.tenant_id
+          and user_row.deleted_at is null
+      )
+      and (
+        v_keyword is null
+        or employee_row.employee_no ilike '%' || v_keyword || '%'
+        or employee_row.employee_name ilike '%' || v_keyword || '%'
+        or employee_row.job_title ilike '%' || v_keyword || '%'
+        or (
+          v_contact_access in ('read', 'edit')
+          and (
+            employee_row.phone ilike '%' || v_keyword || '%'
+            or employee_row.email ilike '%' || v_keyword || '%'
+          )
+        )
+      )
+  ), paged as (
+    select *
+    from filtered
+    order by employee_name, employee_no, id
+    offset v_from limit v_limit
+  )
+  select
+    (select count(*) from filtered),
+    coalesce((
+      select jsonb_agg(
+        jsonb_strip_nulls(jsonb_build_object(
+          'id', paged.id,
+          'tenant_id', paged.tenant_id,
+          'organization_id', paged.organization_id,
+          'employee_no', paged.employee_no,
+          'employee_name', paged.employee_name,
+          'avatar_url', paged.avatar_url,
+          'job_title', paged.job_title,
+          'employment_status', paged.employment_status,
+          'organization', case when paged.organization_id is null then null else jsonb_build_object(
+            'id', paged.organization_id,
+            'organization_code', paged.organization_code,
+            'organization_name', paged.organization_name
+          ) end,
+          'gender', case when v_identity_access in ('read', 'edit') then paged.gender else null end,
+          'phone', case when v_contact_access in ('read', 'edit') then paged.phone else null end,
+          'email', case when v_contact_access in ('read', 'edit') then paged.email else null end
+        )) order by paged.employee_name, paged.employee_no, paged.id
+      )
+      from paged
+    ), '[]'::jsonb)
+  into v_total, v_records;
+
+  return jsonb_build_object(
+    'records', v_records,
+    'total', v_total,
+    'field_access', case when v_has_hr_menu
+      then app_private.field_access_map('hr.employee', null)
+      else '{}'::jsonb
+    end
+  );
+end;
+$$;
+
+
+ALTER FUNCTION "public"."hr_list_employee_selector_secure"("p_from" integer, "p_to" integer, "p_tenant_id" "uuid", "p_keyword" "text") OWNER TO "postgres";
+
+--
+
+--
 -- Name: list_menu_management_nodes("uuid", "text", "text", "uuid", boolean, boolean); Type: FUNCTION; Schema: public
 --
 
@@ -15688,7 +15817,7 @@ begin
       tenant_id, role_id, resource_id, field_id, access_level, create_by, update_by
     )
     select v_tenant_id, p_subject_id, v_resource.id, field_row.id,
-           permission_item.value, '624944977@qq.com', '624944977@qq.com'
+           permission_item.value, 'platform-owner@example.com', 'platform-owner@example.com'
     from jsonb_each_text(p_permissions) permission_item
     join public.sys_permission_field field_row
       on field_row.tenant_id = v_tenant_id
@@ -15725,7 +15854,7 @@ begin
       tenant_id, user_id, resource_id, field_id, access_level, create_by, update_by
     )
     select v_tenant_id, p_subject_id, v_resource.id, field_row.id,
-           permission_item.value, '624944977@qq.com', '624944977@qq.com'
+           permission_item.value, 'platform-owner@example.com', 'platform-owner@example.com'
     from jsonb_each_text(p_permissions) permission_item
     join public.sys_permission_field field_row
       on field_row.tenant_id = v_tenant_id
@@ -15923,6 +16052,82 @@ $$;
 
 
 ALTER FUNCTION "public"."start_workflow"("p_business_type" "text", "p_business_id" "uuid", "p_business_title" "text", "p_context" "jsonb", "p_idempotency_key" "text") OWNER TO "postgres";
+
+--
+
+--
+-- Name: system_list_user_employee_references_secure("uuid"[]); Type: FUNCTION; Schema: public
+--
+
+--
+
+CREATE OR REPLACE FUNCTION "public"."system_list_user_employee_references_secure"("p_user_ids" "uuid"[]) RETURNS "jsonb"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+declare
+  v_records jsonb := '[]'::jsonb;
+  v_is_platform_super boolean := app_private.is_platform_super();
+  v_tenant_id uuid;
+begin
+  if (select auth.uid()) is null
+     or not app_private.can_access_business_menu('User') then
+    raise exception '当前账号没有查看用户的权限' using errcode = '42501';
+  end if;
+
+  if coalesce(cardinality(p_user_ids), 0) > 200 then
+    raise exception '单次最多读取 200 个用户的员工引用' using errcode = '22023';
+  end if;
+
+  if not v_is_platform_super then
+    v_tenant_id := app_private.current_user_tenant_id();
+  end if;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_strip_nulls(
+        jsonb_build_object(
+          'user_id', user_row.id,
+          'id', employee_row.id,
+          'tenant_id', employee_row.tenant_id,
+          'organization_id', employee_row.organization_id,
+          'employee_no', employee_row.employee_no,
+          'employee_name', employee_row.employee_name,
+          'avatar_url', employee_row.avatar_url,
+          'job_title', employee_row.job_title,
+          'employment_status', employee_row.employment_status,
+          'organization', case
+            when organization_row.id is null then null
+            else jsonb_build_object(
+              'id', organization_row.id,
+              'organization_code', organization_row.organization_code,
+              'organization_name', organization_row.organization_name
+            )
+          end
+        )
+      )
+      order by user_row.id
+    ),
+    '[]'::jsonb
+  )
+  into v_records
+  from public.sys_user user_row
+  join public.mdm_employee employee_row
+    on employee_row.id = user_row.hr_employee_id
+   and employee_row.tenant_id = user_row.tenant_id
+  left join public.mdm_organization organization_row
+    on organization_row.id = employee_row.organization_id
+   and organization_row.tenant_id = employee_row.tenant_id
+  where user_row.id = any(coalesce(p_user_ids, array[]::uuid[]))
+    and user_row.deleted_at is null
+    and (v_is_platform_super or user_row.tenant_id = v_tenant_id);
+
+  return jsonb_build_object('records', v_records);
+end;
+$$;
+
+
+ALTER FUNCTION "public"."system_list_user_employee_references_secure"("p_user_ids" "uuid"[]) OWNER TO "postgres";
 
 --
 
@@ -16893,8 +17098,8 @@ begin
     0,
     '租户根组织，由系统自动维护',
     true,
-    coalesce(new.create_by, '624944977@qq.com'),
-    coalesce(new.update_by, new.create_by, '624944977@qq.com')
+    coalesce(new.create_by, 'platform-owner@example.com'),
+    coalesce(new.update_by, new.create_by, 'platform-owner@example.com')
   )
   on conflict (tenant_id, organization_code) do nothing;
 
@@ -18550,6 +18755,14 @@ COMMENT ON TABLE "public"."ai_feedback" IS 'User feedback and corrections for AI
 -- Name: ai_feedback_id_seq; Type: SEQUENCE; Schema: public
 --
 
+DO $identity_column$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_attribute a
+     WHERE a.attrelid = 'public.ai_feedback'::regclass
+       AND a.attname = 'id'
+       AND a.attidentity <> ''
+  ) THEN
 --
 
 ALTER TABLE "public"."ai_feedback" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
@@ -18563,6 +18776,9 @@ ALTER TABLE "public"."ai_feedback" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDE
 
 
 --
+  END IF;
+END
+$identity_column$;
 
 --
 -- Name: ai_message; Type: TABLE; Schema: public
@@ -18607,6 +18823,14 @@ COMMENT ON TABLE "public"."ai_message" IS 'Messages persisted by the AI assistan
 -- Name: ai_message_id_seq; Type: SEQUENCE; Schema: public
 --
 
+DO $identity_column$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_attribute a
+     WHERE a.attrelid = 'public.ai_message'::regclass
+       AND a.attname = 'id'
+       AND a.attidentity <> ''
+  ) THEN
 --
 
 ALTER TABLE "public"."ai_message" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
@@ -18620,6 +18844,9 @@ ALTER TABLE "public"."ai_message" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDEN
 
 
 --
+  END IF;
+END
+$identity_column$;
 
 --
 -- Name: ai_ocr_quality_threshold; Type: TABLE; Schema: public
@@ -18931,6 +19158,14 @@ COMMENT ON TABLE "public"."ai_suggestion_event" IS 'Immutable explicit and impli
 -- Name: ai_suggestion_event_id_seq; Type: SEQUENCE; Schema: public
 --
 
+DO $identity_column$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_attribute a
+     WHERE a.attrelid = 'public.ai_suggestion_event'::regclass
+       AND a.attname = 'id'
+       AND a.attidentity <> ''
+  ) THEN
 --
 
 ALTER TABLE "public"."ai_suggestion_event" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
@@ -18944,6 +19179,9 @@ ALTER TABLE "public"."ai_suggestion_event" ALTER COLUMN "id" ADD GENERATED ALWAY
 
 
 --
+  END IF;
+END
+$identity_column$;
 
 --
 -- Name: ai_tool_call; Type: TABLE; Schema: public
@@ -18990,6 +19228,14 @@ COMMENT ON TABLE "public"."ai_tool_call" IS 'Allowlisted business tool execution
 -- Name: ai_tool_call_id_seq; Type: SEQUENCE; Schema: public
 --
 
+DO $identity_column$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_attribute a
+     WHERE a.attrelid = 'public.ai_tool_call'::regclass
+       AND a.attname = 'id'
+       AND a.attidentity <> ''
+  ) THEN
 --
 
 ALTER TABLE "public"."ai_tool_call" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
@@ -19003,6 +19249,9 @@ ALTER TABLE "public"."ai_tool_call" ALTER COLUMN "id" ADD GENERATED ALWAYS AS ID
 
 
 --
+  END IF;
+END
+$identity_column$;
 
 --
 -- Name: ai_ui_design_reference; Type: TABLE; Schema: public
@@ -21144,6 +21393,14 @@ COMMENT ON TABLE "public"."wf_business_callback_outbox" IS 'Transactional workfl
 -- Name: wf_business_callback_outbox_event_no_seq; Type: SEQUENCE; Schema: public
 --
 
+DO $identity_column$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_attribute a
+     WHERE a.attrelid = 'public.wf_business_callback_outbox'::regclass
+       AND a.attname = 'event_no'
+       AND a.attidentity <> ''
+  ) THEN
 --
 
 ALTER TABLE "public"."wf_business_callback_outbox" ALTER COLUMN "event_no" ADD GENERATED ALWAYS AS IDENTITY (
@@ -21157,6 +21414,9 @@ ALTER TABLE "public"."wf_business_callback_outbox" ALTER COLUMN "event_no" ADD G
 
 
 --
+  END IF;
+END
+$identity_column$;
 
 --
 -- Name: wf_definition; Type: TABLE; Schema: public
@@ -21430,6 +21690,13 @@ COMMENT ON TABLE "public"."wf_version" IS 'Immutable after publishing; stores th
 -- Name: ai_artifact_review ai_artifact_review_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_artifact_review_pkey'
+       AND c.conrelid = 'public.ai_artifact_review'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_artifact_review"
@@ -21437,11 +21704,21 @@ ALTER TABLE ONLY "public"."ai_artifact_review"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_artifact_review ai_artifact_review_run_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_artifact_review_run_unique'
+       AND c.conrelid = 'public.ai_artifact_review'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_artifact_review"
@@ -21449,11 +21726,21 @@ ALTER TABLE ONLY "public"."ai_artifact_review"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_conversation ai_conversation_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_conversation_pkey'
+       AND c.conrelid = 'public.ai_conversation'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_conversation"
@@ -21461,11 +21748,21 @@ ALTER TABLE ONLY "public"."ai_conversation"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feature_config ai_feature_config_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feature_config_pkey'
+       AND c.conrelid = 'public.ai_feature_config'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feature_config"
@@ -21473,11 +21770,21 @@ ALTER TABLE ONLY "public"."ai_feature_config"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feature_config ai_feature_config_tenant_feature_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feature_config_tenant_feature_unique'
+       AND c.conrelid = 'public.ai_feature_config'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feature_config"
@@ -21485,11 +21792,21 @@ ALTER TABLE ONLY "public"."ai_feature_config"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feedback ai_feedback_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feedback_pkey'
+       AND c.conrelid = 'public.ai_feedback'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feedback"
@@ -21497,11 +21814,21 @@ ALTER TABLE ONLY "public"."ai_feedback"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feedback_resolution ai_feedback_resolution_feedback_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feedback_resolution_feedback_unique'
+       AND c.conrelid = 'public.ai_feedback_resolution'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feedback_resolution"
@@ -21509,11 +21836,21 @@ ALTER TABLE ONLY "public"."ai_feedback_resolution"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feedback_resolution ai_feedback_resolution_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feedback_resolution_pkey'
+       AND c.conrelid = 'public.ai_feedback_resolution'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feedback_resolution"
@@ -21521,11 +21858,21 @@ ALTER TABLE ONLY "public"."ai_feedback_resolution"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feedback ai_feedback_run_id_auth_user_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feedback_run_id_auth_user_id_key'
+       AND c.conrelid = 'public.ai_feedback'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feedback"
@@ -21533,11 +21880,21 @@ ALTER TABLE ONLY "public"."ai_feedback"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_message ai_message_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_message_pkey'
+       AND c.conrelid = 'public.ai_message'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_message"
@@ -21545,11 +21902,21 @@ ALTER TABLE ONLY "public"."ai_message"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_ocr_quality_threshold ai_ocr_quality_threshold_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_ocr_quality_threshold_pkey'
+       AND c.conrelid = 'public.ai_ocr_quality_threshold'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_ocr_quality_threshold"
@@ -21557,11 +21924,21 @@ ALTER TABLE ONLY "public"."ai_ocr_quality_threshold"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_ocr_quality_threshold ai_ocr_quality_threshold_tenant_id_feature_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_ocr_quality_threshold_tenant_id_feature_key'
+       AND c.conrelid = 'public.ai_ocr_quality_threshold'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_ocr_quality_threshold"
@@ -21569,11 +21946,21 @@ ALTER TABLE ONLY "public"."ai_ocr_quality_threshold"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_project_snapshot ai_project_snapshot_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_project_snapshot_pkey'
+       AND c.conrelid = 'public.ai_project_snapshot'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_project_snapshot"
@@ -21581,11 +21968,21 @@ ALTER TABLE ONLY "public"."ai_project_snapshot"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_project_snapshot ai_project_snapshot_tenant_user_hash_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_project_snapshot_tenant_user_hash_unique'
+       AND c.conrelid = 'public.ai_project_snapshot'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_project_snapshot"
@@ -21593,11 +21990,21 @@ ALTER TABLE ONLY "public"."ai_project_snapshot"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_prompt_template ai_prompt_template_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_prompt_template_pkey'
+       AND c.conrelid = 'public.ai_prompt_template'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_prompt_template"
@@ -21605,11 +22012,21 @@ ALTER TABLE ONLY "public"."ai_prompt_template"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_prompt_template ai_prompt_template_tenant_feature_version_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_prompt_template_tenant_feature_version_unique'
+       AND c.conrelid = 'public.ai_prompt_template'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_prompt_template"
@@ -21617,11 +22034,21 @@ ALTER TABLE ONLY "public"."ai_prompt_template"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_run ai_run_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_run_pkey'
+       AND c.conrelid = 'public.ai_run'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_run"
@@ -21629,11 +22056,21 @@ ALTER TABLE ONLY "public"."ai_run"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_security_event ai_security_event_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_security_event_pkey'
+       AND c.conrelid = 'public.ai_security_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_security_event"
@@ -21641,11 +22078,21 @@ ALTER TABLE ONLY "public"."ai_security_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion ai_suggestion_batch_fingerprint_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_batch_fingerprint_unique'
+       AND c.conrelid = 'public.ai_suggestion'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion"
@@ -21653,11 +22100,21 @@ ALTER TABLE ONLY "public"."ai_suggestion"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion_batch ai_suggestion_batch_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_batch_pkey'
+       AND c.conrelid = 'public.ai_suggestion_batch'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion_batch"
@@ -21665,11 +22122,21 @@ ALTER TABLE ONLY "public"."ai_suggestion_batch"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion_event ai_suggestion_event_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_event_pkey'
+       AND c.conrelid = 'public.ai_suggestion_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion_event"
@@ -21677,11 +22144,21 @@ ALTER TABLE ONLY "public"."ai_suggestion_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion ai_suggestion_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_pkey'
+       AND c.conrelid = 'public.ai_suggestion'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion"
@@ -21689,11 +22166,21 @@ ALTER TABLE ONLY "public"."ai_suggestion"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_tool_call ai_tool_call_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_tool_call_pkey'
+       AND c.conrelid = 'public.ai_tool_call'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_tool_call"
@@ -21701,11 +22188,21 @@ ALTER TABLE ONLY "public"."ai_tool_call"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_ui_design_reference_image ai_ui_design_reference_image_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_ui_design_reference_image_pkey'
+       AND c.conrelid = 'public.ai_ui_design_reference_image'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_ui_design_reference_image"
@@ -21713,11 +22210,21 @@ ALTER TABLE ONLY "public"."ai_ui_design_reference_image"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_ui_design_reference_image ai_ui_design_reference_image_storage_path_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_ui_design_reference_image_storage_path_key'
+       AND c.conrelid = 'public.ai_ui_design_reference_image'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_ui_design_reference_image"
@@ -21725,11 +22232,21 @@ ALTER TABLE ONLY "public"."ai_ui_design_reference_image"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_ui_design_reference ai_ui_design_reference_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_ui_design_reference_pkey'
+       AND c.conrelid = 'public.ai_ui_design_reference'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_ui_design_reference"
@@ -21737,11 +22254,21 @@ ALTER TABLE ONLY "public"."ai_ui_design_reference"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_ui_design_reference ai_ui_design_reference_tenant_user_route_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_ui_design_reference_tenant_user_route_key'
+       AND c.conrelid = 'public.ai_ui_design_reference'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_ui_design_reference"
@@ -21749,11 +22276,21 @@ ALTER TABLE ONLY "public"."ai_ui_design_reference"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_employee hr_employee_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_employee_id_tenant_key'
+       AND c.conrelid = 'public.mdm_employee'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_employee"
@@ -21761,11 +22298,21 @@ ALTER TABLE ONLY "public"."mdm_employee"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_employee hr_employee_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_employee_pkey'
+       AND c.conrelid = 'public.mdm_employee'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_employee"
@@ -21773,11 +22320,21 @@ ALTER TABLE ONLY "public"."mdm_employee"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_employee hr_employee_tenant_employee_no_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_employee_tenant_employee_no_key'
+       AND c.conrelid = 'public.mdm_employee'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_employee"
@@ -21785,11 +22342,21 @@ ALTER TABLE ONLY "public"."mdm_employee"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_grade hr_grade_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_grade_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_grade'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_grade"
@@ -21797,11 +22364,21 @@ ALTER TABLE ONLY "public"."mdm_grade"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_grade hr_grade_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_grade_pkey'
+       AND c.conrelid = 'public.mdm_grade'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_grade"
@@ -21809,11 +22386,21 @@ ALTER TABLE ONLY "public"."mdm_grade"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_job_family hr_job_family_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_job_family_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_job_family'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_job_family"
@@ -21821,11 +22408,21 @@ ALTER TABLE ONLY "public"."mdm_job_family"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_job_family hr_job_family_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_job_family_pkey'
+       AND c.conrelid = 'public.mdm_job_family'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_job_family"
@@ -21833,11 +22430,21 @@ ALTER TABLE ONLY "public"."mdm_job_family"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_job_profile hr_job_profile_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_job_profile_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_job_profile'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_job_profile"
@@ -21845,11 +22452,21 @@ ALTER TABLE ONLY "public"."mdm_job_profile"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_job_profile hr_job_profile_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_job_profile_pkey'
+       AND c.conrelid = 'public.mdm_job_profile'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_job_profile"
@@ -21857,11 +22474,21 @@ ALTER TABLE ONLY "public"."mdm_job_profile"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_position hr_position_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_position_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_position'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_position"
@@ -21869,11 +22496,21 @@ ALTER TABLE ONLY "public"."mdm_position"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_position hr_position_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_position_pkey'
+       AND c.conrelid = 'public.mdm_position'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_position"
@@ -21881,11 +22518,21 @@ ALTER TABLE ONLY "public"."mdm_position"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_item mdm_accessory_processing_item_id_tenant_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_accessory_processing_item_id_tenant_id_key'
+       AND c.conrelid = 'public.mdm_accessory_processing_item'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
@@ -21893,11 +22540,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_item mdm_accessory_processing_item_list_id_line_no_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_accessory_processing_item_list_id_line_no_key'
+       AND c.conrelid = 'public.mdm_accessory_processing_item'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
@@ -21905,11 +22562,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_item mdm_accessory_processing_item_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_accessory_processing_item_pkey'
+       AND c.conrelid = 'public.mdm_accessory_processing_item'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
@@ -21917,11 +22584,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_list mdm_accessory_processing_list_id_tenant_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_accessory_processing_list_id_tenant_id_key'
+       AND c.conrelid = 'public.mdm_accessory_processing_list'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_list"
@@ -21929,11 +22606,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_list"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_list mdm_accessory_processing_list_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_accessory_processing_list_pkey'
+       AND c.conrelid = 'public.mdm_accessory_processing_list'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_list"
@@ -21941,11 +22628,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_list"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_bom mdm_bom_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_bom_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_bom'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_bom"
@@ -21953,11 +22650,21 @@ ALTER TABLE ONLY "public"."mdm_bom"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_bom mdm_bom_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_bom_pkey'
+       AND c.conrelid = 'public.mdm_bom'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_bom"
@@ -21965,11 +22672,21 @@ ALTER TABLE ONLY "public"."mdm_bom"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_carrier mdm_carrier_tenant_id_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_carrier_tenant_id_id_key'
+       AND c.conrelid = 'public.mdm_carrier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_carrier"
@@ -21977,11 +22694,21 @@ ALTER TABLE ONLY "public"."mdm_carrier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer mdm_customer_tenant_id_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_customer_tenant_id_id_key'
+       AND c.conrelid = 'public.mdm_customer'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer"
@@ -21989,11 +22716,21 @@ ALTER TABLE ONLY "public"."mdm_customer"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_document_type mdm_document_type_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_document_type_id_tenant_key'
+       AND c.conrelid = 'public.mdm_document_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_document_type"
@@ -22001,11 +22738,21 @@ ALTER TABLE ONLY "public"."mdm_document_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_document_type mdm_document_type_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_document_type_pkey'
+       AND c.conrelid = 'public.mdm_document_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_document_type"
@@ -22013,11 +22760,21 @@ ALTER TABLE ONLY "public"."mdm_document_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_document_type mdm_document_type_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_document_type_tenant_code_key'
+       AND c.conrelid = 'public.mdm_document_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_document_type"
@@ -22025,11 +22782,21 @@ ALTER TABLE ONLY "public"."mdm_document_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_master_group mdm_master_group_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_master_group_id_tenant_key'
+       AND c.conrelid = 'public.mdm_master_group'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_master_group"
@@ -22037,11 +22804,21 @@ ALTER TABLE ONLY "public"."mdm_master_group"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_master_group mdm_master_group_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_master_group_pkey'
+       AND c.conrelid = 'public.mdm_master_group'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_master_group"
@@ -22049,11 +22826,21 @@ ALTER TABLE ONLY "public"."mdm_master_group"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_master_group mdm_master_group_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_master_group_tenant_code_key'
+       AND c.conrelid = 'public.mdm_master_group'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_master_group"
@@ -22061,11 +22848,21 @@ ALTER TABLE ONLY "public"."mdm_master_group"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_attribute_group mdm_material_attribute_group_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_attribute_group_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_material_attribute_group'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_attribute_group"
@@ -22073,11 +22870,21 @@ ALTER TABLE ONLY "public"."mdm_material_attribute_group"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_attribute_group mdm_material_attribute_group_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_attribute_group_pkey'
+       AND c.conrelid = 'public.mdm_material_attribute_group'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_attribute_group"
@@ -22085,11 +22892,21 @@ ALTER TABLE ONLY "public"."mdm_material_attribute_group"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_code_rule mdm_material_code_rule_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_code_rule_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_material_code_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_code_rule"
@@ -22097,11 +22914,21 @@ ALTER TABLE ONLY "public"."mdm_material_code_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_code_rule mdm_material_code_rule_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_code_rule_pkey'
+       AND c.conrelid = 'public.mdm_material_code_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_code_rule"
@@ -22109,11 +22936,21 @@ ALTER TABLE ONLY "public"."mdm_material_code_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -22121,11 +22958,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_type mdm_material_type_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_type_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_material_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_type"
@@ -22133,11 +22980,21 @@ ALTER TABLE ONLY "public"."mdm_material_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_type mdm_material_type_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_type_pkey'
+       AND c.conrelid = 'public.mdm_material_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_type"
@@ -22145,11 +23002,21 @@ ALTER TABLE ONLY "public"."mdm_material_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_outbound_rule mdm_outbound_rule_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_outbound_rule_id_tenant_key'
+       AND c.conrelid = 'public.mdm_outbound_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_outbound_rule"
@@ -22157,11 +23024,21 @@ ALTER TABLE ONLY "public"."mdm_outbound_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_outbound_rule mdm_outbound_rule_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_outbound_rule_pkey'
+       AND c.conrelid = 'public.mdm_outbound_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_outbound_rule"
@@ -22169,11 +23046,21 @@ ALTER TABLE ONLY "public"."mdm_outbound_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_outbound_rule mdm_outbound_rule_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_outbound_rule_tenant_code_key'
+       AND c.conrelid = 'public.mdm_outbound_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_outbound_rule"
@@ -22181,11 +23068,21 @@ ALTER TABLE ONLY "public"."mdm_outbound_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_outbound_rule mdm_outbound_rule_tenant_name_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_outbound_rule_tenant_name_key'
+       AND c.conrelid = 'public.mdm_outbound_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_outbound_rule"
@@ -22193,11 +23090,21 @@ ALTER TABLE ONLY "public"."mdm_outbound_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_process_route mdm_process_route_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_process_route_pkey'
+       AND c.conrelid = 'public.mdm_process_route'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_process_route"
@@ -22205,11 +23112,21 @@ ALTER TABLE ONLY "public"."mdm_process_route"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_process_route mdm_process_route_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_process_route_tenant_code_key'
+       AND c.conrelid = 'public.mdm_process_route'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_process_route"
@@ -22217,11 +23134,21 @@ ALTER TABLE ONLY "public"."mdm_process_route"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_process_route mdm_process_route_tenant_id_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_process_route_tenant_id_id_key'
+       AND c.conrelid = 'public.mdm_process_route'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_process_route"
@@ -22229,11 +23156,21 @@ ALTER TABLE ONLY "public"."mdm_process_route"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_process_route mdm_process_route_tenant_id_material_id_name_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_process_route_tenant_id_material_id_name_key'
+       AND c.conrelid = 'public.mdm_process_route'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_process_route"
@@ -22241,11 +23178,21 @@ ALTER TABLE ONLY "public"."mdm_process_route"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_production_department mdm_production_department_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_production_department_pkey'
+       AND c.conrelid = 'public.mdm_production_department'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_production_department"
@@ -22253,11 +23200,21 @@ ALTER TABLE ONLY "public"."mdm_production_department"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_production_department mdm_production_department_tenant_id_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_production_department_tenant_id_code_key'
+       AND c.conrelid = 'public.mdm_production_department'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_production_department"
@@ -22265,11 +23222,21 @@ ALTER TABLE ONLY "public"."mdm_production_department"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_production_department mdm_production_department_tenant_id_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_production_department_tenant_id_id_key'
+       AND c.conrelid = 'public.mdm_production_department'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_production_department"
@@ -22277,11 +23244,21 @@ ALTER TABLE ONLY "public"."mdm_production_department"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project_construction mdm_project_construction_id_tenant_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_construction_id_tenant_id_key'
+       AND c.conrelid = 'public.mdm_project_construction'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project_construction"
@@ -22289,11 +23266,21 @@ ALTER TABLE ONLY "public"."mdm_project_construction"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project_construction mdm_project_construction_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_construction_pkey'
+       AND c.conrelid = 'public.mdm_project_construction'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project_construction"
@@ -22301,11 +23288,21 @@ ALTER TABLE ONLY "public"."mdm_project_construction"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project_construction mdm_project_construction_tenant_id_project_id_construction__key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_construction_tenant_id_project_id_construction__key'
+       AND c.conrelid = 'public.mdm_project_construction'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project_construction"
@@ -22313,11 +23310,21 @@ ALTER TABLE ONLY "public"."mdm_project_construction"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project mdm_project_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_id_tenant_key'
+       AND c.conrelid = 'public.mdm_project'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project"
@@ -22325,11 +23332,21 @@ ALTER TABLE ONLY "public"."mdm_project"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project mdm_project_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_pkey'
+       AND c.conrelid = 'public.mdm_project'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project"
@@ -22337,11 +23354,21 @@ ALTER TABLE ONLY "public"."mdm_project"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project mdm_project_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_tenant_code_key'
+       AND c.conrelid = 'public.mdm_project'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project"
@@ -22349,11 +23376,21 @@ ALTER TABLE ONLY "public"."mdm_project"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supplier mdm_supplier_tenant_id_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_supplier_tenant_id_id_key'
+       AND c.conrelid = 'public.mdm_supplier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supplier"
@@ -22361,11 +23398,21 @@ ALTER TABLE ONLY "public"."mdm_supplier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supply_chain_code_rule mdm_supply_chain_code_rule_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_supply_chain_code_rule_id_tenant_key'
+       AND c.conrelid = 'public.mdm_supply_chain_code_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
@@ -22373,11 +23420,21 @@ ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supply_chain_code_rule mdm_supply_chain_code_rule_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_supply_chain_code_rule_pkey'
+       AND c.conrelid = 'public.mdm_supply_chain_code_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
@@ -22385,11 +23442,21 @@ ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supply_chain_code_rule mdm_supply_chain_code_rule_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_supply_chain_code_rule_tenant_code_key'
+       AND c.conrelid = 'public.mdm_supply_chain_code_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
@@ -22397,11 +23464,21 @@ ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supply_chain_code_rule mdm_supply_chain_code_rule_tenant_name_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_supply_chain_code_rule_tenant_name_key'
+       AND c.conrelid = 'public.mdm_supply_chain_code_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
@@ -22409,11 +23486,21 @@ ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_unit_of_measure mdm_unit_of_measure_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_unit_of_measure_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_unit_of_measure'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_unit_of_measure"
@@ -22421,11 +23508,21 @@ ALTER TABLE ONLY "public"."mdm_unit_of_measure"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_unit_of_measure mdm_unit_of_measure_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_unit_of_measure_pkey'
+       AND c.conrelid = 'public.mdm_unit_of_measure'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_unit_of_measure"
@@ -22433,11 +23530,21 @@ ALTER TABLE ONLY "public"."mdm_unit_of_measure"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_id_warehouse_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_bin_id_warehouse_tenant_key'
+       AND c.conrelid = 'public.mdm_warehouse_bin'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_bin"
@@ -22445,11 +23552,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_bin"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_bin_pkey'
+       AND c.conrelid = 'public.mdm_warehouse_bin'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_bin"
@@ -22457,11 +23574,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_bin"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_bin_tenant_code_key'
+       AND c.conrelid = 'public.mdm_warehouse_bin'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_bin"
@@ -22469,11 +23596,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_bin"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse mdm_warehouse_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_id_tenant_key'
+       AND c.conrelid = 'public.mdm_warehouse'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse"
@@ -22481,11 +23618,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse mdm_warehouse_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_pkey'
+       AND c.conrelid = 'public.mdm_warehouse'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse"
@@ -22493,11 +23640,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_zone mdm_warehouse_zone_id_warehouse_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_zone_id_warehouse_tenant_key'
+       AND c.conrelid = 'public.mdm_warehouse_zone'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_zone"
@@ -22505,11 +23662,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_zone"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_zone mdm_warehouse_zone_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_zone_pkey'
+       AND c.conrelid = 'public.mdm_warehouse_zone'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_zone"
@@ -22517,11 +23684,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_zone"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_zone mdm_warehouse_zone_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_zone_tenant_code_key'
+       AND c.conrelid = 'public.mdm_warehouse_zone'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_zone"
@@ -22529,11 +23706,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_zone"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_purchase_document scm_purchase_document_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_purchase_document_pkey'
+       AND c.conrelid = 'public.scm_purchase_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_purchase_document"
@@ -22541,11 +23728,21 @@ ALTER TABLE ONLY "public"."scm_purchase_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_purchase_document scm_purchase_document_tenant_id_kind_document_no_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_purchase_document_tenant_id_kind_document_no_key'
+       AND c.conrelid = 'public.scm_purchase_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_purchase_document"
@@ -22553,11 +23750,21 @@ ALTER TABLE ONLY "public"."scm_purchase_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_document scm_receipt_target_document_id_tenant_id_target_kind_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_document_id_tenant_id_target_kind_key'
+       AND c.conrelid = 'public.scm_receipt_target_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_document"
@@ -22565,11 +23772,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_document scm_receipt_target_document_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_document_pkey'
+       AND c.conrelid = 'public.scm_receipt_target_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_document"
@@ -22577,11 +23794,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_document scm_receipt_target_document_tenant_id_document_no_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_document_tenant_id_document_no_key'
+       AND c.conrelid = 'public.scm_receipt_target_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_document"
@@ -22589,11 +23816,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_line scm_receipt_target_line_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_line_pkey'
+       AND c.conrelid = 'public.scm_receipt_target_line'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_line"
@@ -22601,11 +23838,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_line"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_line scm_receipt_target_line_tenant_id_target_kind_source_receip_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_line_tenant_id_target_kind_source_receip_key'
+       AND c.conrelid = 'public.scm_receipt_target_line'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_line"
@@ -22613,11 +23860,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_line"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_sales_document scm_sales_document_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_sales_document_pkey'
+       AND c.conrelid = 'public.scm_sales_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_sales_document"
@@ -22625,11 +23882,21 @@ ALTER TABLE ONLY "public"."scm_sales_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_sales_document scm_sales_document_tenant_id_kind_document_no_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_sales_document_tenant_id_kind_document_no_key'
+       AND c.conrelid = 'public.scm_sales_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_sales_document"
@@ -22637,11 +23904,21 @@ ALTER TABLE ONLY "public"."scm_sales_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_category smis_material_category_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_material_category_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_material_category'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_category"
@@ -22649,11 +23926,21 @@ ALTER TABLE ONLY "public"."mdm_material_category"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_category smis_material_category_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_material_category_pkey'
+       AND c.conrelid = 'public.mdm_material_category'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_category"
@@ -22661,11 +23948,21 @@ ALTER TABLE ONLY "public"."mdm_material_category"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material smis_material_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_material_pkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -22673,11 +23970,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_site smis_site_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_site_pkey'
+       AND c.conrelid = 'public.mdm_site'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_site"
@@ -22685,11 +23992,21 @@ ALTER TABLE ONLY "public"."mdm_site"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_site smis_site_tenant_id_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_site_tenant_id_id_key'
+       AND c.conrelid = 'public.mdm_site'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_site"
@@ -22697,11 +24014,21 @@ ALTER TABLE ONLY "public"."mdm_site"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_storage_location smis_storage_location_id_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_storage_location_id_tenant_unique'
+       AND c.conrelid = 'public.mdm_storage_location'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_storage_location"
@@ -22709,11 +24036,21 @@ ALTER TABLE ONLY "public"."mdm_storage_location"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_storage_location smis_storage_location_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_storage_location_pkey'
+       AND c.conrelid = 'public.mdm_storage_location'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_storage_location"
@@ -22721,11 +24058,21 @@ ALTER TABLE ONLY "public"."mdm_storage_location"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_application sys_application_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_application_pkey'
+       AND c.conrelid = 'public.sys_application'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_application"
@@ -22733,11 +24080,21 @@ ALTER TABLE ONLY "public"."sys_application"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_attachment sys_attachment_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_attachment_pkey'
+       AND c.conrelid = 'public.sys_attachment'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_attachment"
@@ -22745,11 +24102,21 @@ ALTER TABLE ONLY "public"."sys_attachment"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_audit_log sys_audit_log_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_audit_log_pkey'
+       AND c.conrelid = 'public.sys_audit_log'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_audit_log"
@@ -22757,11 +24124,21 @@ ALTER TABLE ONLY "public"."sys_audit_log"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dict_type sys_dict_type_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dict_type_code_key'
+       AND c.conrelid = 'public.sys_dict_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dict_type"
@@ -22769,11 +24146,21 @@ ALTER TABLE ONLY "public"."sys_dict_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dict_type sys_dict_type_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dict_type_pkey'
+       AND c.conrelid = 'public.sys_dict_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dict_type"
@@ -22781,11 +24168,21 @@ ALTER TABLE ONLY "public"."sys_dict_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dictionary sys_dictionary_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dictionary_pkey'
+       AND c.conrelid = 'public.sys_dictionary'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dictionary"
@@ -22793,11 +24190,21 @@ ALTER TABLE ONLY "public"."sys_dictionary"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_counter sys_document_number_counter_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_counter_pkey'
+       AND c.conrelid = 'public.sys_document_number_counter'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_counter"
@@ -22805,11 +24212,21 @@ ALTER TABLE ONLY "public"."sys_document_number_counter"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_counter sys_document_number_counter_scope_uk; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_counter_scope_uk'
+       AND c.conrelid = 'public.sys_document_number_counter'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_counter"
@@ -22817,11 +24234,21 @@ ALTER TABLE ONLY "public"."sys_document_number_counter"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_rule sys_document_number_rule_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_rule_pkey'
+       AND c.conrelid = 'public.sys_document_number_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_rule"
@@ -22829,11 +24256,21 @@ ALTER TABLE ONLY "public"."sys_document_number_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_rule sys_document_number_rule_tenant_key_uk; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_rule_tenant_key_uk'
+       AND c.conrelid = 'public.sys_document_number_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_rule"
@@ -22841,11 +24278,21 @@ ALTER TABLE ONLY "public"."sys_document_number_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_scene sys_document_number_scene_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_scene_pkey'
+       AND c.conrelid = 'public.sys_document_number_scene'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_scene"
@@ -22853,11 +24300,21 @@ ALTER TABLE ONLY "public"."sys_document_number_scene"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_menu sys_menu_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_menu_pkey'
+       AND c.conrelid = 'public.sys_menu'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_menu"
@@ -22865,11 +24322,21 @@ ALTER TABLE ONLY "public"."sys_menu"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_channel_config sys_notification_channel_config_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_channel_config_pkey'
+       AND c.conrelid = 'public.sys_notification_channel_config'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_channel_config"
@@ -22877,11 +24344,21 @@ ALTER TABLE ONLY "public"."sys_notification_channel_config"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_channel_config sys_notification_channel_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_channel_id_tenant_key'
+       AND c.conrelid = 'public.sys_notification_channel_config'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_channel_config"
@@ -22889,11 +24366,21 @@ ALTER TABLE ONLY "public"."sys_notification_channel_config"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_channel_config sys_notification_channel_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_channel_tenant_key'
+       AND c.conrelid = 'public.sys_notification_channel_config'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_channel_config"
@@ -22901,11 +24388,21 @@ ALTER TABLE ONLY "public"."sys_notification_channel_config"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_delivery sys_notification_delivery_event_recipient_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_delivery_event_recipient_key'
+       AND c.conrelid = 'public.sys_notification_delivery'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_delivery"
@@ -22913,11 +24410,21 @@ ALTER TABLE ONLY "public"."sys_notification_delivery"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_delivery sys_notification_delivery_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_delivery_pkey'
+       AND c.conrelid = 'public.sys_notification_delivery'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_delivery"
@@ -22925,11 +24432,21 @@ ALTER TABLE ONLY "public"."sys_notification_delivery"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_event sys_notification_event_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_event_id_tenant_key'
+       AND c.conrelid = 'public.sys_notification_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_event"
@@ -22937,11 +24454,21 @@ ALTER TABLE ONLY "public"."sys_notification_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_event sys_notification_event_occurrence_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_event_occurrence_key'
+       AND c.conrelid = 'public.sys_notification_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_event"
@@ -22949,11 +24476,21 @@ ALTER TABLE ONLY "public"."sys_notification_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_event sys_notification_event_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_event_pkey'
+       AND c.conrelid = 'public.sys_notification_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_event"
@@ -22961,11 +24498,21 @@ ALTER TABLE ONLY "public"."sys_notification_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification sys_notification_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_pkey'
+       AND c.conrelid = 'public.sys_notification'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification"
@@ -22973,11 +24520,21 @@ ALTER TABLE ONLY "public"."sys_notification"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_rule sys_notification_rule_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_rule_id_tenant_key'
+       AND c.conrelid = 'public.sys_notification_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_rule"
@@ -22985,11 +24542,21 @@ ALTER TABLE ONLY "public"."sys_notification_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_rule sys_notification_rule_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_rule_pkey'
+       AND c.conrelid = 'public.sys_notification_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_rule"
@@ -22997,11 +24564,21 @@ ALTER TABLE ONLY "public"."sys_notification_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_rule sys_notification_rule_tenant_name_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_rule_tenant_name_key'
+       AND c.conrelid = 'public.sys_notification_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_rule"
@@ -23009,11 +24586,21 @@ ALTER TABLE ONLY "public"."sys_notification_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_scenario sys_notification_scenario_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_scenario_pkey'
+       AND c.conrelid = 'public.sys_notification_scenario'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_scenario"
@@ -23021,11 +24608,21 @@ ALTER TABLE ONLY "public"."sys_notification_scenario"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_scenario sys_notification_scenario_scenario_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_scenario_scenario_code_key'
+       AND c.conrelid = 'public.sys_notification_scenario'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_scenario"
@@ -23033,11 +24630,21 @@ ALTER TABLE ONLY "public"."sys_notification_scenario"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification sys_notification_source_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_source_unique'
+       AND c.conrelid = 'public.sys_notification'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification"
@@ -23045,11 +24652,21 @@ ALTER TABLE ONLY "public"."sys_notification"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_subject sys_notification_subject_business_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_subject_business_key'
+       AND c.conrelid = 'public.sys_notification_subject'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_subject"
@@ -23057,11 +24674,21 @@ ALTER TABLE ONLY "public"."sys_notification_subject"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_subject sys_notification_subject_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_subject_id_tenant_key'
+       AND c.conrelid = 'public.sys_notification_subject'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_subject"
@@ -23069,11 +24696,21 @@ ALTER TABLE ONLY "public"."sys_notification_subject"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_subject sys_notification_subject_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_subject_pkey'
+       AND c.conrelid = 'public.sys_notification_subject'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_subject"
@@ -23081,11 +24718,21 @@ ALTER TABLE ONLY "public"."sys_notification_subject"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_organization sys_organization_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_organization_pkey'
+       AND c.conrelid = 'public.mdm_organization'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_organization"
@@ -23093,11 +24740,21 @@ ALTER TABLE ONLY "public"."mdm_organization"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_organization sys_organization_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_organization_tenant_code_key'
+       AND c.conrelid = 'public.mdm_organization'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_organization"
@@ -23105,11 +24762,21 @@ ALTER TABLE ONLY "public"."mdm_organization"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_organization sys_organization_tenant_id_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_organization_tenant_id_id_key'
+       AND c.conrelid = 'public.mdm_organization'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_organization"
@@ -23117,11 +24784,21 @@ ALTER TABLE ONLY "public"."mdm_organization"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_param sys_param_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_param_pkey'
+       AND c.conrelid = 'public.sys_param'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_param"
@@ -23129,11 +24806,21 @@ ALTER TABLE ONLY "public"."sys_param"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_audit_log sys_permission_audit_log_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_audit_log_pkey'
+       AND c.conrelid = 'public.sys_permission_audit_log'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_audit_log"
@@ -23141,11 +24828,21 @@ ALTER TABLE ONLY "public"."sys_permission_audit_log"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_field sys_permission_field_id_resource_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_field_id_resource_tenant_key'
+       AND c.conrelid = 'public.sys_permission_field'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_field"
@@ -23153,11 +24850,21 @@ ALTER TABLE ONLY "public"."sys_permission_field"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_field sys_permission_field_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_field_pkey'
+       AND c.conrelid = 'public.sys_permission_field'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_field"
@@ -23165,11 +24872,21 @@ ALTER TABLE ONLY "public"."sys_permission_field"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_field sys_permission_field_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_field_tenant_key'
+       AND c.conrelid = 'public.sys_permission_field'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_field"
@@ -23177,11 +24894,21 @@ ALTER TABLE ONLY "public"."sys_permission_field"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_resource sys_permission_resource_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_resource_id_tenant_key'
+       AND c.conrelid = 'public.sys_permission_resource'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_resource"
@@ -23189,11 +24916,21 @@ ALTER TABLE ONLY "public"."sys_permission_resource"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_resource sys_permission_resource_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_resource_pkey'
+       AND c.conrelid = 'public.sys_permission_resource'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_resource"
@@ -23201,11 +24938,21 @@ ALTER TABLE ONLY "public"."sys_permission_resource"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_resource sys_permission_resource_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_resource_tenant_key'
+       AND c.conrelid = 'public.sys_permission_resource'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_resource"
@@ -23213,11 +24960,21 @@ ALTER TABLE ONLY "public"."sys_permission_resource"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role_field_permission sys_role_field_permission_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_field_permission_pkey'
+       AND c.conrelid = 'public.sys_role_field_permission'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role_field_permission"
@@ -23225,11 +24982,21 @@ ALTER TABLE ONLY "public"."sys_role_field_permission"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role_field_permission sys_role_field_permission_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_field_permission_tenant_key'
+       AND c.conrelid = 'public.sys_role_field_permission'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role_field_permission"
@@ -23237,11 +25004,21 @@ ALTER TABLE ONLY "public"."sys_role_field_permission"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role sys_role_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_id_tenant_key'
+       AND c.conrelid = 'public.sys_role'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role"
@@ -23249,11 +25026,21 @@ ALTER TABLE ONLY "public"."sys_role"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role_menu sys_role_menu_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_menu_pkey'
+       AND c.conrelid = 'public.sys_role_menu'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role_menu"
@@ -23261,11 +25048,21 @@ ALTER TABLE ONLY "public"."sys_role_menu"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role_menu sys_role_menu_role_id_menu_id_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_menu_role_id_menu_id_key'
+       AND c.conrelid = 'public.sys_role_menu'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role_menu"
@@ -23273,11 +25070,21 @@ ALTER TABLE ONLY "public"."sys_role_menu"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role sys_role_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_pkey'
+       AND c.conrelid = 'public.sys_role'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role"
@@ -23285,11 +25092,21 @@ ALTER TABLE ONLY "public"."sys_role"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_tenant sys_tenant_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_tenant_pkey'
+       AND c.conrelid = 'public.sys_tenant'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_tenant"
@@ -23297,11 +25114,21 @@ ALTER TABLE ONLY "public"."sys_tenant"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_tenant sys_tenant_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_tenant_tenant_code_key'
+       AND c.conrelid = 'public.sys_tenant'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_tenant"
@@ -23309,11 +25136,21 @@ ALTER TABLE ONLY "public"."sys_tenant"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user_field_permission sys_user_field_permission_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_field_permission_pkey'
+       AND c.conrelid = 'public.sys_user_field_permission'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user_field_permission"
@@ -23321,11 +25158,21 @@ ALTER TABLE ONLY "public"."sys_user_field_permission"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user_field_permission sys_user_field_permission_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_field_permission_tenant_key'
+       AND c.conrelid = 'public.sys_user_field_permission'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user_field_permission"
@@ -23333,11 +25180,21 @@ ALTER TABLE ONLY "public"."sys_user_field_permission"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user sys_user_id_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_id_tenant_key'
+       AND c.conrelid = 'public.sys_user'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user"
@@ -23345,11 +25202,21 @@ ALTER TABLE ONLY "public"."sys_user"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user sys_user_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_pkey'
+       AND c.conrelid = 'public.sys_user'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user"
@@ -23357,11 +25224,21 @@ ALTER TABLE ONLY "public"."sys_user"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user_tenant sys_user_tenant_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_tenant_pkey'
+       AND c.conrelid = 'public.sys_user_tenant'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user_tenant"
@@ -23369,11 +25246,21 @@ ALTER TABLE ONLY "public"."sys_user_tenant"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user_tenant sys_user_tenant_user_tenant_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_tenant_user_tenant_key'
+       AND c.conrelid = 'public.sys_user_tenant'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user_tenant"
@@ -23381,11 +25268,21 @@ ALTER TABLE ONLY "public"."sys_user_tenant"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user sys_user_user_email_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_user_email_key'
+       AND c.conrelid = 'public.sys_user'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user"
@@ -23393,11 +25290,21 @@ ALTER TABLE ONLY "public"."sys_user"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_carrier tms_carrier_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_carrier_pkey'
+       AND c.conrelid = 'public.mdm_carrier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_carrier"
@@ -23405,11 +25312,21 @@ ALTER TABLE ONLY "public"."mdm_carrier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_carrier tms_carrier_tenant_code_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_carrier_tenant_code_key'
+       AND c.conrelid = 'public.mdm_carrier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_carrier"
@@ -23417,11 +25334,21 @@ ALTER TABLE ONLY "public"."mdm_carrier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer_address tms_customer_address_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_customer_address_pkey'
+       AND c.conrelid = 'public.mdm_customer_address'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer_address"
@@ -23429,11 +25356,21 @@ ALTER TABLE ONLY "public"."mdm_customer_address"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer tms_customer_code_tenant_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_customer_code_tenant_unique'
+       AND c.conrelid = 'public.mdm_customer'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer"
@@ -23441,11 +25378,21 @@ ALTER TABLE ONLY "public"."mdm_customer"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer tms_customer_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_customer_pkey'
+       AND c.conrelid = 'public.mdm_customer'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer"
@@ -23453,11 +25400,21 @@ ALTER TABLE ONLY "public"."mdm_customer"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: tms_invoice tms_invoice_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_invoice_pkey'
+       AND c.conrelid = 'public.tms_invoice'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."tms_invoice"
@@ -23465,11 +25422,21 @@ ALTER TABLE ONLY "public"."tms_invoice"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: tms_invoice tms_invoice_tenant_record_no_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_invoice_tenant_record_no_key'
+       AND c.conrelid = 'public.tms_invoice'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."tms_invoice"
@@ -23477,11 +25444,21 @@ ALTER TABLE ONLY "public"."tms_invoice"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supplier vehicle_supplier_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'vehicle_supplier_pkey'
+       AND c.conrelid = 'public.mdm_supplier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supplier"
@@ -23489,11 +25466,21 @@ ALTER TABLE ONLY "public"."mdm_supplier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_action wf_action_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_action_pkey'
+       AND c.conrelid = 'public.wf_action'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_action"
@@ -23501,11 +25488,21 @@ ALTER TABLE ONLY "public"."wf_action"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_business_callback_attempt wf_business_callback_attempt_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_business_callback_attempt_pkey'
+       AND c.conrelid = 'public.wf_business_callback_attempt'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_business_callback_attempt"
@@ -23513,11 +25510,21 @@ ALTER TABLE ONLY "public"."wf_business_callback_attempt"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_business_callback_attempt wf_business_callback_attempt_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_business_callback_attempt_unique'
+       AND c.conrelid = 'public.wf_business_callback_attempt'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_business_callback_attempt"
@@ -23525,11 +25532,21 @@ ALTER TABLE ONLY "public"."wf_business_callback_attempt"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_business_callback_outbox wf_business_callback_outbox_event_no_key; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_business_callback_outbox_event_no_key'
+       AND c.conrelid = 'public.wf_business_callback_outbox'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_business_callback_outbox"
@@ -23537,11 +25554,21 @@ ALTER TABLE ONLY "public"."wf_business_callback_outbox"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_business_callback_outbox wf_business_callback_outbox_instance_status_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_business_callback_outbox_instance_status_unique'
+       AND c.conrelid = 'public.wf_business_callback_outbox'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_business_callback_outbox"
@@ -23549,11 +25576,21 @@ ALTER TABLE ONLY "public"."wf_business_callback_outbox"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_business_callback_outbox wf_business_callback_outbox_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_business_callback_outbox_pkey'
+       AND c.conrelid = 'public.wf_business_callback_outbox'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_business_callback_outbox"
@@ -23561,11 +25598,21 @@ ALTER TABLE ONLY "public"."wf_business_callback_outbox"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_definition wf_definition_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_definition_pkey'
+       AND c.conrelid = 'public.wf_definition'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_definition"
@@ -23573,11 +25620,21 @@ ALTER TABLE ONLY "public"."wf_definition"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_definition wf_definition_tenant_code_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_definition_tenant_code_unique'
+       AND c.conrelid = 'public.wf_definition'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_definition"
@@ -23585,11 +25642,21 @@ ALTER TABLE ONLY "public"."wf_definition"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_delegation wf_delegation_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_delegation_pkey'
+       AND c.conrelid = 'public.wf_delegation'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_delegation"
@@ -23597,11 +25664,21 @@ ALTER TABLE ONLY "public"."wf_delegation"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_instance wf_instance_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_instance_pkey'
+       AND c.conrelid = 'public.wf_instance'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_instance"
@@ -23609,11 +25686,21 @@ ALTER TABLE ONLY "public"."wf_instance"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task wf_task_instance_node_original_assignee_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_instance_node_original_assignee_unique'
+       AND c.conrelid = 'public.wf_task'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task"
@@ -23621,11 +25708,21 @@ ALTER TABLE ONLY "public"."wf_task"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task wf_task_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_pkey'
+       AND c.conrelid = 'public.wf_task'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task"
@@ -23633,11 +25730,21 @@ ALTER TABLE ONLY "public"."wf_task"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task_reminder_event wf_task_reminder_event_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_reminder_event_pkey'
+       AND c.conrelid = 'public.wf_task_reminder_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task_reminder_event"
@@ -23645,11 +25752,21 @@ ALTER TABLE ONLY "public"."wf_task_reminder_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task_reminder_event wf_task_reminder_task_event_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_reminder_task_event_unique'
+       AND c.conrelid = 'public.wf_task_reminder_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task_reminder_event"
@@ -23657,11 +25774,21 @@ ALTER TABLE ONLY "public"."wf_task_reminder_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_version wf_version_definition_no_unique; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_version_definition_no_unique'
+       AND c.conrelid = 'public.wf_version'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_version"
@@ -23669,11 +25796,21 @@ ALTER TABLE ONLY "public"."wf_version"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_version wf_version_pkey; Type: CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_version_pkey'
+       AND c.conrelid = 'public.wf_version'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_version"
@@ -23681,6 +25818,9 @@ ALTER TABLE ONLY "public"."wf_version"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: accessory_item_category_tenant_idx; Type: INDEX; Schema: public
@@ -23688,7 +25828,7 @@ ALTER TABLE ONLY "public"."wf_version"
 
 --
 
-CREATE INDEX "accessory_item_category_tenant_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("category_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "accessory_item_category_tenant_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("category_id", "tenant_id");
 
 
 --
@@ -23699,7 +25839,7 @@ CREATE INDEX "accessory_item_category_tenant_idx" ON "public"."mdm_accessory_pro
 
 --
 
-CREATE INDEX "accessory_item_type_tenant_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("material_type_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "accessory_item_type_tenant_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("material_type_id", "tenant_id");
 
 
 --
@@ -23710,7 +25850,7 @@ CREATE INDEX "accessory_item_type_tenant_idx" ON "public"."mdm_accessory_process
 
 --
 
-CREATE INDEX "accessory_item_unit_tenant_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("base_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "accessory_item_unit_tenant_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("base_unit_id", "tenant_id");
 
 
 --
@@ -23721,7 +25861,7 @@ CREATE INDEX "accessory_item_unit_tenant_idx" ON "public"."mdm_accessory_process
 
 --
 
-CREATE INDEX "ai_artifact_review_entity_idx" ON "public"."ai_artifact_review" USING "btree" ("tenant_id", "entity_type", "entity_id") WHERE ("entity_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "ai_artifact_review_entity_idx" ON "public"."ai_artifact_review" USING "btree" ("tenant_id", "entity_type", "entity_id") WHERE ("entity_id" IS NOT NULL);
 
 
 --
@@ -23732,7 +25872,7 @@ CREATE INDEX "ai_artifact_review_entity_idx" ON "public"."ai_artifact_review" US
 
 --
 
-CREATE INDEX "ai_artifact_review_pending_idx" ON "public"."ai_artifact_review" USING "btree" ("tenant_id", "auth_user_id", "feature", "artifact_type", "create_time" DESC) WHERE ("status" = 'pending'::"text");
+CREATE INDEX IF NOT EXISTS "ai_artifact_review_pending_idx" ON "public"."ai_artifact_review" USING "btree" ("tenant_id", "auth_user_id", "feature", "artifact_type", "create_time" DESC) WHERE ("status" = 'pending'::"text");
 
 
 --
@@ -23743,7 +25883,7 @@ CREATE INDEX "ai_artifact_review_pending_idx" ON "public"."ai_artifact_review" U
 
 --
 
-CREATE INDEX "ai_artifact_review_user_status_created_idx" ON "public"."ai_artifact_review" USING "btree" ("tenant_id", "auth_user_id", "status", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_artifact_review_user_status_created_idx" ON "public"."ai_artifact_review" USING "btree" ("tenant_id", "auth_user_id", "status", "create_time" DESC);
 
 
 --
@@ -23754,7 +25894,7 @@ CREATE INDEX "ai_artifact_review_user_status_created_idx" ON "public"."ai_artifa
 
 --
 
-CREATE INDEX "ai_conversation_tenant_user_updated_idx" ON "public"."ai_conversation" USING "btree" ("tenant_id", "auth_user_id", "update_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_conversation_tenant_user_updated_idx" ON "public"."ai_conversation" USING "btree" ("tenant_id", "auth_user_id", "update_time" DESC);
 
 
 --
@@ -23765,7 +25905,7 @@ CREATE INDEX "ai_conversation_tenant_user_updated_idx" ON "public"."ai_conversat
 
 --
 
-CREATE INDEX "ai_feature_config_tenant_enabled_idx" ON "public"."ai_feature_config" USING "btree" ("tenant_id", "enabled", "feature");
+CREATE INDEX IF NOT EXISTS "ai_feature_config_tenant_enabled_idx" ON "public"."ai_feature_config" USING "btree" ("tenant_id", "enabled", "feature");
 
 
 --
@@ -23776,7 +25916,7 @@ CREATE INDEX "ai_feature_config_tenant_enabled_idx" ON "public"."ai_feature_conf
 
 --
 
-CREATE INDEX "ai_feedback_tenant_user_created_idx" ON "public"."ai_feedback" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_feedback_tenant_user_created_idx" ON "public"."ai_feedback" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
 
 
 --
@@ -23787,7 +25927,7 @@ CREATE INDEX "ai_feedback_tenant_user_created_idx" ON "public"."ai_feedback" USI
 
 --
 
-CREATE INDEX "ai_message_conversation_created_idx" ON "public"."ai_message" USING "btree" ("conversation_id", "create_time");
+CREATE INDEX IF NOT EXISTS "ai_message_conversation_created_idx" ON "public"."ai_message" USING "btree" ("conversation_id", "create_time");
 
 
 --
@@ -23798,7 +25938,7 @@ CREATE INDEX "ai_message_conversation_created_idx" ON "public"."ai_message" USIN
 
 --
 
-CREATE INDEX "ai_message_tenant_user_created_idx" ON "public"."ai_message" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_message_tenant_user_created_idx" ON "public"."ai_message" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
 
 
 --
@@ -23809,7 +25949,7 @@ CREATE INDEX "ai_message_tenant_user_created_idx" ON "public"."ai_message" USING
 
 --
 
-CREATE INDEX "ai_project_snapshot_auth_user_idx" ON "public"."ai_project_snapshot" USING "btree" ("auth_user_id");
+CREATE INDEX IF NOT EXISTS "ai_project_snapshot_auth_user_idx" ON "public"."ai_project_snapshot" USING "btree" ("auth_user_id");
 
 
 --
@@ -23820,7 +25960,7 @@ CREATE INDEX "ai_project_snapshot_auth_user_idx" ON "public"."ai_project_snapsho
 
 --
 
-CREATE INDEX "ai_project_snapshot_status_captured_idx" ON "public"."ai_project_snapshot" USING "btree" ("status", "captured_at" DESC);
+CREATE INDEX IF NOT EXISTS "ai_project_snapshot_status_captured_idx" ON "public"."ai_project_snapshot" USING "btree" ("status", "captured_at" DESC);
 
 
 --
@@ -23831,7 +25971,7 @@ CREATE INDEX "ai_project_snapshot_status_captured_idx" ON "public"."ai_project_s
 
 --
 
-CREATE INDEX "ai_project_snapshot_tenant_user_captured_idx" ON "public"."ai_project_snapshot" USING "btree" ("tenant_id", "auth_user_id", "captured_at" DESC);
+CREATE INDEX IF NOT EXISTS "ai_project_snapshot_tenant_user_captured_idx" ON "public"."ai_project_snapshot" USING "btree" ("tenant_id", "auth_user_id", "captured_at" DESC);
 
 
 --
@@ -23842,7 +25982,7 @@ CREATE INDEX "ai_project_snapshot_tenant_user_captured_idx" ON "public"."ai_proj
 
 --
 
-CREATE UNIQUE INDEX "ai_prompt_template_one_published_idx" ON "public"."ai_prompt_template" USING "btree" ("tenant_id", "feature") WHERE ("status" = 'published'::"text");
+CREATE UNIQUE INDEX IF NOT EXISTS "ai_prompt_template_one_published_idx" ON "public"."ai_prompt_template" USING "btree" ("tenant_id", "feature") WHERE ("status" = 'published'::"text");
 
 
 --
@@ -23853,7 +25993,7 @@ CREATE UNIQUE INDEX "ai_prompt_template_one_published_idx" ON "public"."ai_promp
 
 --
 
-CREATE INDEX "ai_prompt_template_tenant_list_idx" ON "public"."ai_prompt_template" USING "btree" ("tenant_id", "feature", "status", "update_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_prompt_template_tenant_list_idx" ON "public"."ai_prompt_template" USING "btree" ("tenant_id", "feature", "status", "update_time" DESC);
 
 
 --
@@ -23864,7 +26004,7 @@ CREATE INDEX "ai_prompt_template_tenant_list_idx" ON "public"."ai_prompt_templat
 
 --
 
-CREATE INDEX "ai_run_running_idx" ON "public"."ai_run" USING "btree" ("auth_user_id", "started_at") WHERE ("status" = 'running'::"text");
+CREATE INDEX IF NOT EXISTS "ai_run_running_idx" ON "public"."ai_run" USING "btree" ("auth_user_id", "started_at") WHERE ("status" = 'running'::"text");
 
 
 --
@@ -23875,7 +26015,7 @@ CREATE INDEX "ai_run_running_idx" ON "public"."ai_run" USING "btree" ("auth_user
 
 --
 
-CREATE INDEX "ai_run_started_at_idx" ON "public"."ai_run" USING "btree" ("started_at" DESC);
+CREATE INDEX IF NOT EXISTS "ai_run_started_at_idx" ON "public"."ai_run" USING "btree" ("started_at" DESC);
 
 
 --
@@ -23886,7 +26026,7 @@ CREATE INDEX "ai_run_started_at_idx" ON "public"."ai_run" USING "btree" ("starte
 
 --
 
-CREATE INDEX "ai_run_tenant_user_created_idx" ON "public"."ai_run" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_run_tenant_user_created_idx" ON "public"."ai_run" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
 
 
 --
@@ -23897,7 +26037,7 @@ CREATE INDEX "ai_run_tenant_user_created_idx" ON "public"."ai_run" USING "btree"
 
 --
 
-CREATE INDEX "ai_run_tenant_user_started_idx" ON "public"."ai_run" USING "btree" ("tenant_id", "auth_user_id", "started_at" DESC);
+CREATE INDEX IF NOT EXISTS "ai_run_tenant_user_started_idx" ON "public"."ai_run" USING "btree" ("tenant_id", "auth_user_id", "started_at" DESC);
 
 
 --
@@ -23908,7 +26048,7 @@ CREATE INDEX "ai_run_tenant_user_started_idx" ON "public"."ai_run" USING "btree"
 
 --
 
-CREATE UNIQUE INDEX "ai_security_event_feedback_unique" ON "public"."ai_security_event" USING "btree" ("feedback_id", "event_type") WHERE ("feedback_id" IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "ai_security_event_feedback_unique" ON "public"."ai_security_event" USING "btree" ("feedback_id", "event_type") WHERE ("feedback_id" IS NOT NULL);
 
 
 --
@@ -23919,7 +26059,7 @@ CREATE UNIQUE INDEX "ai_security_event_feedback_unique" ON "public"."ai_security
 
 --
 
-CREATE INDEX "ai_security_event_open_idx" ON "public"."ai_security_event" USING "btree" ("tenant_id", "severity", "status", "detected_at" DESC) WHERE ("status" = ANY (ARRAY['open'::"text", 'investigating'::"text", 'blocked'::"text"]));
+CREATE INDEX IF NOT EXISTS "ai_security_event_open_idx" ON "public"."ai_security_event" USING "btree" ("tenant_id", "severity", "status", "detected_at" DESC) WHERE ("status" = ANY (ARRAY['open'::"text", 'investigating'::"text", 'blocked'::"text"]));
 
 
 --
@@ -23930,7 +26070,7 @@ CREATE INDEX "ai_security_event_open_idx" ON "public"."ai_security_event" USING 
 
 --
 
-CREATE UNIQUE INDEX "ai_security_event_run_unique" ON "public"."ai_security_event" USING "btree" ("run_id", "event_type") WHERE (("run_id" IS NOT NULL) AND ("tool_call_id" IS NULL) AND ("feedback_id" IS NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "ai_security_event_run_unique" ON "public"."ai_security_event" USING "btree" ("run_id", "event_type") WHERE (("run_id" IS NOT NULL) AND ("tool_call_id" IS NULL) AND ("feedback_id" IS NULL));
 
 
 --
@@ -23941,7 +26081,7 @@ CREATE UNIQUE INDEX "ai_security_event_run_unique" ON "public"."ai_security_even
 
 --
 
-CREATE INDEX "ai_security_event_tenant_detected_idx" ON "public"."ai_security_event" USING "btree" ("tenant_id", "detected_at" DESC);
+CREATE INDEX IF NOT EXISTS "ai_security_event_tenant_detected_idx" ON "public"."ai_security_event" USING "btree" ("tenant_id", "detected_at" DESC);
 
 
 --
@@ -23952,7 +26092,7 @@ CREATE INDEX "ai_security_event_tenant_detected_idx" ON "public"."ai_security_ev
 
 --
 
-CREATE UNIQUE INDEX "ai_security_event_tool_unique" ON "public"."ai_security_event" USING "btree" ("tool_call_id", "event_type") WHERE ("tool_call_id" IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "ai_security_event_tool_unique" ON "public"."ai_security_event" USING "btree" ("tool_call_id", "event_type") WHERE ("tool_call_id" IS NOT NULL);
 
 
 --
@@ -23963,7 +26103,7 @@ CREATE UNIQUE INDEX "ai_security_event_tool_unique" ON "public"."ai_security_eve
 
 --
 
-CREATE INDEX "ai_suggestion_auth_user_idx" ON "public"."ai_suggestion" USING "btree" ("auth_user_id");
+CREATE INDEX IF NOT EXISTS "ai_suggestion_auth_user_idx" ON "public"."ai_suggestion" USING "btree" ("auth_user_id");
 
 
 --
@@ -23974,7 +26114,7 @@ CREATE INDEX "ai_suggestion_auth_user_idx" ON "public"."ai_suggestion" USING "bt
 
 --
 
-CREATE INDEX "ai_suggestion_batch_ai_run_idx" ON "public"."ai_suggestion_batch" USING "btree" ("ai_run_id");
+CREATE INDEX IF NOT EXISTS "ai_suggestion_batch_ai_run_idx" ON "public"."ai_suggestion_batch" USING "btree" ("ai_run_id");
 
 
 --
@@ -23985,7 +26125,7 @@ CREATE INDEX "ai_suggestion_batch_ai_run_idx" ON "public"."ai_suggestion_batch" 
 
 --
 
-CREATE INDEX "ai_suggestion_batch_auth_user_idx" ON "public"."ai_suggestion_batch" USING "btree" ("auth_user_id");
+CREATE INDEX IF NOT EXISTS "ai_suggestion_batch_auth_user_idx" ON "public"."ai_suggestion_batch" USING "btree" ("auth_user_id");
 
 
 --
@@ -23996,7 +26136,7 @@ CREATE INDEX "ai_suggestion_batch_auth_user_idx" ON "public"."ai_suggestion_batc
 
 --
 
-CREATE INDEX "ai_suggestion_batch_position_idx" ON "public"."ai_suggestion" USING "btree" ("batch_id", "position");
+CREATE INDEX IF NOT EXISTS "ai_suggestion_batch_position_idx" ON "public"."ai_suggestion" USING "btree" ("batch_id", "position");
 
 
 --
@@ -24007,7 +26147,7 @@ CREATE INDEX "ai_suggestion_batch_position_idx" ON "public"."ai_suggestion" USIN
 
 --
 
-CREATE INDEX "ai_suggestion_batch_snapshot_idx" ON "public"."ai_suggestion_batch" USING "btree" ("snapshot_id");
+CREATE INDEX IF NOT EXISTS "ai_suggestion_batch_snapshot_idx" ON "public"."ai_suggestion_batch" USING "btree" ("snapshot_id");
 
 
 --
@@ -24018,7 +26158,7 @@ CREATE INDEX "ai_suggestion_batch_snapshot_idx" ON "public"."ai_suggestion_batch
 
 --
 
-CREATE INDEX "ai_suggestion_batch_status_created_idx" ON "public"."ai_suggestion_batch" USING "btree" ("status", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_suggestion_batch_status_created_idx" ON "public"."ai_suggestion_batch" USING "btree" ("status", "create_time" DESC);
 
 
 --
@@ -24029,7 +26169,7 @@ CREATE INDEX "ai_suggestion_batch_status_created_idx" ON "public"."ai_suggestion
 
 --
 
-CREATE INDEX "ai_suggestion_batch_tenant_user_created_idx" ON "public"."ai_suggestion_batch" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_suggestion_batch_tenant_user_created_idx" ON "public"."ai_suggestion_batch" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
 
 
 --
@@ -24040,7 +26180,7 @@ CREATE INDEX "ai_suggestion_batch_tenant_user_created_idx" ON "public"."ai_sugge
 
 --
 
-CREATE INDEX "ai_suggestion_event_auth_user_idx" ON "public"."ai_suggestion_event" USING "btree" ("auth_user_id");
+CREATE INDEX IF NOT EXISTS "ai_suggestion_event_auth_user_idx" ON "public"."ai_suggestion_event" USING "btree" ("auth_user_id");
 
 
 --
@@ -24051,7 +26191,7 @@ CREATE INDEX "ai_suggestion_event_auth_user_idx" ON "public"."ai_suggestion_even
 
 --
 
-CREATE INDEX "ai_suggestion_event_batch_idx" ON "public"."ai_suggestion_event" USING "btree" ("batch_id");
+CREATE INDEX IF NOT EXISTS "ai_suggestion_event_batch_idx" ON "public"."ai_suggestion_event" USING "btree" ("batch_id");
 
 
 --
@@ -24062,7 +26202,7 @@ CREATE INDEX "ai_suggestion_event_batch_idx" ON "public"."ai_suggestion_event" U
 
 --
 
-CREATE INDEX "ai_suggestion_event_suggestion_created_idx" ON "public"."ai_suggestion_event" USING "btree" ("suggestion_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_suggestion_event_suggestion_created_idx" ON "public"."ai_suggestion_event" USING "btree" ("suggestion_id", "create_time" DESC);
 
 
 --
@@ -24073,7 +26213,7 @@ CREATE INDEX "ai_suggestion_event_suggestion_created_idx" ON "public"."ai_sugges
 
 --
 
-CREATE INDEX "ai_suggestion_event_tenant_user_created_idx" ON "public"."ai_suggestion_event" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_suggestion_event_tenant_user_created_idx" ON "public"."ai_suggestion_event" USING "btree" ("tenant_id", "auth_user_id", "create_time" DESC);
 
 
 --
@@ -24084,7 +26224,7 @@ CREATE INDEX "ai_suggestion_event_tenant_user_created_idx" ON "public"."ai_sugge
 
 --
 
-CREATE INDEX "ai_suggestion_event_tenant_user_type_idx" ON "public"."ai_suggestion_event" USING "btree" ("tenant_id", "auth_user_id", "event_type", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_suggestion_event_tenant_user_type_idx" ON "public"."ai_suggestion_event" USING "btree" ("tenant_id", "auth_user_id", "event_type", "create_time" DESC);
 
 
 --
@@ -24095,7 +26235,7 @@ CREATE INDEX "ai_suggestion_event_tenant_user_type_idx" ON "public"."ai_suggesti
 
 --
 
-CREATE INDEX "ai_suggestion_tenant_user_fingerprint_idx" ON "public"."ai_suggestion" USING "btree" ("tenant_id", "auth_user_id", "fingerprint");
+CREATE INDEX IF NOT EXISTS "ai_suggestion_tenant_user_fingerprint_idx" ON "public"."ai_suggestion" USING "btree" ("tenant_id", "auth_user_id", "fingerprint");
 
 
 --
@@ -24106,7 +26246,7 @@ CREATE INDEX "ai_suggestion_tenant_user_fingerprint_idx" ON "public"."ai_suggest
 
 --
 
-CREATE INDEX "ai_suggestion_tenant_user_status_created_idx" ON "public"."ai_suggestion" USING "btree" ("tenant_id", "auth_user_id", "status", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_suggestion_tenant_user_status_created_idx" ON "public"."ai_suggestion" USING "btree" ("tenant_id", "auth_user_id", "status", "create_time" DESC);
 
 
 --
@@ -24117,7 +26257,7 @@ CREATE INDEX "ai_suggestion_tenant_user_status_created_idx" ON "public"."ai_sugg
 
 --
 
-CREATE INDEX "ai_tool_call_run_created_idx" ON "public"."ai_tool_call" USING "btree" ("run_id", "create_time");
+CREATE INDEX IF NOT EXISTS "ai_tool_call_run_created_idx" ON "public"."ai_tool_call" USING "btree" ("run_id", "create_time");
 
 
 --
@@ -24128,7 +26268,7 @@ CREATE INDEX "ai_tool_call_run_created_idx" ON "public"."ai_tool_call" USING "bt
 
 --
 
-CREATE INDEX "ai_ui_design_reference_image_reference_idx" ON "public"."ai_ui_design_reference_image" USING "btree" ("reference_id", "sort_order", "create_time");
+CREATE INDEX IF NOT EXISTS "ai_ui_design_reference_image_reference_idx" ON "public"."ai_ui_design_reference_image" USING "btree" ("reference_id", "sort_order", "create_time");
 
 
 --
@@ -24139,7 +26279,7 @@ CREATE INDEX "ai_ui_design_reference_image_reference_idx" ON "public"."ai_ui_des
 
 --
 
-CREATE INDEX "ai_ui_design_reference_menu_idx" ON "public"."ai_ui_design_reference" USING "btree" ("menu_id") WHERE ("menu_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "ai_ui_design_reference_menu_idx" ON "public"."ai_ui_design_reference" USING "btree" ("menu_id") WHERE ("menu_id" IS NOT NULL);
 
 
 --
@@ -24150,7 +26290,7 @@ CREATE INDEX "ai_ui_design_reference_menu_idx" ON "public"."ai_ui_design_referen
 
 --
 
-CREATE INDEX "ai_ui_design_reference_tenant_user_updated_idx" ON "public"."ai_ui_design_reference" USING "btree" ("tenant_id", "auth_user_id", "update_time" DESC);
+CREATE INDEX IF NOT EXISTS "ai_ui_design_reference_tenant_user_updated_idx" ON "public"."ai_ui_design_reference" USING "btree" ("tenant_id", "auth_user_id", "update_time" DESC);
 
 
 --
@@ -24161,7 +26301,7 @@ CREATE INDEX "ai_ui_design_reference_tenant_user_updated_idx" ON "public"."ai_ui
 
 --
 
-CREATE INDEX "hr_employee_creator_tenant_idx" ON "public"."mdm_employee" USING "btree" ("created_by_user_id", "tenant_id") WHERE ("created_by_user_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "hr_employee_creator_tenant_idx" ON "public"."mdm_employee" USING "btree" ("created_by_user_id", "tenant_id") WHERE ("created_by_user_id" IS NOT NULL);
 
 
 --
@@ -24172,7 +26312,7 @@ CREATE INDEX "hr_employee_creator_tenant_idx" ON "public"."mdm_employee" USING "
 
 --
 
-CREATE INDEX "hr_employee_organization_idx" ON "public"."mdm_employee" USING "btree" ("organization_id");
+CREATE INDEX IF NOT EXISTS "hr_employee_organization_idx" ON "public"."mdm_employee" USING "btree" ("organization_id");
 
 
 --
@@ -24183,7 +26323,7 @@ CREATE INDEX "hr_employee_organization_idx" ON "public"."mdm_employee" USING "bt
 
 --
 
-CREATE INDEX "hr_employee_position_fk_idx" ON "public"."mdm_employee" USING "btree" ("position_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "hr_employee_position_fk_idx" ON "public"."mdm_employee" USING "btree" ("position_id", "tenant_id");
 
 
 --
@@ -24194,7 +26334,7 @@ CREATE INDEX "hr_employee_position_fk_idx" ON "public"."mdm_employee" USING "btr
 
 --
 
-CREATE INDEX "hr_employee_tenant_creator_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "created_by_user_id");
+CREATE INDEX IF NOT EXISTS "hr_employee_tenant_creator_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "created_by_user_id");
 
 
 --
@@ -24205,7 +26345,7 @@ CREATE INDEX "hr_employee_tenant_creator_idx" ON "public"."mdm_employee" USING "
 
 --
 
-CREATE INDEX "hr_employee_tenant_hire_date_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "hire_date" DESC);
+CREATE INDEX IF NOT EXISTS "hr_employee_tenant_hire_date_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "hire_date" DESC);
 
 
 --
@@ -24216,7 +26356,7 @@ CREATE INDEX "hr_employee_tenant_hire_date_idx" ON "public"."mdm_employee" USING
 
 --
 
-CREATE UNIQUE INDEX "hr_employee_tenant_id_card_no_key" ON "public"."mdm_employee" USING "btree" ("tenant_id", "id_card_no") WHERE (("id_card_no" IS NOT NULL) AND ("btrim"("id_card_no") <> ''::"text"));
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_employee_tenant_id_card_no_key" ON "public"."mdm_employee" USING "btree" ("tenant_id", "id_card_no") WHERE (("id_card_no" IS NOT NULL) AND ("btrim"("id_card_no") <> ''::"text"));
 
 
 --
@@ -24227,7 +26367,7 @@ CREATE UNIQUE INDEX "hr_employee_tenant_id_card_no_key" ON "public"."mdm_employe
 
 --
 
-CREATE INDEX "hr_employee_tenant_leave_date_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "leave_date") WHERE ("leave_date" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "hr_employee_tenant_leave_date_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "leave_date") WHERE ("leave_date" IS NOT NULL);
 
 
 --
@@ -24238,7 +26378,7 @@ CREATE INDEX "hr_employee_tenant_leave_date_idx" ON "public"."mdm_employee" USIN
 
 --
 
-CREATE INDEX "hr_employee_tenant_name_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "employee_name");
+CREATE INDEX IF NOT EXISTS "hr_employee_tenant_name_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "employee_name");
 
 
 --
@@ -24249,7 +26389,7 @@ CREATE INDEX "hr_employee_tenant_name_idx" ON "public"."mdm_employee" USING "btr
 
 --
 
-CREATE INDEX "hr_employee_tenant_organization_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "organization_id");
+CREATE INDEX IF NOT EXISTS "hr_employee_tenant_organization_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "organization_id");
 
 
 --
@@ -24260,7 +26400,7 @@ CREATE INDEX "hr_employee_tenant_organization_idx" ON "public"."mdm_employee" US
 
 --
 
-CREATE INDEX "hr_employee_tenant_position_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "position_id");
+CREATE INDEX IF NOT EXISTS "hr_employee_tenant_position_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "position_id");
 
 
 --
@@ -24271,7 +26411,7 @@ CREATE INDEX "hr_employee_tenant_position_idx" ON "public"."mdm_employee" USING 
 
 --
 
-CREATE INDEX "hr_employee_tenant_status_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "employment_status");
+CREATE INDEX IF NOT EXISTS "hr_employee_tenant_status_idx" ON "public"."mdm_employee" USING "btree" ("tenant_id", "employment_status");
 
 
 --
@@ -24282,7 +26422,7 @@ CREATE INDEX "hr_employee_tenant_status_idx" ON "public"."mdm_employee" USING "b
 
 --
 
-CREATE UNIQUE INDEX "hr_grade_tenant_code_unique" ON "public"."mdm_grade" USING "btree" ("tenant_id", "lower"("grade_code"));
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_grade_tenant_code_unique" ON "public"."mdm_grade" USING "btree" ("tenant_id", "lower"("grade_code"));
 
 
 --
@@ -24293,7 +26433,7 @@ CREATE UNIQUE INDEX "hr_grade_tenant_code_unique" ON "public"."mdm_grade" USING 
 
 --
 
-CREATE INDEX "hr_grade_tenant_enabled_sort_idx" ON "public"."mdm_grade" USING "btree" ("tenant_id", "enabled", "sort", "grade_level", "grade_name");
+CREATE INDEX IF NOT EXISTS "hr_grade_tenant_enabled_sort_idx" ON "public"."mdm_grade" USING "btree" ("tenant_id", "enabled", "sort", "grade_level", "grade_name");
 
 
 --
@@ -24304,7 +26444,7 @@ CREATE INDEX "hr_grade_tenant_enabled_sort_idx" ON "public"."mdm_grade" USING "b
 
 --
 
-CREATE UNIQUE INDEX "hr_grade_tenant_name_unique" ON "public"."mdm_grade" USING "btree" ("tenant_id", "lower"("grade_name"));
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_grade_tenant_name_unique" ON "public"."mdm_grade" USING "btree" ("tenant_id", "lower"("grade_name"));
 
 
 --
@@ -24315,7 +26455,7 @@ CREATE UNIQUE INDEX "hr_grade_tenant_name_unique" ON "public"."mdm_grade" USING 
 
 --
 
-CREATE UNIQUE INDEX "hr_job_family_tenant_code_unique" ON "public"."mdm_job_family" USING "btree" ("tenant_id", "lower"("family_code"));
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_job_family_tenant_code_unique" ON "public"."mdm_job_family" USING "btree" ("tenant_id", "lower"("family_code"));
 
 
 --
@@ -24326,7 +26466,7 @@ CREATE UNIQUE INDEX "hr_job_family_tenant_code_unique" ON "public"."mdm_job_fami
 
 --
 
-CREATE INDEX "hr_job_family_tenant_enabled_sort_idx" ON "public"."mdm_job_family" USING "btree" ("tenant_id", "enabled", "sort", "family_name");
+CREATE INDEX IF NOT EXISTS "hr_job_family_tenant_enabled_sort_idx" ON "public"."mdm_job_family" USING "btree" ("tenant_id", "enabled", "sort", "family_name");
 
 
 --
@@ -24337,7 +26477,7 @@ CREATE INDEX "hr_job_family_tenant_enabled_sort_idx" ON "public"."mdm_job_family
 
 --
 
-CREATE UNIQUE INDEX "hr_job_family_tenant_name_unique" ON "public"."mdm_job_family" USING "btree" ("tenant_id", "lower"("family_name"));
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_job_family_tenant_name_unique" ON "public"."mdm_job_family" USING "btree" ("tenant_id", "lower"("family_name"));
 
 
 --
@@ -24348,7 +26488,7 @@ CREATE UNIQUE INDEX "hr_job_family_tenant_name_unique" ON "public"."mdm_job_fami
 
 --
 
-CREATE INDEX "hr_job_profile_family_idx" ON "public"."mdm_job_profile" USING "btree" ("family_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "hr_job_profile_family_idx" ON "public"."mdm_job_profile" USING "btree" ("family_id", "tenant_id");
 
 
 --
@@ -24359,7 +26499,7 @@ CREATE INDEX "hr_job_profile_family_idx" ON "public"."mdm_job_profile" USING "bt
 
 --
 
-CREATE INDEX "hr_job_profile_grade_idx" ON "public"."mdm_job_profile" USING "btree" ("default_grade_id", "tenant_id") WHERE ("default_grade_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "hr_job_profile_grade_idx" ON "public"."mdm_job_profile" USING "btree" ("default_grade_id", "tenant_id") WHERE ("default_grade_id" IS NOT NULL);
 
 
 --
@@ -24370,7 +26510,7 @@ CREATE INDEX "hr_job_profile_grade_idx" ON "public"."mdm_job_profile" USING "btr
 
 --
 
-CREATE UNIQUE INDEX "hr_job_profile_tenant_code_unique" ON "public"."mdm_job_profile" USING "btree" ("tenant_id", "lower"("job_code"));
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_job_profile_tenant_code_unique" ON "public"."mdm_job_profile" USING "btree" ("tenant_id", "lower"("job_code"));
 
 
 --
@@ -24381,7 +26521,7 @@ CREATE UNIQUE INDEX "hr_job_profile_tenant_code_unique" ON "public"."mdm_job_pro
 
 --
 
-CREATE INDEX "hr_job_profile_tenant_enabled_sort_idx" ON "public"."mdm_job_profile" USING "btree" ("tenant_id", "enabled", "sort", "job_name");
+CREATE INDEX IF NOT EXISTS "hr_job_profile_tenant_enabled_sort_idx" ON "public"."mdm_job_profile" USING "btree" ("tenant_id", "enabled", "sort", "job_name");
 
 
 --
@@ -24392,7 +26532,7 @@ CREATE INDEX "hr_job_profile_tenant_enabled_sort_idx" ON "public"."mdm_job_profi
 
 --
 
-CREATE UNIQUE INDEX "hr_job_profile_tenant_name_unique" ON "public"."mdm_job_profile" USING "btree" ("tenant_id", "lower"("job_name"));
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_job_profile_tenant_name_unique" ON "public"."mdm_job_profile" USING "btree" ("tenant_id", "lower"("job_name"));
 
 
 --
@@ -24403,7 +26543,7 @@ CREATE UNIQUE INDEX "hr_job_profile_tenant_name_unique" ON "public"."mdm_job_pro
 
 --
 
-CREATE INDEX "hr_position_grade_idx" ON "public"."mdm_position" USING "btree" ("grade_id", "tenant_id") WHERE ("grade_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "hr_position_grade_idx" ON "public"."mdm_position" USING "btree" ("grade_id", "tenant_id") WHERE ("grade_id" IS NOT NULL);
 
 
 --
@@ -24414,7 +26554,7 @@ CREATE INDEX "hr_position_grade_idx" ON "public"."mdm_position" USING "btree" ("
 
 --
 
-CREATE INDEX "hr_position_job_profile_idx" ON "public"."mdm_position" USING "btree" ("job_profile_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "hr_position_job_profile_idx" ON "public"."mdm_position" USING "btree" ("job_profile_id", "tenant_id");
 
 
 --
@@ -24425,7 +26565,7 @@ CREATE INDEX "hr_position_job_profile_idx" ON "public"."mdm_position" USING "btr
 
 --
 
-CREATE INDEX "hr_position_organization_idx" ON "public"."mdm_position" USING "btree" ("organization_id", "tenant_id") WHERE ("organization_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "hr_position_organization_idx" ON "public"."mdm_position" USING "btree" ("organization_id", "tenant_id") WHERE ("organization_id" IS NOT NULL);
 
 
 --
@@ -24436,7 +26576,7 @@ CREATE INDEX "hr_position_organization_idx" ON "public"."mdm_position" USING "bt
 
 --
 
-CREATE UNIQUE INDEX "hr_position_tenant_code_unique" ON "public"."mdm_position" USING "btree" ("tenant_id", "lower"("position_code"));
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_position_tenant_code_unique" ON "public"."mdm_position" USING "btree" ("tenant_id", "lower"("position_code"));
 
 
 --
@@ -24447,7 +26587,7 @@ CREATE UNIQUE INDEX "hr_position_tenant_code_unique" ON "public"."mdm_position" 
 
 --
 
-CREATE INDEX "hr_position_tenant_enabled_sort_idx" ON "public"."mdm_position" USING "btree" ("tenant_id", "enabled", "sort", "position_name");
+CREATE INDEX IF NOT EXISTS "hr_position_tenant_enabled_sort_idx" ON "public"."mdm_position" USING "btree" ("tenant_id", "enabled", "sort", "position_name");
 
 
 --
@@ -24458,7 +26598,7 @@ CREATE INDEX "hr_position_tenant_enabled_sort_idx" ON "public"."mdm_position" US
 
 --
 
-CREATE UNIQUE INDEX "hr_position_tenant_org_name_unique" ON "public"."mdm_position" USING "btree" ("tenant_id", COALESCE("organization_id", '00000000-0000-0000-0000-000000000000'::"uuid"), "lower"("position_name"));
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_position_tenant_org_name_unique" ON "public"."mdm_position" USING "btree" ("tenant_id", COALESCE("organization_id", '00000000-0000-0000-0000-000000000000'::"uuid"), "lower"("position_name"));
 
 
 --
@@ -24469,7 +26609,7 @@ CREATE UNIQUE INDEX "hr_position_tenant_org_name_unique" ON "public"."mdm_positi
 
 --
 
-CREATE UNIQUE INDEX "hr_position_tenant_system_unique" ON "public"."mdm_position" USING "btree" ("tenant_id", "system_code") WHERE ("system_code" IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "hr_position_tenant_system_unique" ON "public"."mdm_position" USING "btree" ("tenant_id", "system_code") WHERE ("system_code" IS NOT NULL);
 
 
 --
@@ -24480,7 +26620,7 @@ CREATE UNIQUE INDEX "hr_position_tenant_system_unique" ON "public"."mdm_position
 
 --
 
-CREATE INDEX "idx_ai_conversation_auth_user_id" ON "public"."ai_conversation" USING "btree" ("auth_user_id");
+CREATE INDEX IF NOT EXISTS "idx_ai_conversation_auth_user_id" ON "public"."ai_conversation" USING "btree" ("auth_user_id");
 
 
 --
@@ -24491,7 +26631,7 @@ CREATE INDEX "idx_ai_conversation_auth_user_id" ON "public"."ai_conversation" US
 
 --
 
-CREATE INDEX "idx_ai_feedback_auth_user_id" ON "public"."ai_feedback" USING "btree" ("auth_user_id");
+CREATE INDEX IF NOT EXISTS "idx_ai_feedback_auth_user_id" ON "public"."ai_feedback" USING "btree" ("auth_user_id");
 
 
 --
@@ -24502,7 +26642,7 @@ CREATE INDEX "idx_ai_feedback_auth_user_id" ON "public"."ai_feedback" USING "btr
 
 --
 
-CREATE INDEX "idx_ai_feedback_resolution_handled_by" ON "public"."ai_feedback_resolution" USING "btree" ("handled_by", "update_time" DESC);
+CREATE INDEX IF NOT EXISTS "idx_ai_feedback_resolution_handled_by" ON "public"."ai_feedback_resolution" USING "btree" ("handled_by", "update_time" DESC);
 
 
 --
@@ -24513,7 +26653,7 @@ CREATE INDEX "idx_ai_feedback_resolution_handled_by" ON "public"."ai_feedback_re
 
 --
 
-CREATE INDEX "idx_ai_feedback_resolution_resolved_by" ON "public"."ai_feedback_resolution" USING "btree" ("resolved_by");
+CREATE INDEX IF NOT EXISTS "idx_ai_feedback_resolution_resolved_by" ON "public"."ai_feedback_resolution" USING "btree" ("resolved_by");
 
 
 --
@@ -24524,7 +26664,7 @@ CREATE INDEX "idx_ai_feedback_resolution_resolved_by" ON "public"."ai_feedback_r
 
 --
 
-CREATE INDEX "idx_ai_feedback_resolution_tenant_status" ON "public"."ai_feedback_resolution" USING "btree" ("tenant_id", "status", "update_time" DESC);
+CREATE INDEX IF NOT EXISTS "idx_ai_feedback_resolution_tenant_status" ON "public"."ai_feedback_resolution" USING "btree" ("tenant_id", "status", "update_time" DESC);
 
 
 --
@@ -24535,7 +26675,7 @@ CREATE INDEX "idx_ai_feedback_resolution_tenant_status" ON "public"."ai_feedback
 
 --
 
-CREATE INDEX "idx_ai_message_auth_user_id" ON "public"."ai_message" USING "btree" ("auth_user_id");
+CREATE INDEX IF NOT EXISTS "idx_ai_message_auth_user_id" ON "public"."ai_message" USING "btree" ("auth_user_id");
 
 
 --
@@ -24546,7 +26686,7 @@ CREATE INDEX "idx_ai_message_auth_user_id" ON "public"."ai_message" USING "btree
 
 --
 
-CREATE INDEX "idx_ai_run_conversation_id" ON "public"."ai_run" USING "btree" ("conversation_id");
+CREATE INDEX IF NOT EXISTS "idx_ai_run_conversation_id" ON "public"."ai_run" USING "btree" ("conversation_id");
 
 
 --
@@ -24557,7 +26697,7 @@ CREATE INDEX "idx_ai_run_conversation_id" ON "public"."ai_run" USING "btree" ("c
 
 --
 
-CREATE INDEX "idx_ai_tool_call_auth_user_id" ON "public"."ai_tool_call" USING "btree" ("auth_user_id");
+CREATE INDEX IF NOT EXISTS "idx_ai_tool_call_auth_user_id" ON "public"."ai_tool_call" USING "btree" ("auth_user_id");
 
 
 --
@@ -24568,7 +26708,7 @@ CREATE INDEX "idx_ai_tool_call_auth_user_id" ON "public"."ai_tool_call" USING "b
 
 --
 
-CREATE INDEX "idx_document_number_counter_rule" ON "public"."sys_document_number_counter" USING "btree" ("rule_id", "rule_version", "period_key");
+CREATE INDEX IF NOT EXISTS "idx_document_number_counter_rule" ON "public"."sys_document_number_counter" USING "btree" ("rule_id", "rule_version", "period_key");
 
 
 --
@@ -24579,7 +26719,7 @@ CREATE INDEX "idx_document_number_counter_rule" ON "public"."sys_document_number
 
 --
 
-CREATE INDEX "idx_document_number_counter_tenant" ON "public"."sys_document_number_counter" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_document_number_counter_tenant" ON "public"."sys_document_number_counter" USING "btree" ("tenant_id");
 
 
 --
@@ -24590,7 +26730,7 @@ CREATE INDEX "idx_document_number_counter_tenant" ON "public"."sys_document_numb
 
 --
 
-CREATE INDEX "idx_document_number_rule_list" ON "public"."sys_document_number_rule" USING "btree" ("tenant_id", "category", "auto_enabled", "rule_name");
+CREATE INDEX IF NOT EXISTS "idx_document_number_rule_list" ON "public"."sys_document_number_rule" USING "btree" ("tenant_id", "category", "auto_enabled", "rule_name");
 
 
 --
@@ -24601,7 +26741,7 @@ CREATE INDEX "idx_document_number_rule_list" ON "public"."sys_document_number_ru
 
 --
 
-CREATE INDEX "idx_document_number_scene_menu" ON "public"."sys_document_number_scene" USING "btree" ("menu_id", "enabled", "rule_name");
+CREATE INDEX IF NOT EXISTS "idx_document_number_scene_menu" ON "public"."sys_document_number_scene" USING "btree" ("menu_id", "enabled", "rule_name");
 
 
 --
@@ -24612,7 +26752,7 @@ CREATE INDEX "idx_document_number_scene_menu" ON "public"."sys_document_number_s
 
 --
 
-CREATE INDEX "idx_document_number_scene_tenant" ON "public"."sys_document_number_scene" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_document_number_scene_tenant" ON "public"."sys_document_number_scene" USING "btree" ("tenant_id");
 
 
 --
@@ -24623,7 +26763,7 @@ CREATE INDEX "idx_document_number_scene_tenant" ON "public"."sys_document_number
 
 --
 
-CREATE INDEX "idx_mdm_carrier_tenant_parent_unit" ON "public"."mdm_carrier" USING "btree" ("tenant_id", "parent_unit_id") WHERE ("parent_unit_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_mdm_carrier_tenant_parent_unit" ON "public"."mdm_carrier" USING "btree" ("tenant_id", "parent_unit_id") WHERE ("parent_unit_id" IS NOT NULL);
 
 
 --
@@ -24634,7 +26774,7 @@ CREATE INDEX "idx_mdm_carrier_tenant_parent_unit" ON "public"."mdm_carrier" USIN
 
 --
 
-CREATE INDEX "idx_mdm_customer_address_tenant_customer" ON "public"."mdm_customer_address" USING "btree" ("tenant_id", "customer_id");
+CREATE INDEX IF NOT EXISTS "idx_mdm_customer_address_tenant_customer" ON "public"."mdm_customer_address" USING "btree" ("tenant_id", "customer_id");
 
 
 --
@@ -24645,7 +26785,7 @@ CREATE INDEX "idx_mdm_customer_address_tenant_customer" ON "public"."mdm_custome
 
 --
 
-CREATE INDEX "idx_mdm_customer_tenant_parent_unit" ON "public"."mdm_customer" USING "btree" ("tenant_id", "parent_unit_id") WHERE ("parent_unit_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_mdm_customer_tenant_parent_unit" ON "public"."mdm_customer" USING "btree" ("tenant_id", "parent_unit_id") WHERE ("parent_unit_id" IS NOT NULL);
 
 
 --
@@ -24656,7 +26796,7 @@ CREATE INDEX "idx_mdm_customer_tenant_parent_unit" ON "public"."mdm_customer" US
 
 --
 
-CREATE INDEX "idx_mdm_document_type_menu_id" ON "public"."mdm_document_type" USING "btree" ("menu_id");
+CREATE INDEX IF NOT EXISTS "idx_mdm_document_type_menu_id" ON "public"."mdm_document_type" USING "btree" ("menu_id");
 
 
 --
@@ -24667,7 +26807,7 @@ CREATE INDEX "idx_mdm_document_type_menu_id" ON "public"."mdm_document_type" USI
 
 --
 
-CREATE INDEX "idx_mdm_document_type_tenant_menu_sort" ON "public"."mdm_document_type" USING "btree" ("tenant_id", "menu_id", "sort_order", "document_type_name");
+CREATE INDEX IF NOT EXISTS "idx_mdm_document_type_tenant_menu_sort" ON "public"."mdm_document_type" USING "btree" ("tenant_id", "menu_id", "sort_order", "document_type_name");
 
 
 --
@@ -24678,7 +26818,7 @@ CREATE INDEX "idx_mdm_document_type_tenant_menu_sort" ON "public"."mdm_document_
 
 --
 
-CREATE INDEX "idx_mdm_employee_tenant_organization" ON "public"."mdm_employee" USING "btree" ("tenant_id", "organization_id") WHERE ("organization_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_mdm_employee_tenant_organization" ON "public"."mdm_employee" USING "btree" ("tenant_id", "organization_id") WHERE ("organization_id" IS NOT NULL);
 
 
 --
@@ -24689,7 +26829,7 @@ CREATE INDEX "idx_mdm_employee_tenant_organization" ON "public"."mdm_employee" U
 
 --
 
-CREATE INDEX "idx_mdm_organization_tenant_leader_user" ON "public"."mdm_organization" USING "btree" ("tenant_id", "leader_user_id") WHERE ("leader_user_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_mdm_organization_tenant_leader_user" ON "public"."mdm_organization" USING "btree" ("tenant_id", "leader_user_id") WHERE ("leader_user_id" IS NOT NULL);
 
 
 --
@@ -24700,7 +26840,7 @@ CREATE INDEX "idx_mdm_organization_tenant_leader_user" ON "public"."mdm_organiza
 
 --
 
-CREATE INDEX "idx_mdm_process_route_tenant_material" ON "public"."mdm_process_route" USING "btree" ("tenant_id", "material_id");
+CREATE INDEX IF NOT EXISTS "idx_mdm_process_route_tenant_material" ON "public"."mdm_process_route" USING "btree" ("tenant_id", "material_id");
 
 
 --
@@ -24711,7 +26851,7 @@ CREATE INDEX "idx_mdm_process_route_tenant_material" ON "public"."mdm_process_ro
 
 --
 
-CREATE INDEX "idx_mdm_production_department_organization" ON "public"."mdm_production_department" USING "btree" ("organization_id");
+CREATE INDEX IF NOT EXISTS "idx_mdm_production_department_organization" ON "public"."mdm_production_department" USING "btree" ("organization_id");
 
 
 --
@@ -24722,7 +26862,7 @@ CREATE INDEX "idx_mdm_production_department_organization" ON "public"."mdm_produ
 
 --
 
-CREATE INDEX "idx_mdm_production_department_parent" ON "public"."mdm_production_department" USING "btree" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_mdm_production_department_parent" ON "public"."mdm_production_department" USING "btree" ("parent_id");
 
 
 --
@@ -24733,7 +26873,7 @@ CREATE INDEX "idx_mdm_production_department_parent" ON "public"."mdm_production_
 
 --
 
-CREATE INDEX "idx_mdm_production_department_tenant_organization" ON "public"."mdm_production_department" USING "btree" ("tenant_id", "organization_id") WHERE ("organization_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_mdm_production_department_tenant_organization" ON "public"."mdm_production_department" USING "btree" ("tenant_id", "organization_id") WHERE ("organization_id" IS NOT NULL);
 
 
 --
@@ -24744,7 +26884,7 @@ CREATE INDEX "idx_mdm_production_department_tenant_organization" ON "public"."md
 
 --
 
-CREATE INDEX "idx_mdm_production_department_tenant_parent" ON "public"."mdm_production_department" USING "btree" ("tenant_id", "parent_id") WHERE ("parent_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_mdm_production_department_tenant_parent" ON "public"."mdm_production_department" USING "btree" ("tenant_id", "parent_id") WHERE ("parent_id" IS NOT NULL);
 
 
 --
@@ -24755,7 +26895,7 @@ CREATE INDEX "idx_mdm_production_department_tenant_parent" ON "public"."mdm_prod
 
 --
 
-CREATE INDEX "idx_sys_attachment_tenant_id" ON "public"."sys_attachment" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_attachment_tenant_id" ON "public"."sys_attachment" USING "btree" ("tenant_id");
 
 
 --
@@ -24766,7 +26906,7 @@ CREATE INDEX "idx_sys_attachment_tenant_id" ON "public"."sys_attachment" USING "
 
 --
 
-CREATE INDEX "idx_sys_audit_log_tenant_id" ON "public"."sys_audit_log" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_audit_log_tenant_id" ON "public"."sys_audit_log" USING "btree" ("tenant_id");
 
 
 --
@@ -24777,7 +26917,7 @@ CREATE INDEX "idx_sys_audit_log_tenant_id" ON "public"."sys_audit_log" USING "bt
 
 --
 
-CREATE INDEX "idx_sys_dict_type_parent_id" ON "public"."sys_dict_type" USING "btree" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_dict_type_parent_id" ON "public"."sys_dict_type" USING "btree" ("parent_id");
 
 
 --
@@ -24788,7 +26928,7 @@ CREATE INDEX "idx_sys_dict_type_parent_id" ON "public"."sys_dict_type" USING "bt
 
 --
 
-CREATE INDEX "idx_sys_dict_type_tenant_code" ON "public"."sys_dict_type" USING "btree" ("tenant_id", "code");
+CREATE INDEX IF NOT EXISTS "idx_sys_dict_type_tenant_code" ON "public"."sys_dict_type" USING "btree" ("tenant_id", "code");
 
 
 --
@@ -24799,7 +26939,7 @@ CREATE INDEX "idx_sys_dict_type_tenant_code" ON "public"."sys_dict_type" USING "
 
 --
 
-CREATE INDEX "idx_sys_dict_type_tenant_id" ON "public"."sys_dict_type" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_dict_type_tenant_id" ON "public"."sys_dict_type" USING "btree" ("tenant_id");
 
 
 --
@@ -24810,7 +26950,7 @@ CREATE INDEX "idx_sys_dict_type_tenant_id" ON "public"."sys_dict_type" USING "bt
 
 --
 
-CREATE INDEX "idx_sys_dict_type_tenant_node_sort" ON "public"."sys_dict_type" USING "btree" ("tenant_id", "node_type", "sort", "name");
+CREATE INDEX IF NOT EXISTS "idx_sys_dict_type_tenant_node_sort" ON "public"."sys_dict_type" USING "btree" ("tenant_id", "node_type", "sort", "name");
 
 
 --
@@ -24821,7 +26961,7 @@ CREATE INDEX "idx_sys_dict_type_tenant_node_sort" ON "public"."sys_dict_type" US
 
 --
 
-CREATE INDEX "idx_sys_dict_type_tenant_parent" ON "public"."sys_dict_type" USING "btree" ("tenant_id", "parent_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_dict_type_tenant_parent" ON "public"."sys_dict_type" USING "btree" ("tenant_id", "parent_id");
 
 
 --
@@ -24832,7 +26972,7 @@ CREATE INDEX "idx_sys_dict_type_tenant_parent" ON "public"."sys_dict_type" USING
 
 --
 
-CREATE INDEX "idx_sys_dictionary_cascade_parent_id" ON "public"."sys_dictionary" USING "btree" ("cascade_parent_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_dictionary_cascade_parent_id" ON "public"."sys_dictionary" USING "btree" ("cascade_parent_id");
 
 
 --
@@ -24843,7 +26983,7 @@ CREATE INDEX "idx_sys_dictionary_cascade_parent_id" ON "public"."sys_dictionary"
 
 --
 
-CREATE INDEX "idx_sys_dictionary_parent_id" ON "public"."sys_dictionary" USING "btree" ("parent_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_dictionary_parent_id" ON "public"."sys_dictionary" USING "btree" ("parent_id");
 
 
 --
@@ -24854,7 +26994,7 @@ CREATE INDEX "idx_sys_dictionary_parent_id" ON "public"."sys_dictionary" USING "
 
 --
 
-CREATE INDEX "idx_sys_dictionary_tenant_id" ON "public"."sys_dictionary" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_dictionary_tenant_id" ON "public"."sys_dictionary" USING "btree" ("tenant_id");
 
 
 --
@@ -24865,7 +27005,7 @@ CREATE INDEX "idx_sys_dictionary_tenant_id" ON "public"."sys_dictionary" USING "
 
 --
 
-CREATE INDEX "idx_sys_dictionary_tenant_type_code" ON "public"."sys_dictionary" USING "btree" ("tenant_id", "type_id", "code");
+CREATE INDEX IF NOT EXISTS "idx_sys_dictionary_tenant_type_code" ON "public"."sys_dictionary" USING "btree" ("tenant_id", "type_id", "code");
 
 
 --
@@ -24876,7 +27016,7 @@ CREATE INDEX "idx_sys_dictionary_tenant_type_code" ON "public"."sys_dictionary" 
 
 --
 
-CREATE INDEX "idx_sys_dictionary_tenant_type_parent" ON "public"."sys_dictionary" USING "btree" ("tenant_id", "type_id", "parent_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_dictionary_tenant_type_parent" ON "public"."sys_dictionary" USING "btree" ("tenant_id", "type_id", "parent_id");
 
 
 --
@@ -24887,7 +27027,7 @@ CREATE INDEX "idx_sys_dictionary_tenant_type_parent" ON "public"."sys_dictionary
 
 --
 
-CREATE INDEX "idx_sys_dictionary_type_id" ON "public"."sys_dictionary" USING "btree" ("type_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_dictionary_type_id" ON "public"."sys_dictionary" USING "btree" ("type_id");
 
 
 --
@@ -24898,7 +27038,7 @@ CREATE INDEX "idx_sys_dictionary_type_id" ON "public"."sys_dictionary" USING "bt
 
 --
 
-CREATE INDEX "idx_sys_dictionary_type_normalized_value_enabled" ON "public"."sys_dictionary" USING "btree" ("type_id", "btrim"("value")) WHERE (("status")::"text" = '1'::"text");
+CREATE INDEX IF NOT EXISTS "idx_sys_dictionary_type_normalized_value_enabled" ON "public"."sys_dictionary" USING "btree" ("type_id", "btrim"("value")) WHERE (("status")::"text" = '1'::"text");
 
 
 --
@@ -24909,7 +27049,7 @@ CREATE INDEX "idx_sys_dictionary_type_normalized_value_enabled" ON "public"."sys
 
 --
 
-CREATE INDEX "idx_sys_document_number_rule_rule_key" ON "public"."sys_document_number_rule" USING "btree" ("rule_key");
+CREATE INDEX IF NOT EXISTS "idx_sys_document_number_rule_rule_key" ON "public"."sys_document_number_rule" USING "btree" ("rule_key");
 
 
 --
@@ -24920,7 +27060,7 @@ CREATE INDEX "idx_sys_document_number_rule_rule_key" ON "public"."sys_document_n
 
 --
 
-CREATE INDEX "idx_sys_menu_app_parent_sort" ON "public"."sys_menu" USING "btree" ("app_code", "parent_id", "sort", "id");
+CREATE INDEX IF NOT EXISTS "idx_sys_menu_app_parent_sort" ON "public"."sys_menu" USING "btree" ("app_code", "parent_id", "sort", "id");
 
 
 --
@@ -24931,7 +27071,7 @@ CREATE INDEX "idx_sys_menu_app_parent_sort" ON "public"."sys_menu" USING "btree"
 
 --
 
-CREATE INDEX "idx_sys_menu_path" ON "public"."sys_menu" USING "btree" ("path");
+CREATE INDEX IF NOT EXISTS "idx_sys_menu_path" ON "public"."sys_menu" USING "btree" ("path");
 
 
 --
@@ -24942,7 +27082,7 @@ CREATE INDEX "idx_sys_menu_path" ON "public"."sys_menu" USING "btree" ("path");
 
 --
 
-CREATE INDEX "idx_sys_organization_leader_user_id" ON "public"."mdm_organization" USING "btree" ("leader_user_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_organization_leader_user_id" ON "public"."mdm_organization" USING "btree" ("leader_user_id");
 
 
 --
@@ -24953,7 +27093,7 @@ CREATE INDEX "idx_sys_organization_leader_user_id" ON "public"."mdm_organization
 
 --
 
-CREATE INDEX "idx_sys_organization_tenant_parent_sort" ON "public"."mdm_organization" USING "btree" ("tenant_id", "parent_id", "sort", "organization_name");
+CREATE INDEX IF NOT EXISTS "idx_sys_organization_tenant_parent_sort" ON "public"."mdm_organization" USING "btree" ("tenant_id", "parent_id", "sort", "organization_name");
 
 
 --
@@ -24964,7 +27104,7 @@ CREATE INDEX "idx_sys_organization_tenant_parent_sort" ON "public"."mdm_organiza
 
 --
 
-CREATE INDEX "idx_sys_role_menu_menu_id" ON "public"."sys_role_menu" USING "btree" ("menu_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_role_menu_menu_id" ON "public"."sys_role_menu" USING "btree" ("menu_id");
 
 
 --
@@ -24975,7 +27115,7 @@ CREATE INDEX "idx_sys_role_menu_menu_id" ON "public"."sys_role_menu" USING "btre
 
 --
 
-CREATE INDEX "idx_sys_role_menu_tenant_id" ON "public"."sys_role_menu" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_role_menu_tenant_id" ON "public"."sys_role_menu" USING "btree" ("tenant_id");
 
 
 --
@@ -24986,7 +27126,7 @@ CREATE INDEX "idx_sys_role_menu_tenant_id" ON "public"."sys_role_menu" USING "bt
 
 --
 
-CREATE INDEX "idx_sys_role_organization_id" ON "public"."sys_role" USING "btree" ("organization_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_role_organization_id" ON "public"."sys_role" USING "btree" ("organization_id");
 
 
 --
@@ -24997,7 +27137,7 @@ CREATE INDEX "idx_sys_role_organization_id" ON "public"."sys_role" USING "btree"
 
 --
 
-CREATE INDEX "idx_sys_role_role_code" ON "public"."sys_role" USING "btree" ("role_code");
+CREATE INDEX IF NOT EXISTS "idx_sys_role_role_code" ON "public"."sys_role" USING "btree" ("role_code");
 
 
 --
@@ -25008,7 +27148,7 @@ CREATE INDEX "idx_sys_role_role_code" ON "public"."sys_role" USING "btree" ("rol
 
 --
 
-CREATE INDEX "idx_sys_role_tenant_id" ON "public"."sys_role" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_role_tenant_id" ON "public"."sys_role" USING "btree" ("tenant_id");
 
 
 --
@@ -25019,7 +27159,7 @@ CREATE INDEX "idx_sys_role_tenant_id" ON "public"."sys_role" USING "btree" ("ten
 
 --
 
-CREATE UNIQUE INDEX "idx_sys_role_tenant_role_code_unique" ON "public"."sys_role" USING "btree" ("tenant_id", "role_code");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_sys_role_tenant_role_code_unique" ON "public"."sys_role" USING "btree" ("tenant_id", "role_code");
 
 
 --
@@ -25030,7 +27170,7 @@ CREATE UNIQUE INDEX "idx_sys_role_tenant_role_code_unique" ON "public"."sys_role
 
 --
 
-CREATE INDEX "idx_sys_user_active_tenant_created" ON "public"."sys_user" USING "btree" ("tenant_id", "create_time" DESC) WHERE ("deleted_at" IS NULL);
+CREATE INDEX IF NOT EXISTS "idx_sys_user_active_tenant_created" ON "public"."sys_user" USING "btree" ("tenant_id", "create_time" DESC) WHERE ("deleted_at" IS NULL);
 
 
 --
@@ -25041,7 +27181,7 @@ CREATE INDEX "idx_sys_user_active_tenant_created" ON "public"."sys_user" USING "
 
 --
 
-CREATE UNIQUE INDEX "idx_sys_user_auth_user_id_unique" ON "public"."sys_user" USING "btree" ("auth_user_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_sys_user_auth_user_id_unique" ON "public"."sys_user" USING "btree" ("auth_user_id");
 
 
 --
@@ -25052,7 +27192,7 @@ CREATE UNIQUE INDEX "idx_sys_user_auth_user_id_unique" ON "public"."sys_user" US
 
 --
 
-CREATE INDEX "idx_sys_user_organization_id" ON "public"."sys_user" USING "btree" ("organization_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_user_organization_id" ON "public"."sys_user" USING "btree" ("organization_id");
 
 
 --
@@ -25063,7 +27203,7 @@ CREATE INDEX "idx_sys_user_organization_id" ON "public"."sys_user" USING "btree"
 
 --
 
-CREATE INDEX "idx_sys_user_tenant_id" ON "public"."sys_user" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_user_tenant_id" ON "public"."sys_user" USING "btree" ("tenant_id");
 
 
 --
@@ -25074,7 +27214,7 @@ CREATE INDEX "idx_sys_user_tenant_id" ON "public"."sys_user" USING "btree" ("ten
 
 --
 
-CREATE INDEX "idx_sys_user_tenant_role_codes" ON "public"."sys_user_tenant" USING "gin" ("role_codes");
+CREATE INDEX IF NOT EXISTS "idx_sys_user_tenant_role_codes" ON "public"."sys_user_tenant" USING "gin" ("role_codes");
 
 
 --
@@ -25085,7 +27225,7 @@ CREATE INDEX "idx_sys_user_tenant_role_codes" ON "public"."sys_user_tenant" USIN
 
 --
 
-CREATE INDEX "idx_sys_user_tenant_tenant_id" ON "public"."sys_user_tenant" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_user_tenant_tenant_id" ON "public"."sys_user_tenant" USING "btree" ("tenant_id");
 
 
 --
@@ -25096,7 +27236,7 @@ CREATE INDEX "idx_sys_user_tenant_tenant_id" ON "public"."sys_user_tenant" USING
 
 --
 
-CREATE INDEX "idx_sys_user_tenant_user_id" ON "public"."sys_user_tenant" USING "btree" ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_sys_user_tenant_user_id" ON "public"."sys_user_tenant" USING "btree" ("user_id");
 
 
 --
@@ -25107,7 +27247,7 @@ CREATE INDEX "idx_sys_user_tenant_user_id" ON "public"."sys_user_tenant" USING "
 
 --
 
-CREATE INDEX "idx_sys_user_user_email" ON "public"."sys_user" USING "btree" ("user_email");
+CREATE INDEX IF NOT EXISTS "idx_sys_user_user_email" ON "public"."sys_user" USING "btree" ("user_email");
 
 
 --
@@ -25118,7 +27258,7 @@ CREATE INDEX "idx_sys_user_user_email" ON "public"."sys_user" USING "btree" ("us
 
 --
 
-CREATE INDEX "idx_tms_carrier_carrier_type" ON "public"."mdm_carrier" USING "btree" ("carrier_type");
+CREATE INDEX IF NOT EXISTS "idx_tms_carrier_carrier_type" ON "public"."mdm_carrier" USING "btree" ("carrier_type");
 
 
 --
@@ -25129,7 +27269,7 @@ CREATE INDEX "idx_tms_carrier_carrier_type" ON "public"."mdm_carrier" USING "btr
 
 --
 
-CREATE INDEX "idx_tms_carrier_company_name" ON "public"."mdm_carrier" USING "btree" ("company_name");
+CREATE INDEX IF NOT EXISTS "idx_tms_carrier_company_name" ON "public"."mdm_carrier" USING "btree" ("company_name");
 
 
 --
@@ -25140,7 +27280,7 @@ CREATE INDEX "idx_tms_carrier_company_name" ON "public"."mdm_carrier" USING "btr
 
 --
 
-CREATE INDEX "idx_tms_carrier_create_time" ON "public"."mdm_carrier" USING "btree" ("create_time" DESC);
+CREATE INDEX IF NOT EXISTS "idx_tms_carrier_create_time" ON "public"."mdm_carrier" USING "btree" ("create_time" DESC);
 
 
 --
@@ -25151,7 +27291,7 @@ CREATE INDEX "idx_tms_carrier_create_time" ON "public"."mdm_carrier" USING "btre
 
 --
 
-CREATE INDEX "idx_tms_carrier_enabled" ON "public"."mdm_carrier" USING "btree" ("enabled");
+CREATE INDEX IF NOT EXISTS "idx_tms_carrier_enabled" ON "public"."mdm_carrier" USING "btree" ("enabled");
 
 
 --
@@ -25162,7 +27302,7 @@ CREATE INDEX "idx_tms_carrier_enabled" ON "public"."mdm_carrier" USING "btree" (
 
 --
 
-CREATE INDEX "idx_tms_carrier_signed_contract" ON "public"."mdm_carrier" USING "btree" ("signed_contract");
+CREATE INDEX IF NOT EXISTS "idx_tms_carrier_signed_contract" ON "public"."mdm_carrier" USING "btree" ("signed_contract");
 
 
 --
@@ -25173,7 +27313,7 @@ CREATE INDEX "idx_tms_carrier_signed_contract" ON "public"."mdm_carrier" USING "
 
 --
 
-CREATE INDEX "idx_tms_carrier_tenant_id" ON "public"."mdm_carrier" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_tms_carrier_tenant_id" ON "public"."mdm_carrier" USING "btree" ("tenant_id");
 
 
 --
@@ -25184,7 +27324,7 @@ CREATE INDEX "idx_tms_carrier_tenant_id" ON "public"."mdm_carrier" USING "btree"
 
 --
 
-CREATE INDEX "idx_tms_customer_address_tenant_creator" ON "public"."mdm_customer_address" USING "btree" ("tenant_id", "created_by_user_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "idx_tms_customer_address_tenant_creator" ON "public"."mdm_customer_address" USING "btree" ("tenant_id", "created_by_user_id", "create_time" DESC);
 
 
 --
@@ -25195,7 +27335,7 @@ CREATE INDEX "idx_tms_customer_address_tenant_creator" ON "public"."mdm_customer
 
 --
 
-CREATE INDEX "idx_tms_customer_tenant_creator" ON "public"."mdm_customer" USING "btree" ("tenant_id", "created_by_user_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "idx_tms_customer_tenant_creator" ON "public"."mdm_customer" USING "btree" ("tenant_id", "created_by_user_id", "create_time" DESC);
 
 
 --
@@ -25206,7 +27346,7 @@ CREATE INDEX "idx_tms_customer_tenant_creator" ON "public"."mdm_customer" USING 
 
 --
 
-CREATE INDEX "idx_vehicle_supplier_tenant_id" ON "public"."mdm_supplier" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "idx_vehicle_supplier_tenant_id" ON "public"."mdm_supplier" USING "btree" ("tenant_id");
 
 
 --
@@ -25217,7 +27357,7 @@ CREATE INDEX "idx_vehicle_supplier_tenant_id" ON "public"."mdm_supplier" USING "
 
 --
 
-CREATE INDEX "idx_vehicle_supplier_tenant_name" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "supplier_name");
+CREATE INDEX IF NOT EXISTS "idx_vehicle_supplier_tenant_name" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "supplier_name");
 
 
 --
@@ -25228,7 +27368,7 @@ CREATE INDEX "idx_vehicle_supplier_tenant_name" ON "public"."mdm_supplier" USING
 
 --
 
-CREATE INDEX "mdm_accessory_item_material_fk_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("material_id", "tenant_id") WHERE ("material_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "mdm_accessory_item_material_fk_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("material_id", "tenant_id") WHERE ("material_id" IS NOT NULL);
 
 
 --
@@ -25239,7 +27379,7 @@ CREATE INDEX "mdm_accessory_item_material_fk_idx" ON "public"."mdm_accessory_pro
 
 --
 
-CREATE INDEX "mdm_accessory_list_bom_fk_idx" ON "public"."mdm_accessory_processing_list" USING "btree" ("bom_id", "tenant_id") WHERE ("bom_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "mdm_accessory_list_bom_fk_idx" ON "public"."mdm_accessory_processing_list" USING "btree" ("bom_id", "tenant_id") WHERE ("bom_id" IS NOT NULL);
 
 
 --
@@ -25250,7 +27390,7 @@ CREATE INDEX "mdm_accessory_list_bom_fk_idx" ON "public"."mdm_accessory_processi
 
 --
 
-CREATE INDEX "mdm_accessory_list_project_fk_idx" ON "public"."mdm_accessory_processing_list" USING "btree" ("project_id", "tenant_id") WHERE ("project_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "mdm_accessory_list_project_fk_idx" ON "public"."mdm_accessory_processing_list" USING "btree" ("project_id", "tenant_id") WHERE ("project_id" IS NOT NULL);
 
 
 --
@@ -25261,7 +27401,7 @@ CREATE INDEX "mdm_accessory_list_project_fk_idx" ON "public"."mdm_accessory_proc
 
 --
 
-CREATE INDEX "mdm_accessory_processing_item_tenant_list_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("tenant_id", "list_id");
+CREATE INDEX IF NOT EXISTS "mdm_accessory_processing_item_tenant_list_idx" ON "public"."mdm_accessory_processing_item" USING "btree" ("tenant_id", "list_id");
 
 
 --
@@ -25272,7 +27412,7 @@ CREATE INDEX "mdm_accessory_processing_item_tenant_list_idx" ON "public"."mdm_ac
 
 --
 
-CREATE INDEX "mdm_accessory_processing_list_tenant_time_idx" ON "public"."mdm_accessory_processing_list" USING "btree" ("tenant_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "mdm_accessory_processing_list_tenant_time_idx" ON "public"."mdm_accessory_processing_list" USING "btree" ("tenant_id", "create_time" DESC);
 
 
 --
@@ -25283,7 +27423,7 @@ CREATE INDEX "mdm_accessory_processing_list_tenant_time_idx" ON "public"."mdm_ac
 
 --
 
-CREATE UNIQUE INDEX "mdm_bom_code_unique" ON "public"."mdm_bom" USING "btree" ("tenant_id", "lower"("btrim"("bom_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_bom_code_unique" ON "public"."mdm_bom" USING "btree" ("tenant_id", "lower"("btrim"("bom_code")));
 
 
 --
@@ -25294,7 +27434,7 @@ CREATE UNIQUE INDEX "mdm_bom_code_unique" ON "public"."mdm_bom" USING "btree" ("
 
 --
 
-CREATE INDEX "mdm_bom_group_fk_idx" ON "public"."mdm_bom" USING "btree" ("group_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_bom_group_fk_idx" ON "public"."mdm_bom" USING "btree" ("group_id", "tenant_id");
 
 
 --
@@ -25305,7 +27445,7 @@ CREATE INDEX "mdm_bom_group_fk_idx" ON "public"."mdm_bom" USING "btree" ("group_
 
 --
 
-CREATE INDEX "mdm_bom_material_fk_idx" ON "public"."mdm_bom" USING "btree" ("material_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_bom_material_fk_idx" ON "public"."mdm_bom" USING "btree" ("material_id", "tenant_id");
 
 
 --
@@ -25316,7 +27456,7 @@ CREATE INDEX "mdm_bom_material_fk_idx" ON "public"."mdm_bom" USING "btree" ("mat
 
 --
 
-CREATE UNIQUE INDEX "mdm_bom_natural_unique" ON "public"."mdm_bom" USING "btree" ("tenant_id", "material_id", "purpose", "lower"("btrim"("version")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_bom_natural_unique" ON "public"."mdm_bom" USING "btree" ("tenant_id", "material_id", "purpose", "lower"("btrim"("version")));
 
 
 --
@@ -25327,7 +27467,7 @@ CREATE UNIQUE INDEX "mdm_bom_natural_unique" ON "public"."mdm_bom" USING "btree"
 
 --
 
-CREATE INDEX "mdm_bom_process_route_idx" ON "public"."mdm_bom" USING "btree" ("tenant_id", "process_route_id") WHERE ("process_route_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "mdm_bom_process_route_idx" ON "public"."mdm_bom" USING "btree" ("tenant_id", "process_route_id") WHERE ("process_route_id" IS NOT NULL);
 
 
 --
@@ -25338,7 +27478,7 @@ CREATE INDEX "mdm_bom_process_route_idx" ON "public"."mdm_bom" USING "btree" ("t
 
 --
 
-CREATE INDEX "mdm_bom_project_status_idx" ON "public"."mdm_bom" USING "btree" ("tenant_id", "project_id", "status", "update_time" DESC) WHERE ("project_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "mdm_bom_project_status_idx" ON "public"."mdm_bom" USING "btree" ("tenant_id", "project_id", "status", "update_time" DESC) WHERE ("project_id" IS NOT NULL);
 
 
 --
@@ -25349,7 +27489,7 @@ CREATE INDEX "mdm_bom_project_status_idx" ON "public"."mdm_bom" USING "btree" ("
 
 --
 
-CREATE INDEX "mdm_bom_query_idx" ON "public"."mdm_bom" USING "btree" ("tenant_id", "status", "purpose", "sort", "update_time" DESC);
+CREATE INDEX IF NOT EXISTS "mdm_bom_query_idx" ON "public"."mdm_bom" USING "btree" ("tenant_id", "status", "purpose", "sort", "update_time" DESC);
 
 
 --
@@ -25360,7 +27500,7 @@ CREATE INDEX "mdm_bom_query_idx" ON "public"."mdm_bom" USING "btree" ("tenant_id
 
 --
 
-CREATE UNIQUE INDEX "mdm_bom_source_quotation_unique" ON "public"."mdm_bom" USING "btree" ("source_quotation_id") WHERE ("source_quotation_id" IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_bom_source_quotation_unique" ON "public"."mdm_bom" USING "btree" ("source_quotation_id") WHERE ("source_quotation_id" IS NOT NULL);
 
 
 --
@@ -25371,7 +27511,7 @@ CREATE UNIQUE INDEX "mdm_bom_source_quotation_unique" ON "public"."mdm_bom" USIN
 
 --
 
-CREATE INDEX "mdm_bom_unit_fk_idx" ON "public"."mdm_bom" USING "btree" ("base_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_bom_unit_fk_idx" ON "public"."mdm_bom" USING "btree" ("base_unit_id", "tenant_id");
 
 
 --
@@ -25382,7 +27522,7 @@ CREATE INDEX "mdm_bom_unit_fk_idx" ON "public"."mdm_bom" USING "btree" ("base_un
 
 --
 
-CREATE INDEX "mdm_customer_group_idx" ON "public"."mdm_customer" USING "btree" ("tenant_id", "group_id");
+CREATE INDEX IF NOT EXISTS "mdm_customer_group_idx" ON "public"."mdm_customer" USING "btree" ("tenant_id", "group_id");
 
 
 --
@@ -25393,7 +27533,7 @@ CREATE INDEX "mdm_customer_group_idx" ON "public"."mdm_customer" USING "btree" (
 
 --
 
-CREATE INDEX "mdm_master_group_parent_idx" ON "public"."mdm_master_group" USING "btree" ("tenant_id", "domain", "parent_id", "sort");
+CREATE INDEX IF NOT EXISTS "mdm_master_group_parent_idx" ON "public"."mdm_master_group" USING "btree" ("tenant_id", "domain", "parent_id", "sort");
 
 
 --
@@ -25404,7 +27544,7 @@ CREATE INDEX "mdm_master_group_parent_idx" ON "public"."mdm_master_group" USING 
 
 --
 
-CREATE INDEX "mdm_material_advance_period_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("advance_period_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_advance_period_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("advance_period_unit_id", "tenant_id");
 
 
 --
@@ -25415,7 +27555,7 @@ CREATE INDEX "mdm_material_advance_period_unit_fk_idx" ON "public"."mdm_material
 
 --
 
-CREATE UNIQUE INDEX "mdm_material_attribute_group_code_unique" ON "public"."mdm_material_attribute_group" USING "btree" ("tenant_id", "lower"("btrim"("group_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_material_attribute_group_code_unique" ON "public"."mdm_material_attribute_group" USING "btree" ("tenant_id", "lower"("btrim"("group_code")));
 
 
 --
@@ -25426,7 +27566,7 @@ CREATE UNIQUE INDEX "mdm_material_attribute_group_code_unique" ON "public"."mdm_
 
 --
 
-CREATE INDEX "mdm_material_attribute_group_fk_idx" ON "public"."mdm_material" USING "btree" ("attribute_group_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_attribute_group_fk_idx" ON "public"."mdm_material" USING "btree" ("attribute_group_id", "tenant_id");
 
 
 --
@@ -25437,7 +27577,7 @@ CREATE INDEX "mdm_material_attribute_group_fk_idx" ON "public"."mdm_material" US
 
 --
 
-CREATE UNIQUE INDEX "mdm_material_attribute_group_name_unique" ON "public"."mdm_material_attribute_group" USING "btree" ("tenant_id", "lower"("btrim"("group_name")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_material_attribute_group_name_unique" ON "public"."mdm_material_attribute_group" USING "btree" ("tenant_id", "lower"("btrim"("group_name")));
 
 
 --
@@ -25448,7 +27588,7 @@ CREATE UNIQUE INDEX "mdm_material_attribute_group_name_unique" ON "public"."mdm_
 
 --
 
-CREATE INDEX "mdm_material_attribute_group_status_idx" ON "public"."mdm_material_attribute_group" USING "btree" ("tenant_id", "status", "sort", "group_name");
+CREATE INDEX IF NOT EXISTS "mdm_material_attribute_group_status_idx" ON "public"."mdm_material_attribute_group" USING "btree" ("tenant_id", "status", "sort", "group_name");
 
 
 --
@@ -25459,7 +27599,7 @@ CREATE INDEX "mdm_material_attribute_group_status_idx" ON "public"."mdm_material
 
 --
 
-CREATE INDEX "mdm_material_aux_unit_2_fk_idx" ON "public"."mdm_material" USING "btree" ("auxiliary_unit_2_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_aux_unit_2_fk_idx" ON "public"."mdm_material" USING "btree" ("auxiliary_unit_2_id", "tenant_id");
 
 
 --
@@ -25470,7 +27610,7 @@ CREATE INDEX "mdm_material_aux_unit_2_fk_idx" ON "public"."mdm_material" USING "
 
 --
 
-CREATE INDEX "mdm_material_aux_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("auxiliary_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_aux_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("auxiliary_unit_id", "tenant_id");
 
 
 --
@@ -25481,7 +27621,7 @@ CREATE INDEX "mdm_material_aux_unit_fk_idx" ON "public"."mdm_material" USING "bt
 
 --
 
-CREATE INDEX "mdm_material_base_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("base_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_base_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("base_unit_id", "tenant_id");
 
 
 --
@@ -25492,7 +27632,7 @@ CREATE INDEX "mdm_material_base_unit_fk_idx" ON "public"."mdm_material" USING "b
 
 --
 
-CREATE INDEX "mdm_material_batch_rule_fk_idx" ON "public"."mdm_material" USING "btree" ("batch_rule_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_batch_rule_fk_idx" ON "public"."mdm_material" USING "btree" ("batch_rule_id", "tenant_id");
 
 
 --
@@ -25503,7 +27643,7 @@ CREATE INDEX "mdm_material_batch_rule_fk_idx" ON "public"."mdm_material" USING "
 
 --
 
-CREATE INDEX "mdm_material_category_purchaser_fk_idx" ON "public"."mdm_material_category" USING "btree" ("purchaser_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_category_purchaser_fk_idx" ON "public"."mdm_material_category" USING "btree" ("purchaser_id", "tenant_id");
 
 
 --
@@ -25514,7 +27654,7 @@ CREATE INDEX "mdm_material_category_purchaser_fk_idx" ON "public"."mdm_material_
 
 --
 
-CREATE INDEX "mdm_material_category_site_fk_idx" ON "public"."mdm_material_category" USING "btree" ("default_site_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_category_site_fk_idx" ON "public"."mdm_material_category" USING "btree" ("default_site_id", "tenant_id");
 
 
 --
@@ -25525,7 +27665,7 @@ CREATE INDEX "mdm_material_category_site_fk_idx" ON "public"."mdm_material_categ
 
 --
 
-CREATE INDEX "mdm_material_category_type_fk_idx" ON "public"."mdm_material_category" USING "btree" ("material_type_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_category_type_fk_idx" ON "public"."mdm_material_category" USING "btree" ("material_type_id", "tenant_id");
 
 
 --
@@ -25536,7 +27676,7 @@ CREATE INDEX "mdm_material_category_type_fk_idx" ON "public"."mdm_material_categ
 
 --
 
-CREATE UNIQUE INDEX "mdm_material_code_rule_code_unique" ON "public"."mdm_material_code_rule" USING "btree" ("tenant_id", "lower"("btrim"("rule_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_material_code_rule_code_unique" ON "public"."mdm_material_code_rule" USING "btree" ("tenant_id", "lower"("btrim"("rule_code")));
 
 
 --
@@ -25547,7 +27687,7 @@ CREATE UNIQUE INDEX "mdm_material_code_rule_code_unique" ON "public"."mdm_materi
 
 --
 
-CREATE INDEX "mdm_material_code_rule_fk_idx" ON "public"."mdm_material" USING "btree" ("code_rule_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_code_rule_fk_idx" ON "public"."mdm_material" USING "btree" ("code_rule_id", "tenant_id");
 
 
 --
@@ -25558,7 +27698,7 @@ CREATE INDEX "mdm_material_code_rule_fk_idx" ON "public"."mdm_material" USING "b
 
 --
 
-CREATE UNIQUE INDEX "mdm_material_code_rule_name_unique" ON "public"."mdm_material_code_rule" USING "btree" ("tenant_id", "lower"("btrim"("rule_name")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_material_code_rule_name_unique" ON "public"."mdm_material_code_rule" USING "btree" ("tenant_id", "lower"("btrim"("rule_name")));
 
 
 --
@@ -25569,7 +27709,7 @@ CREATE UNIQUE INDEX "mdm_material_code_rule_name_unique" ON "public"."mdm_materi
 
 --
 
-CREATE UNIQUE INDEX "mdm_material_code_rule_one_enabled_per_tenant" ON "public"."mdm_material_code_rule" USING "btree" ("tenant_id") WHERE ("status" = 'enabled'::"text");
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_material_code_rule_one_enabled_per_tenant" ON "public"."mdm_material_code_rule" USING "btree" ("tenant_id") WHERE ("status" = 'enabled'::"text");
 
 
 --
@@ -25580,7 +27720,7 @@ CREATE UNIQUE INDEX "mdm_material_code_rule_one_enabled_per_tenant" ON "public".
 
 --
 
-CREATE INDEX "mdm_material_code_rule_status_idx" ON "public"."mdm_material_code_rule" USING "btree" ("tenant_id", "status", "sort", "rule_name");
+CREATE INDEX IF NOT EXISTS "mdm_material_code_rule_status_idx" ON "public"."mdm_material_code_rule" USING "btree" ("tenant_id", "status", "sort", "rule_name");
 
 
 --
@@ -25591,7 +27731,7 @@ CREATE INDEX "mdm_material_code_rule_status_idx" ON "public"."mdm_material_code_
 
 --
 
-CREATE INDEX "mdm_material_cost_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("cost_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_cost_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("cost_unit_id", "tenant_id");
 
 
 --
@@ -25602,7 +27742,7 @@ CREATE INDEX "mdm_material_cost_unit_fk_idx" ON "public"."mdm_material" USING "b
 
 --
 
-CREATE INDEX "mdm_material_custodian_fk_idx" ON "public"."mdm_material" USING "btree" ("custodian_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_custodian_fk_idx" ON "public"."mdm_material" USING "btree" ("custodian_id", "tenant_id");
 
 
 --
@@ -25613,7 +27753,7 @@ CREATE INDEX "mdm_material_custodian_fk_idx" ON "public"."mdm_material" USING "b
 
 --
 
-CREATE INDEX "mdm_material_default_warehouse_fk_idx" ON "public"."mdm_material" USING "btree" ("default_warehouse_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_default_warehouse_fk_idx" ON "public"."mdm_material" USING "btree" ("default_warehouse_id", "tenant_id");
 
 
 --
@@ -25624,7 +27764,7 @@ CREATE INDEX "mdm_material_default_warehouse_fk_idx" ON "public"."mdm_material" 
 
 --
 
-CREATE INDEX "mdm_material_dispatcher_fk_idx" ON "public"."mdm_material" USING "btree" ("dispatcher_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_dispatcher_fk_idx" ON "public"."mdm_material" USING "btree" ("dispatcher_id", "tenant_id");
 
 
 --
@@ -25635,7 +27775,7 @@ CREATE INDEX "mdm_material_dispatcher_fk_idx" ON "public"."mdm_material" USING "
 
 --
 
-CREATE INDEX "mdm_material_group_fk_idx" ON "public"."mdm_material" USING "btree" ("material_group_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_group_fk_idx" ON "public"."mdm_material" USING "btree" ("material_group_id", "tenant_id");
 
 
 --
@@ -25646,7 +27786,7 @@ CREATE INDEX "mdm_material_group_fk_idx" ON "public"."mdm_material" USING "btree
 
 --
 
-CREATE INDEX "mdm_material_inbound_warehouse_fk_idx" ON "public"."mdm_material" USING "btree" ("inbound_warehouse_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_inbound_warehouse_fk_idx" ON "public"."mdm_material" USING "btree" ("inbound_warehouse_id", "tenant_id");
 
 
 --
@@ -25657,7 +27797,7 @@ CREATE INDEX "mdm_material_inbound_warehouse_fk_idx" ON "public"."mdm_material" 
 
 --
 
-CREATE INDEX "mdm_material_inventory_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("inventory_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_inventory_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("inventory_unit_id", "tenant_id");
 
 
 --
@@ -25668,7 +27808,7 @@ CREATE INDEX "mdm_material_inventory_unit_fk_idx" ON "public"."mdm_material" USI
 
 --
 
-CREATE INDEX "mdm_material_issuing_warehouse_fk_idx" ON "public"."mdm_material" USING "btree" ("issuing_warehouse_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_issuing_warehouse_fk_idx" ON "public"."mdm_material" USING "btree" ("issuing_warehouse_id", "tenant_id");
 
 
 --
@@ -25679,7 +27819,7 @@ CREATE INDEX "mdm_material_issuing_warehouse_fk_idx" ON "public"."mdm_material" 
 
 --
 
-CREATE INDEX "mdm_material_outbound_rule_fk_idx" ON "public"."mdm_material" USING "btree" ("outbound_rule_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_outbound_rule_fk_idx" ON "public"."mdm_material" USING "btree" ("outbound_rule_id", "tenant_id");
 
 
 --
@@ -25690,7 +27830,7 @@ CREATE INDEX "mdm_material_outbound_rule_fk_idx" ON "public"."mdm_material" USIN
 
 --
 
-CREATE INDEX "mdm_material_planner_fk_idx" ON "public"."mdm_material" USING "btree" ("planner_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_planner_fk_idx" ON "public"."mdm_material" USING "btree" ("planner_id", "tenant_id");
 
 
 --
@@ -25701,7 +27841,7 @@ CREATE INDEX "mdm_material_planner_fk_idx" ON "public"."mdm_material" USING "btr
 
 --
 
-CREATE INDEX "mdm_material_production_planner_fk_idx" ON "public"."mdm_material" USING "btree" ("production_planner_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_production_planner_fk_idx" ON "public"."mdm_material" USING "btree" ("production_planner_id", "tenant_id");
 
 
 --
@@ -25712,7 +27852,7 @@ CREATE INDEX "mdm_material_production_planner_fk_idx" ON "public"."mdm_material"
 
 --
 
-CREATE INDEX "mdm_material_production_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("production_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_production_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("production_unit_id", "tenant_id");
 
 
 --
@@ -25723,7 +27863,7 @@ CREATE INDEX "mdm_material_production_unit_fk_idx" ON "public"."mdm_material" US
 
 --
 
-CREATE INDEX "mdm_material_purchase_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("purchase_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_purchase_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("purchase_unit_id", "tenant_id");
 
 
 --
@@ -25734,7 +27874,7 @@ CREATE INDEX "mdm_material_purchase_unit_fk_idx" ON "public"."mdm_material" USIN
 
 --
 
-CREATE INDEX "mdm_material_purchaser_fk_idx" ON "public"."mdm_material" USING "btree" ("purchaser_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_purchaser_fk_idx" ON "public"."mdm_material" USING "btree" ("purchaser_id", "tenant_id");
 
 
 --
@@ -25745,7 +27885,7 @@ CREATE INDEX "mdm_material_purchaser_fk_idx" ON "public"."mdm_material" USING "b
 
 --
 
-CREATE INDEX "mdm_material_sales_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("sales_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_sales_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("sales_unit_id", "tenant_id");
 
 
 --
@@ -25756,7 +27896,7 @@ CREATE INDEX "mdm_material_sales_unit_fk_idx" ON "public"."mdm_material" USING "
 
 --
 
-CREATE INDEX "mdm_material_salesperson_fk_idx" ON "public"."mdm_material" USING "btree" ("salesperson_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_salesperson_fk_idx" ON "public"."mdm_material" USING "btree" ("salesperson_id", "tenant_id");
 
 
 --
@@ -25767,7 +27907,7 @@ CREATE INDEX "mdm_material_salesperson_fk_idx" ON "public"."mdm_material" USING 
 
 --
 
-CREATE INDEX "mdm_material_serial_rule_fk_idx" ON "public"."mdm_material" USING "btree" ("serial_rule_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_serial_rule_fk_idx" ON "public"."mdm_material" USING "btree" ("serial_rule_id", "tenant_id");
 
 
 --
@@ -25778,7 +27918,7 @@ CREATE INDEX "mdm_material_serial_rule_fk_idx" ON "public"."mdm_material" USING 
 
 --
 
-CREATE INDEX "mdm_material_shelf_life_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("shelf_life_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_shelf_life_unit_fk_idx" ON "public"."mdm_material" USING "btree" ("shelf_life_unit_id", "tenant_id");
 
 
 --
@@ -25789,7 +27929,7 @@ CREATE INDEX "mdm_material_shelf_life_unit_fk_idx" ON "public"."mdm_material" US
 
 --
 
-CREATE INDEX "mdm_material_storage_location_fk_idx" ON "public"."mdm_material" USING "btree" ("storage_location_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_storage_location_fk_idx" ON "public"."mdm_material" USING "btree" ("storage_location_id", "tenant_id");
 
 
 --
@@ -25800,7 +27940,7 @@ CREATE INDEX "mdm_material_storage_location_fk_idx" ON "public"."mdm_material" U
 
 --
 
-CREATE INDEX "mdm_material_supplier_fk_idx" ON "public"."mdm_material" USING "btree" ("tenant_id", "default_supplier_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_supplier_fk_idx" ON "public"."mdm_material" USING "btree" ("tenant_id", "default_supplier_id");
 
 
 --
@@ -25811,7 +27951,7 @@ CREATE INDEX "mdm_material_supplier_fk_idx" ON "public"."mdm_material" USING "bt
 
 --
 
-CREATE UNIQUE INDEX "mdm_material_type_code_unique" ON "public"."mdm_material_type" USING "btree" ("tenant_id", "lower"("btrim"("type_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_material_type_code_unique" ON "public"."mdm_material_type" USING "btree" ("tenant_id", "lower"("btrim"("type_code")));
 
 
 --
@@ -25822,7 +27962,7 @@ CREATE UNIQUE INDEX "mdm_material_type_code_unique" ON "public"."mdm_material_ty
 
 --
 
-CREATE INDEX "mdm_material_type_fk_idx" ON "public"."mdm_material" USING "btree" ("material_type_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_material_type_fk_idx" ON "public"."mdm_material" USING "btree" ("material_type_id", "tenant_id");
 
 
 --
@@ -25833,7 +27973,7 @@ CREATE INDEX "mdm_material_type_fk_idx" ON "public"."mdm_material" USING "btree"
 
 --
 
-CREATE UNIQUE INDEX "mdm_material_type_name_unique" ON "public"."mdm_material_type" USING "btree" ("tenant_id", "lower"("btrim"("type_name")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_material_type_name_unique" ON "public"."mdm_material_type" USING "btree" ("tenant_id", "lower"("btrim"("type_name")));
 
 
 --
@@ -25844,7 +27984,7 @@ CREATE UNIQUE INDEX "mdm_material_type_name_unique" ON "public"."mdm_material_ty
 
 --
 
-CREATE INDEX "mdm_material_type_status_idx" ON "public"."mdm_material_type" USING "btree" ("tenant_id", "status", "sort", "type_name");
+CREATE INDEX IF NOT EXISTS "mdm_material_type_status_idx" ON "public"."mdm_material_type" USING "btree" ("tenant_id", "status", "sort", "type_name");
 
 
 --
@@ -25855,7 +27995,7 @@ CREATE INDEX "mdm_material_type_status_idx" ON "public"."mdm_material_type" USIN
 
 --
 
-CREATE INDEX "mdm_outbound_rule_tenant_status_idx" ON "public"."mdm_outbound_rule" USING "btree" ("tenant_id", "status", "update_time" DESC);
+CREATE INDEX IF NOT EXISTS "mdm_outbound_rule_tenant_status_idx" ON "public"."mdm_outbound_rule" USING "btree" ("tenant_id", "status", "update_time" DESC);
 
 
 --
@@ -25866,7 +28006,7 @@ CREATE INDEX "mdm_outbound_rule_tenant_status_idx" ON "public"."mdm_outbound_rul
 
 --
 
-CREATE INDEX "mdm_process_route_department_fk_idx" ON "public"."mdm_process_route" USING "btree" ("department_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_process_route_department_fk_idx" ON "public"."mdm_process_route" USING "btree" ("department_id", "tenant_id");
 
 
 --
@@ -25877,7 +28017,7 @@ CREATE INDEX "mdm_process_route_department_fk_idx" ON "public"."mdm_process_rout
 
 --
 
-CREATE INDEX "mdm_process_route_effective_idx" ON "public"."mdm_process_route" USING "btree" ("tenant_id", "material_id", "enabled", "effective_date", "expiry_date");
+CREATE INDEX IF NOT EXISTS "mdm_process_route_effective_idx" ON "public"."mdm_process_route" USING "btree" ("tenant_id", "material_id", "enabled", "effective_date", "expiry_date");
 
 
 --
@@ -25888,7 +28028,7 @@ CREATE INDEX "mdm_process_route_effective_idx" ON "public"."mdm_process_route" U
 
 --
 
-CREATE INDEX "mdm_process_route_group_fk_idx" ON "public"."mdm_process_route" USING "btree" ("group_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_process_route_group_fk_idx" ON "public"."mdm_process_route" USING "btree" ("group_id", "tenant_id");
 
 
 --
@@ -25899,7 +28039,7 @@ CREATE INDEX "mdm_process_route_group_fk_idx" ON "public"."mdm_process_route" US
 
 --
 
-CREATE INDEX "mdm_process_route_group_idx" ON "public"."mdm_process_route" USING "btree" ("tenant_id", "group_id");
+CREATE INDEX IF NOT EXISTS "mdm_process_route_group_idx" ON "public"."mdm_process_route" USING "btree" ("tenant_id", "group_id");
 
 
 --
@@ -25910,7 +28050,7 @@ CREATE INDEX "mdm_process_route_group_idx" ON "public"."mdm_process_route" USING
 
 --
 
-CREATE INDEX "mdm_process_route_material_fk_idx" ON "public"."mdm_process_route" USING "btree" ("material_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_process_route_material_fk_idx" ON "public"."mdm_process_route" USING "btree" ("material_id", "tenant_id");
 
 
 --
@@ -25921,7 +28061,7 @@ CREATE INDEX "mdm_process_route_material_fk_idx" ON "public"."mdm_process_route"
 
 --
 
-CREATE INDEX "mdm_process_route_material_idx" ON "public"."mdm_process_route" USING "btree" ("material_id");
+CREATE INDEX IF NOT EXISTS "mdm_process_route_material_idx" ON "public"."mdm_process_route" USING "btree" ("material_id");
 
 
 --
@@ -25932,7 +28072,7 @@ CREATE INDEX "mdm_process_route_material_idx" ON "public"."mdm_process_route" US
 
 --
 
-CREATE INDEX "mdm_process_route_production_unit_fk_idx" ON "public"."mdm_process_route" USING "btree" ("production_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_process_route_production_unit_fk_idx" ON "public"."mdm_process_route" USING "btree" ("production_unit_id", "tenant_id");
 
 
 --
@@ -25943,7 +28083,7 @@ CREATE INDEX "mdm_process_route_production_unit_fk_idx" ON "public"."mdm_process
 
 --
 
-CREATE INDEX "mdm_project_construction_project_idx" ON "public"."mdm_project_construction" USING "btree" ("tenant_id", "project_id", "status");
+CREATE INDEX IF NOT EXISTS "mdm_project_construction_project_idx" ON "public"."mdm_project_construction" USING "btree" ("tenant_id", "project_id", "status");
 
 
 --
@@ -25954,7 +28094,7 @@ CREATE INDEX "mdm_project_construction_project_idx" ON "public"."mdm_project_con
 
 --
 
-CREATE INDEX "mdm_project_customer_idx" ON "public"."mdm_project" USING "btree" ("tenant_id", "customer_id");
+CREATE INDEX IF NOT EXISTS "mdm_project_customer_idx" ON "public"."mdm_project" USING "btree" ("tenant_id", "customer_id");
 
 
 --
@@ -25965,7 +28105,7 @@ CREATE INDEX "mdm_project_customer_idx" ON "public"."mdm_project" USING "btree" 
 
 --
 
-CREATE INDEX "mdm_project_group_idx" ON "public"."mdm_project" USING "btree" ("tenant_id", "group_id");
+CREATE INDEX IF NOT EXISTS "mdm_project_group_idx" ON "public"."mdm_project" USING "btree" ("tenant_id", "group_id");
 
 
 --
@@ -25976,7 +28116,7 @@ CREATE INDEX "mdm_project_group_idx" ON "public"."mdm_project" USING "btree" ("t
 
 --
 
-CREATE INDEX "mdm_site_tenant_organization_fk_idx" ON "public"."mdm_site" USING "btree" ("tenant_id", "organization_id");
+CREATE INDEX IF NOT EXISTS "mdm_site_tenant_organization_fk_idx" ON "public"."mdm_site" USING "btree" ("tenant_id", "organization_id");
 
 
 --
@@ -25987,7 +28127,7 @@ CREATE INDEX "mdm_site_tenant_organization_fk_idx" ON "public"."mdm_site" USING 
 
 --
 
-CREATE INDEX "mdm_site_tenant_parent_fk_idx" ON "public"."mdm_site" USING "btree" ("tenant_id", "parent_id") WHERE ("parent_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "mdm_site_tenant_parent_fk_idx" ON "public"."mdm_site" USING "btree" ("tenant_id", "parent_id") WHERE ("parent_id" IS NOT NULL);
 
 
 --
@@ -25998,7 +28138,7 @@ CREATE INDEX "mdm_site_tenant_parent_fk_idx" ON "public"."mdm_site" USING "btree
 
 --
 
-CREATE INDEX "mdm_supplier_group_idx" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "group_id") WHERE ("group_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "mdm_supplier_group_idx" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "group_id") WHERE ("group_id" IS NOT NULL);
 
 
 --
@@ -26009,7 +28149,7 @@ CREATE INDEX "mdm_supplier_group_idx" ON "public"."mdm_supplier" USING "btree" (
 
 --
 
-CREATE INDEX "mdm_supply_chain_code_rule_tenant_status_idx" ON "public"."mdm_supply_chain_code_rule" USING "btree" ("tenant_id", "status", "update_time" DESC);
+CREATE INDEX IF NOT EXISTS "mdm_supply_chain_code_rule_tenant_status_idx" ON "public"."mdm_supply_chain_code_rule" USING "btree" ("tenant_id", "status", "update_time" DESC);
 
 
 --
@@ -26020,7 +28160,7 @@ CREATE INDEX "mdm_supply_chain_code_rule_tenant_status_idx" ON "public"."mdm_sup
 
 --
 
-CREATE INDEX "mdm_unit_of_measure_base_fk_idx" ON "public"."mdm_unit_of_measure" USING "btree" ("base_unit_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_unit_of_measure_base_fk_idx" ON "public"."mdm_unit_of_measure" USING "btree" ("base_unit_id", "tenant_id");
 
 
 --
@@ -26031,7 +28171,7 @@ CREATE INDEX "mdm_unit_of_measure_base_fk_idx" ON "public"."mdm_unit_of_measure"
 
 --
 
-CREATE UNIQUE INDEX "mdm_unit_of_measure_code_unique" ON "public"."mdm_unit_of_measure" USING "btree" ("tenant_id", "lower"("btrim"("unit_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_unit_of_measure_code_unique" ON "public"."mdm_unit_of_measure" USING "btree" ("tenant_id", "lower"("btrim"("unit_code")));
 
 
 --
@@ -26042,7 +28182,7 @@ CREATE UNIQUE INDEX "mdm_unit_of_measure_code_unique" ON "public"."mdm_unit_of_m
 
 --
 
-CREATE UNIQUE INDEX "mdm_unit_of_measure_name_unique" ON "public"."mdm_unit_of_measure" USING "btree" ("tenant_id", "lower"("btrim"("unit_name")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_unit_of_measure_name_unique" ON "public"."mdm_unit_of_measure" USING "btree" ("tenant_id", "lower"("btrim"("unit_name")));
 
 
 --
@@ -26053,7 +28193,7 @@ CREATE UNIQUE INDEX "mdm_unit_of_measure_name_unique" ON "public"."mdm_unit_of_m
 
 --
 
-CREATE INDEX "mdm_unit_of_measure_status_idx" ON "public"."mdm_unit_of_measure" USING "btree" ("tenant_id", "status", "sort", "unit_name");
+CREATE INDEX IF NOT EXISTS "mdm_unit_of_measure_status_idx" ON "public"."mdm_unit_of_measure" USING "btree" ("tenant_id", "status", "sort", "unit_name");
 
 
 --
@@ -26064,7 +28204,7 @@ CREATE INDEX "mdm_unit_of_measure_status_idx" ON "public"."mdm_unit_of_measure" 
 
 --
 
-CREATE INDEX "mdm_warehouse_bin_zone_sort_idx" ON "public"."mdm_warehouse_bin" USING "btree" ("tenant_id", "warehouse_id", "zone_id", "sort");
+CREATE INDEX IF NOT EXISTS "mdm_warehouse_bin_zone_sort_idx" ON "public"."mdm_warehouse_bin" USING "btree" ("tenant_id", "warehouse_id", "zone_id", "sort");
 
 
 --
@@ -26075,7 +28215,7 @@ CREATE INDEX "mdm_warehouse_bin_zone_sort_idx" ON "public"."mdm_warehouse_bin" U
 
 --
 
-CREATE UNIQUE INDEX "mdm_warehouse_code_unique" ON "public"."mdm_warehouse" USING "btree" ("tenant_id", "lower"("btrim"("warehouse_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_warehouse_code_unique" ON "public"."mdm_warehouse" USING "btree" ("tenant_id", "lower"("btrim"("warehouse_code")));
 
 
 --
@@ -26086,7 +28226,7 @@ CREATE UNIQUE INDEX "mdm_warehouse_code_unique" ON "public"."mdm_warehouse" USIN
 
 --
 
-CREATE INDEX "mdm_warehouse_group_idx" ON "public"."mdm_warehouse" USING "btree" ("tenant_id", "group_id", "status", "warehouse_name");
+CREATE INDEX IF NOT EXISTS "mdm_warehouse_group_idx" ON "public"."mdm_warehouse" USING "btree" ("tenant_id", "group_id", "status", "warehouse_name");
 
 
 --
@@ -26097,7 +28237,7 @@ CREATE INDEX "mdm_warehouse_group_idx" ON "public"."mdm_warehouse" USING "btree"
 
 --
 
-CREATE INDEX "mdm_warehouse_group_tenant_idx" ON "public"."mdm_warehouse" USING "btree" ("group_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "mdm_warehouse_group_tenant_idx" ON "public"."mdm_warehouse" USING "btree" ("group_id", "tenant_id");
 
 
 --
@@ -26108,7 +28248,7 @@ CREATE INDEX "mdm_warehouse_group_tenant_idx" ON "public"."mdm_warehouse" USING 
 
 --
 
-CREATE UNIQUE INDEX "mdm_warehouse_name_unique" ON "public"."mdm_warehouse" USING "btree" ("tenant_id", "lower"("btrim"("warehouse_name")));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_warehouse_name_unique" ON "public"."mdm_warehouse" USING "btree" ("tenant_id", "lower"("btrim"("warehouse_name")));
 
 
 --
@@ -26119,7 +28259,7 @@ CREATE UNIQUE INDEX "mdm_warehouse_name_unique" ON "public"."mdm_warehouse" USIN
 
 --
 
-CREATE INDEX "mdm_warehouse_organization_idx" ON "public"."mdm_warehouse" USING "btree" ("tenant_id", "organization_id");
+CREATE INDEX IF NOT EXISTS "mdm_warehouse_organization_idx" ON "public"."mdm_warehouse" USING "btree" ("tenant_id", "organization_id");
 
 
 --
@@ -26130,7 +28270,7 @@ CREATE INDEX "mdm_warehouse_organization_idx" ON "public"."mdm_warehouse" USING 
 
 --
 
-CREATE INDEX "mdm_warehouse_responsible_idx" ON "public"."mdm_warehouse" USING "btree" ("responsible_employee_id", "tenant_id") WHERE ("responsible_employee_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "mdm_warehouse_responsible_idx" ON "public"."mdm_warehouse" USING "btree" ("responsible_employee_id", "tenant_id") WHERE ("responsible_employee_id" IS NOT NULL);
 
 
 --
@@ -26141,7 +28281,7 @@ CREATE INDEX "mdm_warehouse_responsible_idx" ON "public"."mdm_warehouse" USING "
 
 --
 
-CREATE INDEX "mdm_warehouse_zone_warehouse_sort_idx" ON "public"."mdm_warehouse_zone" USING "btree" ("tenant_id", "warehouse_id", "sort");
+CREATE INDEX IF NOT EXISTS "mdm_warehouse_zone_warehouse_sort_idx" ON "public"."mdm_warehouse_zone" USING "btree" ("tenant_id", "warehouse_id", "sort");
 
 
 --
@@ -26152,7 +28292,7 @@ CREATE INDEX "mdm_warehouse_zone_warehouse_sort_idx" ON "public"."mdm_warehouse_
 
 --
 
-CREATE INDEX "scm_purchase_document_document_type_idx" ON "public"."scm_purchase_document" USING "btree" ("document_type_id") WHERE ("document_type_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "scm_purchase_document_document_type_idx" ON "public"."scm_purchase_document" USING "btree" ("document_type_id") WHERE ("document_type_id" IS NOT NULL);
 
 
 --
@@ -26163,7 +28303,7 @@ CREATE INDEX "scm_purchase_document_document_type_idx" ON "public"."scm_purchase
 
 --
 
-CREATE INDEX "scm_purchase_document_project_idx" ON "public"."scm_purchase_document" USING "btree" ("project_id") WHERE ("project_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "scm_purchase_document_project_idx" ON "public"."scm_purchase_document" USING "btree" ("project_id") WHERE ("project_id" IS NOT NULL);
 
 
 --
@@ -26174,7 +28314,7 @@ CREATE INDEX "scm_purchase_document_project_idx" ON "public"."scm_purchase_docum
 
 --
 
-CREATE INDEX "scm_purchase_document_scope_idx" ON "public"."scm_purchase_document" USING "btree" ("tenant_id", "kind", "updated_at" DESC);
+CREATE INDEX IF NOT EXISTS "scm_purchase_document_scope_idx" ON "public"."scm_purchase_document" USING "btree" ("tenant_id", "kind", "updated_at" DESC);
 
 
 --
@@ -26185,7 +28325,7 @@ CREATE INDEX "scm_purchase_document_scope_idx" ON "public"."scm_purchase_documen
 
 --
 
-CREATE INDEX "scm_purchase_document_source_idx" ON "public"."scm_purchase_document" USING "btree" ("source_id") WHERE ("source_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "scm_purchase_document_source_idx" ON "public"."scm_purchase_document" USING "btree" ("source_id") WHERE ("source_id" IS NOT NULL);
 
 
 --
@@ -26196,7 +28336,7 @@ CREATE INDEX "scm_purchase_document_source_idx" ON "public"."scm_purchase_docume
 
 --
 
-CREATE INDEX "scm_purchase_document_supplier_idx" ON "public"."scm_purchase_document" USING "btree" ("supplier_id") WHERE ("supplier_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "scm_purchase_document_supplier_idx" ON "public"."scm_purchase_document" USING "btree" ("supplier_id") WHERE ("supplier_id" IS NOT NULL);
 
 
 --
@@ -26207,7 +28347,7 @@ CREATE INDEX "scm_purchase_document_supplier_idx" ON "public"."scm_purchase_docu
 
 --
 
-CREATE INDEX "scm_receipt_target_document_project_idx" ON "public"."scm_receipt_target_document" USING "btree" ("project_id");
+CREATE INDEX IF NOT EXISTS "scm_receipt_target_document_project_idx" ON "public"."scm_receipt_target_document" USING "btree" ("project_id");
 
 
 --
@@ -26218,7 +28358,7 @@ CREATE INDEX "scm_receipt_target_document_project_idx" ON "public"."scm_receipt_
 
 --
 
-CREATE INDEX "scm_receipt_target_document_source_idx" ON "public"."scm_receipt_target_document" USING "btree" ("source_receipt_id");
+CREATE INDEX IF NOT EXISTS "scm_receipt_target_document_source_idx" ON "public"."scm_receipt_target_document" USING "btree" ("source_receipt_id");
 
 
 --
@@ -26229,7 +28369,7 @@ CREATE INDEX "scm_receipt_target_document_source_idx" ON "public"."scm_receipt_t
 
 --
 
-CREATE INDEX "scm_receipt_target_document_supplier_idx" ON "public"."scm_receipt_target_document" USING "btree" ("supplier_id");
+CREATE INDEX IF NOT EXISTS "scm_receipt_target_document_supplier_idx" ON "public"."scm_receipt_target_document" USING "btree" ("supplier_id");
 
 
 --
@@ -26240,7 +28380,7 @@ CREATE INDEX "scm_receipt_target_document_supplier_idx" ON "public"."scm_receipt
 
 --
 
-CREATE INDEX "scm_receipt_target_document_tenant_kind_date_idx" ON "public"."scm_receipt_target_document" USING "btree" ("tenant_id", "target_kind", "created_at" DESC);
+CREATE INDEX IF NOT EXISTS "scm_receipt_target_document_tenant_kind_date_idx" ON "public"."scm_receipt_target_document" USING "btree" ("tenant_id", "target_kind", "created_at" DESC);
 
 
 --
@@ -26251,7 +28391,7 @@ CREATE INDEX "scm_receipt_target_document_tenant_kind_date_idx" ON "public"."scm
 
 --
 
-CREATE INDEX "scm_receipt_target_line_document_idx" ON "public"."scm_receipt_target_line" USING "btree" ("target_document_id", "tenant_id", "target_kind");
+CREATE INDEX IF NOT EXISTS "scm_receipt_target_line_document_idx" ON "public"."scm_receipt_target_line" USING "btree" ("target_document_id", "tenant_id", "target_kind");
 
 
 --
@@ -26262,7 +28402,7 @@ CREATE INDEX "scm_receipt_target_line_document_idx" ON "public"."scm_receipt_tar
 
 --
 
-CREATE INDEX "scm_receipt_target_line_source_idx" ON "public"."scm_receipt_target_line" USING "btree" ("source_receipt_id");
+CREATE INDEX IF NOT EXISTS "scm_receipt_target_line_source_idx" ON "public"."scm_receipt_target_line" USING "btree" ("source_receipt_id");
 
 
 --
@@ -26273,7 +28413,7 @@ CREATE INDEX "scm_receipt_target_line_source_idx" ON "public"."scm_receipt_targe
 
 --
 
-CREATE INDEX "scm_receipt_target_project_idx" ON "public"."scm_receipt_target_document" USING "btree" ("tenant_id", "project_id", "construction_no", "status");
+CREATE INDEX IF NOT EXISTS "scm_receipt_target_project_idx" ON "public"."scm_receipt_target_document" USING "btree" ("tenant_id", "project_id", "construction_no", "status");
 
 
 --
@@ -26284,7 +28424,7 @@ CREATE INDEX "scm_receipt_target_project_idx" ON "public"."scm_receipt_target_do
 
 --
 
-CREATE UNIQUE INDEX "scm_sales_document_generated_contract_idx" ON "public"."scm_sales_document" USING "btree" ("tenant_id", "source_id") WHERE (("kind" = 'sales_contract'::"text") AND ("source_id" IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "scm_sales_document_generated_contract_idx" ON "public"."scm_sales_document" USING "btree" ("tenant_id", "source_id") WHERE (("kind" = 'sales_contract'::"text") AND ("source_id" IS NOT NULL));
 
 
 --
@@ -26295,7 +28435,7 @@ CREATE UNIQUE INDEX "scm_sales_document_generated_contract_idx" ON "public"."scm
 
 --
 
-CREATE UNIQUE INDEX "scm_sales_document_id_tenant_unique" ON "public"."scm_sales_document" USING "btree" ("id", "tenant_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "scm_sales_document_id_tenant_unique" ON "public"."scm_sales_document" USING "btree" ("id", "tenant_id");
 
 
 --
@@ -26306,7 +28446,7 @@ CREATE UNIQUE INDEX "scm_sales_document_id_tenant_unique" ON "public"."scm_sales
 
 --
 
-CREATE INDEX "scm_sales_document_project_idx" ON "public"."scm_sales_document" USING "btree" ("tenant_id", "project_id");
+CREATE INDEX IF NOT EXISTS "scm_sales_document_project_idx" ON "public"."scm_sales_document" USING "btree" ("tenant_id", "project_id");
 
 
 --
@@ -26317,7 +28457,7 @@ CREATE INDEX "scm_sales_document_project_idx" ON "public"."scm_sales_document" U
 
 --
 
-CREATE INDEX "scm_sales_document_scope_idx" ON "public"."scm_sales_document" USING "btree" ("tenant_id", "kind", "status", "updated_at" DESC);
+CREATE INDEX IF NOT EXISTS "scm_sales_document_scope_idx" ON "public"."scm_sales_document" USING "btree" ("tenant_id", "kind", "status", "updated_at" DESC);
 
 
 --
@@ -26328,7 +28468,7 @@ CREATE INDEX "scm_sales_document_scope_idx" ON "public"."scm_sales_document" USI
 
 --
 
-CREATE INDEX "scm_sales_document_source_idx" ON "public"."scm_sales_document" USING "btree" ("tenant_id", "source_id");
+CREATE INDEX IF NOT EXISTS "scm_sales_document_source_idx" ON "public"."scm_sales_document" USING "btree" ("tenant_id", "source_id");
 
 
 --
@@ -26339,7 +28479,7 @@ CREATE INDEX "scm_sales_document_source_idx" ON "public"."scm_sales_document" US
 
 --
 
-CREATE UNIQUE INDEX "smis_material_category_code_unique" ON "public"."mdm_material_category" USING "btree" ("tenant_id", "lower"("btrim"("category_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "smis_material_category_code_unique" ON "public"."mdm_material_category" USING "btree" ("tenant_id", "lower"("btrim"("category_code")));
 
 
 --
@@ -26350,7 +28490,7 @@ CREATE UNIQUE INDEX "smis_material_category_code_unique" ON "public"."mdm_materi
 
 --
 
-CREATE INDEX "smis_material_category_fk_idx" ON "public"."mdm_material" USING "btree" ("category_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "smis_material_category_fk_idx" ON "public"."mdm_material" USING "btree" ("category_id", "tenant_id");
 
 
 --
@@ -26361,7 +28501,7 @@ CREATE INDEX "smis_material_category_fk_idx" ON "public"."mdm_material" USING "b
 
 --
 
-CREATE INDEX "smis_material_category_idx" ON "public"."mdm_material" USING "btree" ("tenant_id", "category_id", "sort", "material_name");
+CREATE INDEX IF NOT EXISTS "smis_material_category_idx" ON "public"."mdm_material" USING "btree" ("tenant_id", "category_id", "sort", "material_name");
 
 
 --
@@ -26372,7 +28512,7 @@ CREATE INDEX "smis_material_category_idx" ON "public"."mdm_material" USING "btre
 
 --
 
-CREATE INDEX "smis_material_category_parent_fk_idx" ON "public"."mdm_material_category" USING "btree" ("parent_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "smis_material_category_parent_fk_idx" ON "public"."mdm_material_category" USING "btree" ("parent_id", "tenant_id");
 
 
 --
@@ -26383,7 +28523,7 @@ CREATE INDEX "smis_material_category_parent_fk_idx" ON "public"."mdm_material_ca
 
 --
 
-CREATE INDEX "smis_material_category_parent_idx" ON "public"."mdm_material_category" USING "btree" ("tenant_id", "parent_id", "sort", "category_name");
+CREATE INDEX IF NOT EXISTS "smis_material_category_parent_idx" ON "public"."mdm_material_category" USING "btree" ("tenant_id", "parent_id", "sort", "category_name");
 
 
 --
@@ -26394,7 +28534,7 @@ CREATE INDEX "smis_material_category_parent_idx" ON "public"."mdm_material_categ
 
 --
 
-CREATE UNIQUE INDEX "smis_material_category_sibling_name_unique" ON "public"."mdm_material_category" USING "btree" ("tenant_id", COALESCE("parent_id", '00000000-0000-0000-0000-000000000000'::"uuid"), "lower"("btrim"("category_name")));
+CREATE UNIQUE INDEX IF NOT EXISTS "smis_material_category_sibling_name_unique" ON "public"."mdm_material_category" USING "btree" ("tenant_id", COALESCE("parent_id", '00000000-0000-0000-0000-000000000000'::"uuid"), "lower"("btrim"("category_name")));
 
 
 --
@@ -26405,7 +28545,7 @@ CREATE UNIQUE INDEX "smis_material_category_sibling_name_unique" ON "public"."md
 
 --
 
-CREATE INDEX "smis_material_category_status_idx" ON "public"."mdm_material_category" USING "btree" ("tenant_id", "status");
+CREATE INDEX IF NOT EXISTS "smis_material_category_status_idx" ON "public"."mdm_material_category" USING "btree" ("tenant_id", "status");
 
 
 --
@@ -26416,7 +28556,7 @@ CREATE INDEX "smis_material_category_status_idx" ON "public"."mdm_material_categ
 
 --
 
-CREATE UNIQUE INDEX "smis_material_code_unique" ON "public"."mdm_material" USING "btree" ("tenant_id", "lower"("btrim"("material_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "smis_material_code_unique" ON "public"."mdm_material" USING "btree" ("tenant_id", "lower"("btrim"("material_code")));
 
 
 --
@@ -26427,7 +28567,7 @@ CREATE UNIQUE INDEX "smis_material_code_unique" ON "public"."mdm_material" USING
 
 --
 
-CREATE INDEX "smis_material_source_idx" ON "public"."mdm_material" USING "btree" ("tenant_id", "material_source");
+CREATE INDEX IF NOT EXISTS "smis_material_source_idx" ON "public"."mdm_material" USING "btree" ("tenant_id", "material_source");
 
 
 --
@@ -26438,7 +28578,7 @@ CREATE INDEX "smis_material_source_idx" ON "public"."mdm_material" USING "btree"
 
 --
 
-CREATE INDEX "smis_material_type_status_idx" ON "public"."mdm_material" USING "btree" ("tenant_id", "material_type", "status");
+CREATE INDEX IF NOT EXISTS "smis_material_type_status_idx" ON "public"."mdm_material" USING "btree" ("tenant_id", "material_type", "status");
 
 
 --
@@ -26449,7 +28589,7 @@ CREATE INDEX "smis_material_type_status_idx" ON "public"."mdm_material" USING "b
 
 --
 
-CREATE INDEX "smis_site_category_idx" ON "public"."mdm_site" USING "btree" ("tenant_id", "category_code");
+CREATE INDEX IF NOT EXISTS "smis_site_category_idx" ON "public"."mdm_site" USING "btree" ("tenant_id", "category_code");
 
 
 --
@@ -26460,7 +28600,7 @@ CREATE INDEX "smis_site_category_idx" ON "public"."mdm_site" USING "btree" ("ten
 
 --
 
-CREATE UNIQUE INDEX "smis_site_id_tenant_uq" ON "public"."mdm_site" USING "btree" ("id", "tenant_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "smis_site_id_tenant_uq" ON "public"."mdm_site" USING "btree" ("id", "tenant_id");
 
 
 --
@@ -26471,7 +28611,7 @@ CREATE UNIQUE INDEX "smis_site_id_tenant_uq" ON "public"."mdm_site" USING "btree
 
 --
 
-CREATE INDEX "smis_site_organization_idx" ON "public"."mdm_site" USING "btree" ("organization_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "smis_site_organization_idx" ON "public"."mdm_site" USING "btree" ("organization_id", "tenant_id");
 
 
 --
@@ -26482,7 +28622,7 @@ CREATE INDEX "smis_site_organization_idx" ON "public"."mdm_site" USING "btree" (
 
 --
 
-CREATE INDEX "smis_site_parent_idx" ON "public"."mdm_site" USING "btree" ("parent_id", "tenant_id") WHERE ("parent_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "smis_site_parent_idx" ON "public"."mdm_site" USING "btree" ("parent_id", "tenant_id") WHERE ("parent_id" IS NOT NULL);
 
 
 --
@@ -26493,7 +28633,7 @@ CREATE INDEX "smis_site_parent_idx" ON "public"."mdm_site" USING "btree" ("paren
 
 --
 
-CREATE INDEX "smis_site_responsible_idx" ON "public"."mdm_site" USING "btree" ("responsible_employee_id", "tenant_id") WHERE ("responsible_employee_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "smis_site_responsible_idx" ON "public"."mdm_site" USING "btree" ("responsible_employee_id", "tenant_id") WHERE ("responsible_employee_id" IS NOT NULL);
 
 
 --
@@ -26504,7 +28644,7 @@ CREATE INDEX "smis_site_responsible_idx" ON "public"."mdm_site" USING "btree" ("
 
 --
 
-CREATE INDEX "smis_site_sort_idx" ON "public"."mdm_site" USING "btree" ("tenant_id", "sort", "site_name");
+CREATE INDEX IF NOT EXISTS "smis_site_sort_idx" ON "public"."mdm_site" USING "btree" ("tenant_id", "sort", "site_name");
 
 
 --
@@ -26515,7 +28655,7 @@ CREATE INDEX "smis_site_sort_idx" ON "public"."mdm_site" USING "btree" ("tenant_
 
 --
 
-CREATE UNIQUE INDEX "smis_storage_location_code_unique" ON "public"."mdm_storage_location" USING "btree" ("tenant_id", "lower"("btrim"("location_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "smis_storage_location_code_unique" ON "public"."mdm_storage_location" USING "btree" ("tenant_id", "lower"("btrim"("location_code")));
 
 
 --
@@ -26526,7 +28666,7 @@ CREATE UNIQUE INDEX "smis_storage_location_code_unique" ON "public"."mdm_storage
 
 --
 
-CREATE UNIQUE INDEX "smis_storage_location_name_unique" ON "public"."mdm_storage_location" USING "btree" ("tenant_id", "lower"("btrim"("location_name")));
+CREATE UNIQUE INDEX IF NOT EXISTS "smis_storage_location_name_unique" ON "public"."mdm_storage_location" USING "btree" ("tenant_id", "lower"("btrim"("location_name")));
 
 
 --
@@ -26537,7 +28677,7 @@ CREATE UNIQUE INDEX "smis_storage_location_name_unique" ON "public"."mdm_storage
 
 --
 
-CREATE INDEX "smis_storage_location_organization_idx" ON "public"."mdm_storage_location" USING "btree" ("tenant_id", "organization_id", "status");
+CREATE INDEX IF NOT EXISTS "smis_storage_location_organization_idx" ON "public"."mdm_storage_location" USING "btree" ("tenant_id", "organization_id", "status");
 
 
 --
@@ -26548,7 +28688,7 @@ CREATE INDEX "smis_storage_location_organization_idx" ON "public"."mdm_storage_l
 
 --
 
-CREATE INDEX "smis_storage_location_parent_fk_idx" ON "public"."mdm_storage_location" USING "btree" ("parent_id", "tenant_id") WHERE ("parent_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "smis_storage_location_parent_fk_idx" ON "public"."mdm_storage_location" USING "btree" ("parent_id", "tenant_id") WHERE ("parent_id" IS NOT NULL);
 
 
 --
@@ -26559,7 +28699,7 @@ CREATE INDEX "smis_storage_location_parent_fk_idx" ON "public"."mdm_storage_loca
 
 --
 
-CREATE INDEX "smis_storage_location_parent_idx" ON "public"."mdm_storage_location" USING "btree" ("tenant_id", "parent_id", "status", "location_name");
+CREATE INDEX IF NOT EXISTS "smis_storage_location_parent_idx" ON "public"."mdm_storage_location" USING "btree" ("tenant_id", "parent_id", "status", "location_name");
 
 
 --
@@ -26570,7 +28710,7 @@ CREATE INDEX "smis_storage_location_parent_idx" ON "public"."mdm_storage_locatio
 
 --
 
-CREATE INDEX "smis_storage_location_responsible_idx" ON "public"."mdm_storage_location" USING "btree" ("responsible_employee_id", "tenant_id") WHERE ("responsible_employee_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "smis_storage_location_responsible_idx" ON "public"."mdm_storage_location" USING "btree" ("responsible_employee_id", "tenant_id") WHERE ("responsible_employee_id" IS NOT NULL);
 
 
 --
@@ -26581,7 +28721,7 @@ CREATE INDEX "smis_storage_location_responsible_idx" ON "public"."mdm_storage_lo
 
 --
 
-CREATE UNIQUE INDEX "sys_attachment_id_tenant_uq" ON "public"."sys_attachment" USING "btree" ("id", "tenant_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "sys_attachment_id_tenant_uq" ON "public"."sys_attachment" USING "btree" ("id", "tenant_id");
 
 
 --
@@ -26592,7 +28732,7 @@ CREATE UNIQUE INDEX "sys_attachment_id_tenant_uq" ON "public"."sys_attachment" U
 
 --
 
-CREATE INDEX "sys_attachment_storage_path_idx" ON "public"."sys_attachment" USING "btree" ("storage_path");
+CREATE INDEX IF NOT EXISTS "sys_attachment_storage_path_idx" ON "public"."sys_attachment" USING "btree" ("storage_path");
 
 
 --
@@ -26603,7 +28743,7 @@ CREATE INDEX "sys_attachment_storage_path_idx" ON "public"."sys_attachment" USIN
 
 --
 
-CREATE UNIQUE INDEX "sys_attachment_tenant_hash_unique" ON "public"."sys_attachment" USING "btree" ("tenant_id", "hash") WHERE ("hash" IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "sys_attachment_tenant_hash_unique" ON "public"."sys_attachment" USING "btree" ("tenant_id", "hash") WHERE ("hash" IS NOT NULL);
 
 
 --
@@ -26614,7 +28754,7 @@ CREATE UNIQUE INDEX "sys_attachment_tenant_hash_unique" ON "public"."sys_attachm
 
 --
 
-CREATE INDEX "sys_audit_log_auth_user_id_idx" ON "public"."sys_audit_log" USING "btree" ("auth_user_id");
+CREATE INDEX IF NOT EXISTS "sys_audit_log_auth_user_id_idx" ON "public"."sys_audit_log" USING "btree" ("auth_user_id");
 
 
 --
@@ -26625,7 +28765,7 @@ CREATE INDEX "sys_audit_log_auth_user_id_idx" ON "public"."sys_audit_log" USING 
 
 --
 
-CREATE INDEX "sys_audit_log_create_time_idx" ON "public"."sys_audit_log" USING "btree" ("create_time" DESC);
+CREATE INDEX IF NOT EXISTS "sys_audit_log_create_time_idx" ON "public"."sys_audit_log" USING "btree" ("create_time" DESC);
 
 
 --
@@ -26636,7 +28776,7 @@ CREATE INDEX "sys_audit_log_create_time_idx" ON "public"."sys_audit_log" USING "
 
 --
 
-CREATE INDEX "sys_dict_type_cascade_parent_type_idx" ON "public"."sys_dict_type" USING "btree" ("cascade_parent_type_id") WHERE ("cascade_parent_type_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "sys_dict_type_cascade_parent_type_idx" ON "public"."sys_dict_type" USING "btree" ("cascade_parent_type_id") WHERE ("cascade_parent_type_id" IS NOT NULL);
 
 
 --
@@ -26647,7 +28787,7 @@ CREATE INDEX "sys_dict_type_cascade_parent_type_idx" ON "public"."sys_dict_type"
 
 --
 
-CREATE INDEX "sys_notification_business_idx" ON "public"."sys_notification" USING "btree" ("tenant_id", "business_type", "business_id") WHERE (("business_type" IS NOT NULL) AND ("business_id" IS NOT NULL));
+CREATE INDEX IF NOT EXISTS "sys_notification_business_idx" ON "public"."sys_notification" USING "btree" ("tenant_id", "business_type", "business_id") WHERE (("business_type" IS NOT NULL) AND ("business_id" IS NOT NULL));
 
 
 --
@@ -26658,7 +28798,7 @@ CREATE INDEX "sys_notification_business_idx" ON "public"."sys_notification" USIN
 
 --
 
-CREATE INDEX "sys_notification_delivery_event_tenant_fk_idx" ON "public"."sys_notification_delivery" USING "btree" ("event_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_delivery_event_tenant_fk_idx" ON "public"."sys_notification_delivery" USING "btree" ("event_id", "tenant_id");
 
 
 --
@@ -26669,7 +28809,7 @@ CREATE INDEX "sys_notification_delivery_event_tenant_fk_idx" ON "public"."sys_no
 
 --
 
-CREATE INDEX "sys_notification_delivery_pending_idx" ON "public"."sys_notification_delivery" USING "btree" ("status", "next_retry_at", "create_time") WHERE ("status" = ANY (ARRAY['pending'::"text", 'failed'::"text"]));
+CREATE INDEX IF NOT EXISTS "sys_notification_delivery_pending_idx" ON "public"."sys_notification_delivery" USING "btree" ("status", "next_retry_at", "create_time") WHERE ("status" = ANY (ARRAY['pending'::"text", 'failed'::"text"]));
 
 
 --
@@ -26680,7 +28820,7 @@ CREATE INDEX "sys_notification_delivery_pending_idx" ON "public"."sys_notificati
 
 --
 
-CREATE INDEX "sys_notification_delivery_tenant_fk_idx" ON "public"."sys_notification_delivery" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_delivery_tenant_fk_idx" ON "public"."sys_notification_delivery" USING "btree" ("tenant_id");
 
 
 --
@@ -26691,7 +28831,7 @@ CREATE INDEX "sys_notification_delivery_tenant_fk_idx" ON "public"."sys_notifica
 
 --
 
-CREATE INDEX "sys_notification_delivery_user_tenant_fk_idx" ON "public"."sys_notification_delivery" USING "btree" ("recipient_user_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_delivery_user_tenant_fk_idx" ON "public"."sys_notification_delivery" USING "btree" ("recipient_user_id", "tenant_id");
 
 
 --
@@ -26702,7 +28842,7 @@ CREATE INDEX "sys_notification_delivery_user_tenant_fk_idx" ON "public"."sys_not
 
 --
 
-CREATE INDEX "sys_notification_event_rule_tenant_fk_idx" ON "public"."sys_notification_event" USING "btree" ("rule_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_event_rule_tenant_fk_idx" ON "public"."sys_notification_event" USING "btree" ("rule_id", "tenant_id");
 
 
 --
@@ -26713,7 +28853,7 @@ CREATE INDEX "sys_notification_event_rule_tenant_fk_idx" ON "public"."sys_notifi
 
 --
 
-CREATE INDEX "sys_notification_event_status_idx" ON "public"."sys_notification_event" USING "btree" ("status", "scheduled_at", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_event_status_idx" ON "public"."sys_notification_event" USING "btree" ("status", "scheduled_at", "tenant_id");
 
 
 --
@@ -26724,7 +28864,7 @@ CREATE INDEX "sys_notification_event_status_idx" ON "public"."sys_notification_e
 
 --
 
-CREATE INDEX "sys_notification_event_subject_tenant_fk_idx" ON "public"."sys_notification_event" USING "btree" ("subject_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_event_subject_tenant_fk_idx" ON "public"."sys_notification_event" USING "btree" ("subject_id", "tenant_id");
 
 
 --
@@ -26735,7 +28875,7 @@ CREATE INDEX "sys_notification_event_subject_tenant_fk_idx" ON "public"."sys_not
 
 --
 
-CREATE INDEX "sys_notification_event_tenant_fk_idx" ON "public"."sys_notification_event" USING "btree" ("tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_event_tenant_fk_idx" ON "public"."sys_notification_event" USING "btree" ("tenant_id");
 
 
 --
@@ -26746,7 +28886,7 @@ CREATE INDEX "sys_notification_event_tenant_fk_idx" ON "public"."sys_notificatio
 
 --
 
-CREATE INDEX "sys_notification_instance_id_idx" ON "public"."sys_notification" USING "btree" ("instance_id") WHERE ("instance_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "sys_notification_instance_id_idx" ON "public"."sys_notification" USING "btree" ("instance_id") WHERE ("instance_id" IS NOT NULL);
 
 
 --
@@ -26757,7 +28897,7 @@ CREATE INDEX "sys_notification_instance_id_idx" ON "public"."sys_notification" U
 
 --
 
-CREATE INDEX "sys_notification_recipient_created_idx" ON "public"."sys_notification" USING "btree" ("tenant_id", "recipient_user_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "sys_notification_recipient_created_idx" ON "public"."sys_notification" USING "btree" ("tenant_id", "recipient_user_id", "create_time" DESC);
 
 
 --
@@ -26768,7 +28908,7 @@ CREATE INDEX "sys_notification_recipient_created_idx" ON "public"."sys_notificat
 
 --
 
-CREATE INDEX "sys_notification_recipient_unread_idx" ON "public"."sys_notification" USING "btree" ("tenant_id", "recipient_user_id", "category", "create_time" DESC) WHERE ("is_read" = false);
+CREATE INDEX IF NOT EXISTS "sys_notification_recipient_unread_idx" ON "public"."sys_notification" USING "btree" ("tenant_id", "recipient_user_id", "category", "create_time" DESC) WHERE ("is_read" = false);
 
 
 --
@@ -26779,7 +28919,7 @@ CREATE INDEX "sys_notification_recipient_unread_idx" ON "public"."sys_notificati
 
 --
 
-CREATE INDEX "sys_notification_rule_scenario_fk_idx" ON "public"."sys_notification_rule" USING "btree" ("scenario_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_rule_scenario_fk_idx" ON "public"."sys_notification_rule" USING "btree" ("scenario_id");
 
 
 --
@@ -26790,7 +28930,7 @@ CREATE INDEX "sys_notification_rule_scenario_fk_idx" ON "public"."sys_notificati
 
 --
 
-CREATE INDEX "sys_notification_subject_due_idx" ON "public"."sys_notification_subject" USING "btree" ("tenant_id", "due_at", "scenario_id") WHERE ("status" = 'active'::"text");
+CREATE INDEX IF NOT EXISTS "sys_notification_subject_due_idx" ON "public"."sys_notification_subject" USING "btree" ("tenant_id", "due_at", "scenario_id") WHERE ("status" = 'active'::"text");
 
 
 --
@@ -26801,7 +28941,7 @@ CREATE INDEX "sys_notification_subject_due_idx" ON "public"."sys_notification_su
 
 --
 
-CREATE INDEX "sys_notification_subject_owner_tenant_fk_idx" ON "public"."sys_notification_subject" USING "btree" ("owner_user_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_subject_owner_tenant_fk_idx" ON "public"."sys_notification_subject" USING "btree" ("owner_user_id", "tenant_id");
 
 
 --
@@ -26812,7 +28952,7 @@ CREATE INDEX "sys_notification_subject_owner_tenant_fk_idx" ON "public"."sys_not
 
 --
 
-CREATE INDEX "sys_notification_subject_scenario_fk_idx" ON "public"."sys_notification_subject" USING "btree" ("scenario_id");
+CREATE INDEX IF NOT EXISTS "sys_notification_subject_scenario_fk_idx" ON "public"."sys_notification_subject" USING "btree" ("scenario_id");
 
 
 --
@@ -26823,7 +28963,7 @@ CREATE INDEX "sys_notification_subject_scenario_fk_idx" ON "public"."sys_notific
 
 --
 
-CREATE INDEX "sys_param_tenant_enabled_idx" ON "public"."sys_param" USING "btree" ("tenant_id", "enabled");
+CREATE INDEX IF NOT EXISTS "sys_param_tenant_enabled_idx" ON "public"."sys_param" USING "btree" ("tenant_id", "enabled");
 
 
 --
@@ -26834,7 +28974,7 @@ CREATE INDEX "sys_param_tenant_enabled_idx" ON "public"."sys_param" USING "btree
 
 --
 
-CREATE INDEX "sys_param_tenant_group_idx" ON "public"."sys_param" USING "btree" ("tenant_id", "group_code");
+CREATE INDEX IF NOT EXISTS "sys_param_tenant_group_idx" ON "public"."sys_param" USING "btree" ("tenant_id", "group_code");
 
 
 --
@@ -26845,7 +28985,7 @@ CREATE INDEX "sys_param_tenant_group_idx" ON "public"."sys_param" USING "btree" 
 
 --
 
-CREATE UNIQUE INDEX "sys_param_tenant_key_uidx" ON "public"."sys_param" USING "btree" ("tenant_id", "param_key");
+CREATE UNIQUE INDEX IF NOT EXISTS "sys_param_tenant_key_uidx" ON "public"."sys_param" USING "btree" ("tenant_id", "param_key");
 
 
 --
@@ -26856,7 +28996,7 @@ CREATE UNIQUE INDEX "sys_param_tenant_key_uidx" ON "public"."sys_param" USING "b
 
 --
 
-CREATE INDEX "sys_permission_audit_log_actor_tenant_fk_idx" ON "public"."sys_permission_audit_log" USING "btree" ("actor_user_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_permission_audit_log_actor_tenant_fk_idx" ON "public"."sys_permission_audit_log" USING "btree" ("actor_user_id", "tenant_id");
 
 
 --
@@ -26867,7 +29007,7 @@ CREATE INDEX "sys_permission_audit_log_actor_tenant_fk_idx" ON "public"."sys_per
 
 --
 
-CREATE INDEX "sys_permission_audit_log_resource_tenant_fk_idx" ON "public"."sys_permission_audit_log" USING "btree" ("resource_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_permission_audit_log_resource_tenant_fk_idx" ON "public"."sys_permission_audit_log" USING "btree" ("resource_id", "tenant_id");
 
 
 --
@@ -26878,7 +29018,7 @@ CREATE INDEX "sys_permission_audit_log_resource_tenant_fk_idx" ON "public"."sys_
 
 --
 
-CREATE INDEX "sys_permission_audit_log_subject_lookup_idx" ON "public"."sys_permission_audit_log" USING "btree" ("tenant_id", "resource_id", "target_type", "target_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "sys_permission_audit_log_subject_lookup_idx" ON "public"."sys_permission_audit_log" USING "btree" ("tenant_id", "resource_id", "target_type", "target_id", "create_time" DESC);
 
 
 --
@@ -26889,7 +29029,7 @@ CREATE INDEX "sys_permission_audit_log_subject_lookup_idx" ON "public"."sys_perm
 
 --
 
-CREATE INDEX "sys_permission_audit_log_tenant_time_idx" ON "public"."sys_permission_audit_log" USING "btree" ("tenant_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "sys_permission_audit_log_tenant_time_idx" ON "public"."sys_permission_audit_log" USING "btree" ("tenant_id", "create_time" DESC);
 
 
 --
@@ -26900,7 +29040,7 @@ CREATE INDEX "sys_permission_audit_log_tenant_time_idx" ON "public"."sys_permiss
 
 --
 
-CREATE INDEX "sys_permission_field_resource_sort_idx" ON "public"."sys_permission_field" USING "btree" ("tenant_id", "resource_id", "sort", "id") WHERE ("enabled" IS TRUE);
+CREATE INDEX IF NOT EXISTS "sys_permission_field_resource_sort_idx" ON "public"."sys_permission_field" USING "btree" ("tenant_id", "resource_id", "sort", "id") WHERE ("enabled" IS TRUE);
 
 
 --
@@ -26911,7 +29051,7 @@ CREATE INDEX "sys_permission_field_resource_sort_idx" ON "public"."sys_permissio
 
 --
 
-CREATE INDEX "sys_permission_field_resource_tenant_fk_idx" ON "public"."sys_permission_field" USING "btree" ("resource_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_permission_field_resource_tenant_fk_idx" ON "public"."sys_permission_field" USING "btree" ("resource_id", "tenant_id");
 
 
 --
@@ -26922,7 +29062,7 @@ CREATE INDEX "sys_permission_field_resource_tenant_fk_idx" ON "public"."sys_perm
 
 --
 
-CREATE UNIQUE INDEX "sys_role_builtin_type_uidx" ON "public"."sys_role" USING "btree" ("builtin_type") WHERE ("builtin_type" IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "sys_role_builtin_type_uidx" ON "public"."sys_role" USING "btree" ("builtin_type") WHERE ("builtin_type" IS NOT NULL);
 
 
 --
@@ -26933,7 +29073,7 @@ CREATE UNIQUE INDEX "sys_role_builtin_type_uidx" ON "public"."sys_role" USING "b
 
 --
 
-CREATE INDEX "sys_role_field_permission_field_tenant_fk_idx" ON "public"."sys_role_field_permission" USING "btree" ("field_id", "resource_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_role_field_permission_field_tenant_fk_idx" ON "public"."sys_role_field_permission" USING "btree" ("field_id", "resource_id", "tenant_id");
 
 
 --
@@ -26944,7 +29084,7 @@ CREATE INDEX "sys_role_field_permission_field_tenant_fk_idx" ON "public"."sys_ro
 
 --
 
-CREATE INDEX "sys_role_field_permission_lookup_idx" ON "public"."sys_role_field_permission" USING "btree" ("tenant_id", "role_id", "resource_id", "field_id");
+CREATE INDEX IF NOT EXISTS "sys_role_field_permission_lookup_idx" ON "public"."sys_role_field_permission" USING "btree" ("tenant_id", "role_id", "resource_id", "field_id");
 
 
 --
@@ -26955,7 +29095,7 @@ CREATE INDEX "sys_role_field_permission_lookup_idx" ON "public"."sys_role_field_
 
 --
 
-CREATE INDEX "sys_role_field_permission_role_tenant_fk_idx" ON "public"."sys_role_field_permission" USING "btree" ("role_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_role_field_permission_role_tenant_fk_idx" ON "public"."sys_role_field_permission" USING "btree" ("role_id", "tenant_id");
 
 
 --
@@ -26966,7 +29106,7 @@ CREATE INDEX "sys_role_field_permission_role_tenant_fk_idx" ON "public"."sys_rol
 
 --
 
-CREATE UNIQUE INDEX "sys_tenant_builtin_type_uidx" ON "public"."sys_tenant" USING "btree" ("builtin_type") WHERE ("builtin_type" IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "sys_tenant_builtin_type_uidx" ON "public"."sys_tenant" USING "btree" ("builtin_type") WHERE ("builtin_type" IS NOT NULL);
 
 
 --
@@ -26977,7 +29117,7 @@ CREATE UNIQUE INDEX "sys_tenant_builtin_type_uidx" ON "public"."sys_tenant" USIN
 
 --
 
-CREATE UNIQUE INDEX "sys_user_active_phone_key_uniq" ON "public"."sys_user" USING "btree" ("public"."normalize_login_phone"("user_phone")) WHERE (("deleted_at" IS NULL) AND ("public"."normalize_login_phone"("user_phone") IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "sys_user_active_phone_key_uniq" ON "public"."sys_user" USING "btree" ("public"."normalize_login_phone"("user_phone")) WHERE (("deleted_at" IS NULL) AND ("public"."normalize_login_phone"("user_phone") IS NOT NULL));
 
 
 --
@@ -26988,7 +29128,7 @@ CREATE UNIQUE INDEX "sys_user_active_phone_key_uniq" ON "public"."sys_user" USIN
 
 --
 
-CREATE INDEX "sys_user_active_tenant_identity_idx" ON "public"."sys_user" USING "btree" ("tenant_id", "account_identity_type") WHERE ("deleted_at" IS NULL);
+CREATE INDEX IF NOT EXISTS "sys_user_active_tenant_identity_idx" ON "public"."sys_user" USING "btree" ("tenant_id", "account_identity_type") WHERE ("deleted_at" IS NULL);
 
 
 --
@@ -26999,7 +29139,7 @@ CREATE INDEX "sys_user_active_tenant_identity_idx" ON "public"."sys_user" USING 
 
 --
 
-CREATE INDEX "sys_user_field_permission_field_tenant_fk_idx" ON "public"."sys_user_field_permission" USING "btree" ("field_id", "resource_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_user_field_permission_field_tenant_fk_idx" ON "public"."sys_user_field_permission" USING "btree" ("field_id", "resource_id", "tenant_id");
 
 
 --
@@ -27010,7 +29150,7 @@ CREATE INDEX "sys_user_field_permission_field_tenant_fk_idx" ON "public"."sys_us
 
 --
 
-CREATE INDEX "sys_user_field_permission_lookup_idx" ON "public"."sys_user_field_permission" USING "btree" ("tenant_id", "user_id", "resource_id", "field_id");
+CREATE INDEX IF NOT EXISTS "sys_user_field_permission_lookup_idx" ON "public"."sys_user_field_permission" USING "btree" ("tenant_id", "user_id", "resource_id", "field_id");
 
 
 --
@@ -27021,7 +29161,7 @@ CREATE INDEX "sys_user_field_permission_lookup_idx" ON "public"."sys_user_field_
 
 --
 
-CREATE INDEX "sys_user_field_permission_user_tenant_fk_idx" ON "public"."sys_user_field_permission" USING "btree" ("user_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_user_field_permission_user_tenant_fk_idx" ON "public"."sys_user_field_permission" USING "btree" ("user_id", "tenant_id");
 
 
 --
@@ -27032,7 +29172,7 @@ CREATE INDEX "sys_user_field_permission_user_tenant_fk_idx" ON "public"."sys_use
 
 --
 
-CREATE UNIQUE INDEX "sys_user_hr_employee_id_key" ON "public"."sys_user" USING "btree" ("hr_employee_id") WHERE ("hr_employee_id" IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "sys_user_hr_employee_id_key" ON "public"."sys_user" USING "btree" ("hr_employee_id") WHERE ("hr_employee_id" IS NOT NULL);
 
 
 --
@@ -27043,7 +29183,7 @@ CREATE UNIQUE INDEX "sys_user_hr_employee_id_key" ON "public"."sys_user" USING "
 
 --
 
-CREATE INDEX "sys_user_hr_employee_tenant_idx" ON "public"."sys_user" USING "btree" ("hr_employee_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "sys_user_hr_employee_tenant_idx" ON "public"."sys_user" USING "btree" ("hr_employee_id", "tenant_id");
 
 
 --
@@ -27054,7 +29194,7 @@ CREATE INDEX "sys_user_hr_employee_tenant_idx" ON "public"."sys_user" USING "btr
 
 --
 
-CREATE UNIQUE INDEX "sys_user_tenant_one_default_per_user" ON "public"."sys_user_tenant" USING "btree" ("user_id") WHERE "is_default";
+CREATE UNIQUE INDEX IF NOT EXISTS "sys_user_tenant_one_default_per_user" ON "public"."sys_user_tenant" USING "btree" ("user_id") WHERE "is_default";
 
 
 --
@@ -27065,7 +29205,7 @@ CREATE UNIQUE INDEX "sys_user_tenant_one_default_per_user" ON "public"."sys_user
 
 --
 
-CREATE INDEX "tms_carrier_creator_tenant_idx" ON "public"."mdm_carrier" USING "btree" ("created_by_user_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "tms_carrier_creator_tenant_idx" ON "public"."mdm_carrier" USING "btree" ("created_by_user_id", "tenant_id");
 
 
 --
@@ -27076,7 +29216,7 @@ CREATE INDEX "tms_carrier_creator_tenant_idx" ON "public"."mdm_carrier" USING "b
 
 --
 
-CREATE INDEX "tms_carrier_parent_unit_id_idx" ON "public"."mdm_carrier" USING "btree" ("parent_unit_id") WHERE ("parent_unit_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "tms_carrier_parent_unit_id_idx" ON "public"."mdm_carrier" USING "btree" ("parent_unit_id") WHERE ("parent_unit_id" IS NOT NULL);
 
 
 --
@@ -27087,7 +29227,7 @@ CREATE INDEX "tms_carrier_parent_unit_id_idx" ON "public"."mdm_carrier" USING "b
 
 --
 
-CREATE INDEX "tms_carrier_tenant_creator_time_idx" ON "public"."mdm_carrier" USING "btree" ("tenant_id", "created_by_user_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "tms_carrier_tenant_creator_time_idx" ON "public"."mdm_carrier" USING "btree" ("tenant_id", "created_by_user_id", "create_time" DESC);
 
 
 --
@@ -27098,7 +29238,7 @@ CREATE INDEX "tms_carrier_tenant_creator_time_idx" ON "public"."mdm_carrier" USI
 
 --
 
-CREATE UNIQUE INDEX "tms_carrier_tenant_name_normalized_unique" ON "public"."mdm_carrier" USING "btree" ("tenant_id", "lower"("regexp_replace"("btrim"("company_name"), '[[:space:][:punct:]，。；（）]+'::"text", ''::"text", 'g'::"text")));
+CREATE UNIQUE INDEX IF NOT EXISTS "tms_carrier_tenant_name_normalized_unique" ON "public"."mdm_carrier" USING "btree" ("tenant_id", "lower"("regexp_replace"("btrim"("company_name"), '[[:space:][:punct:]，。；（）]+'::"text", ''::"text", 'g'::"text")));
 
 
 --
@@ -27109,7 +29249,7 @@ CREATE UNIQUE INDEX "tms_carrier_tenant_name_normalized_unique" ON "public"."mdm
 
 --
 
-CREATE UNIQUE INDEX "tms_carrier_tenant_tax_no_normalized_unique" ON "public"."mdm_carrier" USING "btree" ("tenant_id", "upper"("regexp_replace"("btrim"("tax_no"), '[^0-9A-Za-z]'::"text", ''::"text", 'g'::"text"))) WHERE (NULLIF("regexp_replace"("btrim"("tax_no"), '[^0-9A-Za-z]'::"text", ''::"text", 'g'::"text"), ''::"text") IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "tms_carrier_tenant_tax_no_normalized_unique" ON "public"."mdm_carrier" USING "btree" ("tenant_id", "upper"("regexp_replace"("btrim"("tax_no"), '[^0-9A-Za-z]'::"text", ''::"text", 'g'::"text"))) WHERE (NULLIF("regexp_replace"("btrim"("tax_no"), '[^0-9A-Za-z]'::"text", ''::"text", 'g'::"text"), ''::"text") IS NOT NULL);
 
 
 --
@@ -27120,7 +29260,7 @@ CREATE UNIQUE INDEX "tms_carrier_tenant_tax_no_normalized_unique" ON "public"."m
 
 --
 
-CREATE INDEX "tms_customer_address_creator_tenant_fk_idx" ON "public"."mdm_customer_address" USING "btree" ("created_by_user_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "tms_customer_address_creator_tenant_fk_idx" ON "public"."mdm_customer_address" USING "btree" ("created_by_user_id", "tenant_id");
 
 
 --
@@ -27131,7 +29271,7 @@ CREATE INDEX "tms_customer_address_creator_tenant_fk_idx" ON "public"."mdm_custo
 
 --
 
-CREATE INDEX "tms_customer_address_customer_idx" ON "public"."mdm_customer_address" USING "btree" ("customer_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "tms_customer_address_customer_idx" ON "public"."mdm_customer_address" USING "btree" ("customer_id", "create_time" DESC);
 
 
 --
@@ -27142,7 +29282,7 @@ CREATE INDEX "tms_customer_address_customer_idx" ON "public"."mdm_customer_addre
 
 --
 
-CREATE INDEX "tms_customer_address_type_idx" ON "public"."mdm_customer_address" USING "btree" ("tenant_id", "address_type");
+CREATE INDEX IF NOT EXISTS "tms_customer_address_type_idx" ON "public"."mdm_customer_address" USING "btree" ("tenant_id", "address_type");
 
 
 --
@@ -27153,7 +29293,7 @@ CREATE INDEX "tms_customer_address_type_idx" ON "public"."mdm_customer_address" 
 
 --
 
-CREATE INDEX "tms_customer_create_time_idx" ON "public"."mdm_customer" USING "btree" ("tenant_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "tms_customer_create_time_idx" ON "public"."mdm_customer" USING "btree" ("tenant_id", "create_time" DESC);
 
 
 --
@@ -27164,7 +29304,7 @@ CREATE INDEX "tms_customer_create_time_idx" ON "public"."mdm_customer" USING "bt
 
 --
 
-CREATE INDEX "tms_customer_creator_tenant_fk_idx" ON "public"."mdm_customer" USING "btree" ("created_by_user_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "tms_customer_creator_tenant_fk_idx" ON "public"."mdm_customer" USING "btree" ("created_by_user_id", "tenant_id");
 
 
 --
@@ -27175,7 +29315,7 @@ CREATE INDEX "tms_customer_creator_tenant_fk_idx" ON "public"."mdm_customer" USI
 
 --
 
-CREATE INDEX "tms_customer_level_idx" ON "public"."mdm_customer" USING "btree" ("tenant_id", "customer_level");
+CREATE INDEX IF NOT EXISTS "tms_customer_level_idx" ON "public"."mdm_customer" USING "btree" ("tenant_id", "customer_level");
 
 
 --
@@ -27186,7 +29326,7 @@ CREATE INDEX "tms_customer_level_idx" ON "public"."mdm_customer" USING "btree" (
 
 --
 
-CREATE INDEX "tms_customer_name_idx" ON "public"."mdm_customer" USING "btree" ("tenant_id", "customer_name");
+CREATE INDEX IF NOT EXISTS "tms_customer_name_idx" ON "public"."mdm_customer" USING "btree" ("tenant_id", "customer_name");
 
 
 --
@@ -27197,7 +29337,7 @@ CREATE INDEX "tms_customer_name_idx" ON "public"."mdm_customer" USING "btree" ("
 
 --
 
-CREATE INDEX "tms_customer_parent_unit_id_idx" ON "public"."mdm_customer" USING "btree" ("parent_unit_id") WHERE ("parent_unit_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "tms_customer_parent_unit_id_idx" ON "public"."mdm_customer" USING "btree" ("parent_unit_id") WHERE ("parent_unit_id" IS NOT NULL);
 
 
 --
@@ -27208,7 +29348,7 @@ CREATE INDEX "tms_customer_parent_unit_id_idx" ON "public"."mdm_customer" USING 
 
 --
 
-CREATE UNIQUE INDEX "tms_customer_tenant_name_normalized_unique" ON "public"."mdm_customer" USING "btree" ("tenant_id", "lower"("regexp_replace"("btrim"("customer_name"), '[[:space:][:punct:]，。；（）]+'::"text", ''::"text", 'g'::"text")));
+CREATE UNIQUE INDEX IF NOT EXISTS "tms_customer_tenant_name_normalized_unique" ON "public"."mdm_customer" USING "btree" ("tenant_id", "lower"("regexp_replace"("btrim"("customer_name"), '[[:space:][:punct:]，。；（）]+'::"text", ''::"text", 'g'::"text")));
 
 
 --
@@ -27219,7 +29359,7 @@ CREATE UNIQUE INDEX "tms_customer_tenant_name_normalized_unique" ON "public"."md
 
 --
 
-CREATE UNIQUE INDEX "tms_customer_tenant_tax_no_normalized_unique" ON "public"."mdm_customer" USING "btree" ("tenant_id", "upper"("regexp_replace"("btrim"("tax_no"), '[^0-9A-Za-z]'::"text", ''::"text", 'g'::"text"))) WHERE (NULLIF("regexp_replace"("btrim"("tax_no"), '[^0-9A-Za-z]'::"text", ''::"text", 'g'::"text"), ''::"text") IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "tms_customer_tenant_tax_no_normalized_unique" ON "public"."mdm_customer" USING "btree" ("tenant_id", "upper"("regexp_replace"("btrim"("tax_no"), '[^0-9A-Za-z]'::"text", ''::"text", 'g'::"text"))) WHERE (NULLIF("regexp_replace"("btrim"("tax_no"), '[^0-9A-Za-z]'::"text", ''::"text", 'g'::"text"), ''::"text") IS NOT NULL);
 
 
 --
@@ -27230,7 +29370,7 @@ CREATE UNIQUE INDEX "tms_customer_tenant_tax_no_normalized_unique" ON "public"."
 
 --
 
-CREATE UNIQUE INDEX "tms_invoice_active_legal_no_key" ON "public"."tms_invoice" USING "btree" ("tenant_id", "direction", "invoice_no") WHERE (("invoice_no" IS NOT NULL) AND ("btrim"("invoice_no") <> ''::"text") AND ("status" <> 'voided'::"text"));
+CREATE UNIQUE INDEX IF NOT EXISTS "tms_invoice_active_legal_no_key" ON "public"."tms_invoice" USING "btree" ("tenant_id", "direction", "invoice_no") WHERE (("invoice_no" IS NOT NULL) AND ("btrim"("invoice_no") <> ''::"text") AND ("status" <> 'voided'::"text"));
 
 
 --
@@ -27241,7 +29381,7 @@ CREATE UNIQUE INDEX "tms_invoice_active_legal_no_key" ON "public"."tms_invoice" 
 
 --
 
-CREATE INDEX "tms_invoice_carrier_id_idx" ON "public"."tms_invoice" USING "btree" ("carrier_id") WHERE ("carrier_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "tms_invoice_carrier_id_idx" ON "public"."tms_invoice" USING "btree" ("carrier_id") WHERE ("carrier_id" IS NOT NULL);
 
 
 --
@@ -27252,7 +29392,7 @@ CREATE INDEX "tms_invoice_carrier_id_idx" ON "public"."tms_invoice" USING "btree
 
 --
 
-CREATE INDEX "tms_invoice_creator_tenant_idx" ON "public"."tms_invoice" USING "btree" ("created_by_user_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "tms_invoice_creator_tenant_idx" ON "public"."tms_invoice" USING "btree" ("created_by_user_id", "tenant_id");
 
 
 --
@@ -27263,7 +29403,7 @@ CREATE INDEX "tms_invoice_creator_tenant_idx" ON "public"."tms_invoice" USING "b
 
 --
 
-CREATE INDEX "tms_invoice_customer_id_idx" ON "public"."tms_invoice" USING "btree" ("customer_id") WHERE ("customer_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "tms_invoice_customer_id_idx" ON "public"."tms_invoice" USING "btree" ("customer_id") WHERE ("customer_id" IS NOT NULL);
 
 
 --
@@ -27274,7 +29414,7 @@ CREATE INDEX "tms_invoice_customer_id_idx" ON "public"."tms_invoice" USING "btre
 
 --
 
-CREATE INDEX "tms_invoice_tenant_direction_party_idx" ON "public"."tms_invoice" USING "btree" ("tenant_id", "direction", "customer_id", "carrier_id");
+CREATE INDEX IF NOT EXISTS "tms_invoice_tenant_direction_party_idx" ON "public"."tms_invoice" USING "btree" ("tenant_id", "direction", "customer_id", "carrier_id");
 
 
 --
@@ -27285,7 +29425,7 @@ CREATE INDEX "tms_invoice_tenant_direction_party_idx" ON "public"."tms_invoice" 
 
 --
 
-CREATE INDEX "tms_invoice_tenant_status_date_idx" ON "public"."tms_invoice" USING "btree" ("tenant_id", "status", "issue_date" DESC);
+CREATE INDEX IF NOT EXISTS "tms_invoice_tenant_status_date_idx" ON "public"."tms_invoice" USING "btree" ("tenant_id", "status", "issue_date" DESC);
 
 
 --
@@ -27296,7 +29436,7 @@ CREATE INDEX "tms_invoice_tenant_status_date_idx" ON "public"."tms_invoice" USIN
 
 --
 
-CREATE UNIQUE INDEX "uq_mdm_document_type_default_per_menu" ON "public"."mdm_document_type" USING "btree" ("tenant_id", "menu_id") WHERE "is_default";
+CREATE UNIQUE INDEX IF NOT EXISTS "uq_mdm_document_type_default_per_menu" ON "public"."mdm_document_type" USING "btree" ("tenant_id", "menu_id") WHERE "is_default";
 
 
 --
@@ -27307,7 +29447,7 @@ CREATE UNIQUE INDEX "uq_mdm_document_type_default_per_menu" ON "public"."mdm_doc
 
 --
 
-CREATE INDEX "vehicle_supplier_create_by_idx" ON "public"."mdm_supplier" USING "btree" ("create_by");
+CREATE INDEX IF NOT EXISTS "vehicle_supplier_create_by_idx" ON "public"."mdm_supplier" USING "btree" ("create_by");
 
 
 --
@@ -27318,7 +29458,7 @@ CREATE INDEX "vehicle_supplier_create_by_idx" ON "public"."mdm_supplier" USING "
 
 --
 
-CREATE UNIQUE INDEX "vehicle_supplier_create_by_supplier_name_uq" ON "public"."mdm_supplier" USING "btree" ("create_by", "supplier_name");
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_supplier_create_by_supplier_name_uq" ON "public"."mdm_supplier" USING "btree" ("create_by", "supplier_name");
 
 
 --
@@ -27329,7 +29469,7 @@ CREATE UNIQUE INDEX "vehicle_supplier_create_by_supplier_name_uq" ON "public"."m
 
 --
 
-CREATE INDEX "vehicle_supplier_create_time_idx" ON "public"."mdm_supplier" USING "btree" ("create_time" DESC);
+CREATE INDEX IF NOT EXISTS "vehicle_supplier_create_time_idx" ON "public"."mdm_supplier" USING "btree" ("create_time" DESC);
 
 
 --
@@ -27340,7 +29480,7 @@ CREATE INDEX "vehicle_supplier_create_time_idx" ON "public"."mdm_supplier" USING
 
 --
 
-CREATE INDEX "vehicle_supplier_creator_tenant_idx" ON "public"."mdm_supplier" USING "btree" ("created_by_user_id", "tenant_id");
+CREATE INDEX IF NOT EXISTS "vehicle_supplier_creator_tenant_idx" ON "public"."mdm_supplier" USING "btree" ("created_by_user_id", "tenant_id");
 
 
 --
@@ -27351,7 +29491,7 @@ CREATE INDEX "vehicle_supplier_creator_tenant_idx" ON "public"."mdm_supplier" US
 
 --
 
-CREATE UNIQUE INDEX "vehicle_supplier_id_tenant_uq" ON "public"."mdm_supplier" USING "btree" ("id", "tenant_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_supplier_id_tenant_uq" ON "public"."mdm_supplier" USING "btree" ("id", "tenant_id");
 
 
 --
@@ -27362,7 +29502,7 @@ CREATE UNIQUE INDEX "vehicle_supplier_id_tenant_uq" ON "public"."mdm_supplier" U
 
 --
 
-CREATE INDEX "vehicle_supplier_master_filter_idx" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "supplier_category", "supplier_type", "industry");
+CREATE INDEX IF NOT EXISTS "vehicle_supplier_master_filter_idx" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "supplier_category", "supplier_type", "industry");
 
 
 --
@@ -27373,7 +29513,7 @@ CREATE INDEX "vehicle_supplier_master_filter_idx" ON "public"."mdm_supplier" USI
 
 --
 
-CREATE UNIQUE INDEX "vehicle_supplier_tenant_code_uq" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "lower"("btrim"("supplier_code")));
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_supplier_tenant_code_uq" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "lower"("btrim"("supplier_code")));
 
 
 --
@@ -27384,7 +29524,7 @@ CREATE UNIQUE INDEX "vehicle_supplier_tenant_code_uq" ON "public"."mdm_supplier"
 
 --
 
-CREATE UNIQUE INDEX "vehicle_supplier_tenant_name_uq" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "lower"("btrim"(("supplier_name")::"text")));
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_supplier_tenant_name_uq" ON "public"."mdm_supplier" USING "btree" ("tenant_id", "lower"("btrim"(("supplier_name")::"text")));
 
 
 --
@@ -27395,7 +29535,7 @@ CREATE UNIQUE INDEX "vehicle_supplier_tenant_name_uq" ON "public"."mdm_supplier"
 
 --
 
-CREATE INDEX "wf_action_actor_user_id_idx" ON "public"."wf_action" USING "btree" ("actor_user_id") WHERE ("actor_user_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "wf_action_actor_user_id_idx" ON "public"."wf_action" USING "btree" ("actor_user_id") WHERE ("actor_user_id" IS NOT NULL);
 
 
 --
@@ -27406,7 +29546,7 @@ CREATE INDEX "wf_action_actor_user_id_idx" ON "public"."wf_action" USING "btree"
 
 --
 
-CREATE UNIQUE INDEX "wf_action_idempotency_idx" ON "public"."wf_action" USING "btree" ("tenant_id", "idempotency_key") WHERE ("idempotency_key" IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "wf_action_idempotency_idx" ON "public"."wf_action" USING "btree" ("tenant_id", "idempotency_key") WHERE ("idempotency_key" IS NOT NULL);
 
 
 --
@@ -27417,7 +29557,7 @@ CREATE UNIQUE INDEX "wf_action_idempotency_idx" ON "public"."wf_action" USING "b
 
 --
 
-CREATE INDEX "wf_action_instance_time_idx" ON "public"."wf_action" USING "btree" ("instance_id", "create_time", "id");
+CREATE INDEX IF NOT EXISTS "wf_action_instance_time_idx" ON "public"."wf_action" USING "btree" ("instance_id", "create_time", "id");
 
 
 --
@@ -27428,7 +29568,7 @@ CREATE INDEX "wf_action_instance_time_idx" ON "public"."wf_action" USING "btree"
 
 --
 
-CREATE INDEX "wf_action_task_id_idx" ON "public"."wf_action" USING "btree" ("task_id") WHERE ("task_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "wf_action_task_id_idx" ON "public"."wf_action" USING "btree" ("task_id") WHERE ("task_id" IS NOT NULL);
 
 
 --
@@ -27439,7 +29579,7 @@ CREATE INDEX "wf_action_task_id_idx" ON "public"."wf_action" USING "btree" ("tas
 
 --
 
-CREATE INDEX "wf_business_callback_attempt_outbox_time_idx" ON "public"."wf_business_callback_attempt" USING "btree" ("outbox_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "wf_business_callback_attempt_outbox_time_idx" ON "public"."wf_business_callback_attempt" USING "btree" ("outbox_id", "create_time" DESC);
 
 
 --
@@ -27450,7 +29590,7 @@ CREATE INDEX "wf_business_callback_attempt_outbox_time_idx" ON "public"."wf_busi
 
 --
 
-CREATE INDEX "wf_business_callback_outbox_business_idx" ON "public"."wf_business_callback_outbox" USING "btree" ("tenant_id", "business_type", "business_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "wf_business_callback_outbox_business_idx" ON "public"."wf_business_callback_outbox" USING "btree" ("tenant_id", "business_type", "business_id", "create_time" DESC);
 
 
 --
@@ -27461,7 +29601,7 @@ CREATE INDEX "wf_business_callback_outbox_business_idx" ON "public"."wf_business
 
 --
 
-CREATE INDEX "wf_business_callback_outbox_dispatch_idx" ON "public"."wf_business_callback_outbox" USING "btree" ("next_attempt_at", "create_time", "id") WHERE ("status" = ANY (ARRAY['pending'::"text", 'retry_wait'::"text"]));
+CREATE INDEX IF NOT EXISTS "wf_business_callback_outbox_dispatch_idx" ON "public"."wf_business_callback_outbox" USING "btree" ("next_attempt_at", "create_time", "id") WHERE ("status" = ANY (ARRAY['pending'::"text", 'retry_wait'::"text"]));
 
 
 --
@@ -27472,7 +29612,7 @@ CREATE INDEX "wf_business_callback_outbox_dispatch_idx" ON "public"."wf_business
 
 --
 
-CREATE INDEX "wf_business_callback_outbox_monitor_idx" ON "public"."wf_business_callback_outbox" USING "btree" ("status", "update_time" DESC NULLS LAST, "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "wf_business_callback_outbox_monitor_idx" ON "public"."wf_business_callback_outbox" USING "btree" ("status", "update_time" DESC NULLS LAST, "create_time" DESC);
 
 
 --
@@ -27483,7 +29623,7 @@ CREATE INDEX "wf_business_callback_outbox_monitor_idx" ON "public"."wf_business_
 
 --
 
-CREATE INDEX "wf_definition_current_version_id_idx" ON "public"."wf_definition" USING "btree" ("current_version_id") WHERE ("current_version_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "wf_definition_current_version_id_idx" ON "public"."wf_definition" USING "btree" ("current_version_id") WHERE ("current_version_id" IS NOT NULL);
 
 
 --
@@ -27494,7 +29634,7 @@ CREATE INDEX "wf_definition_current_version_id_idx" ON "public"."wf_definition" 
 
 --
 
-CREATE UNIQUE INDEX "wf_definition_one_active_business_idx" ON "public"."wf_definition" USING "btree" ("tenant_id", "business_type") WHERE ("status" = 'published'::"text");
+CREATE UNIQUE INDEX IF NOT EXISTS "wf_definition_one_active_business_idx" ON "public"."wf_definition" USING "btree" ("tenant_id", "business_type") WHERE ("status" = 'published'::"text");
 
 
 --
@@ -27505,7 +29645,7 @@ CREATE UNIQUE INDEX "wf_definition_one_active_business_idx" ON "public"."wf_defi
 
 --
 
-CREATE INDEX "wf_definition_tenant_status_idx" ON "public"."wf_definition" USING "btree" ("tenant_id", "status", "update_time" DESC);
+CREATE INDEX IF NOT EXISTS "wf_definition_tenant_status_idx" ON "public"."wf_definition" USING "btree" ("tenant_id", "status", "update_time" DESC);
 
 
 --
@@ -27516,7 +29656,7 @@ CREATE INDEX "wf_definition_tenant_status_idx" ON "public"."wf_definition" USING
 
 --
 
-CREATE INDEX "wf_delegation_active_lookup_idx" ON "public"."wf_delegation" USING "btree" ("tenant_id", "delegator_user_id", "starts_at", "ends_at") WHERE ("revoked_at" IS NULL);
+CREATE INDEX IF NOT EXISTS "wf_delegation_active_lookup_idx" ON "public"."wf_delegation" USING "btree" ("tenant_id", "delegator_user_id", "starts_at", "ends_at") WHERE ("revoked_at" IS NULL);
 
 
 --
@@ -27527,7 +29667,7 @@ CREATE INDEX "wf_delegation_active_lookup_idx" ON "public"."wf_delegation" USING
 
 --
 
-CREATE INDEX "wf_delegation_delegate_idx" ON "public"."wf_delegation" USING "btree" ("tenant_id", "delegate_user_id", "starts_at", "ends_at") WHERE ("revoked_at" IS NULL);
+CREATE INDEX IF NOT EXISTS "wf_delegation_delegate_idx" ON "public"."wf_delegation" USING "btree" ("tenant_id", "delegate_user_id", "starts_at", "ends_at") WHERE ("revoked_at" IS NULL);
 
 
 --
@@ -27538,7 +29678,7 @@ CREATE INDEX "wf_delegation_delegate_idx" ON "public"."wf_delegation" USING "btr
 
 --
 
-CREATE INDEX "wf_delegation_delegate_user_id_idx" ON "public"."wf_delegation" USING "btree" ("delegate_user_id");
+CREATE INDEX IF NOT EXISTS "wf_delegation_delegate_user_id_idx" ON "public"."wf_delegation" USING "btree" ("delegate_user_id");
 
 
 --
@@ -27549,7 +29689,7 @@ CREATE INDEX "wf_delegation_delegate_user_id_idx" ON "public"."wf_delegation" US
 
 --
 
-CREATE INDEX "wf_delegation_delegator_user_id_idx" ON "public"."wf_delegation" USING "btree" ("delegator_user_id");
+CREATE INDEX IF NOT EXISTS "wf_delegation_delegator_user_id_idx" ON "public"."wf_delegation" USING "btree" ("delegator_user_id");
 
 
 --
@@ -27560,7 +29700,7 @@ CREATE INDEX "wf_delegation_delegator_user_id_idx" ON "public"."wf_delegation" U
 
 --
 
-CREATE INDEX "wf_delegation_revoked_by_idx" ON "public"."wf_delegation" USING "btree" ("revoked_by");
+CREATE INDEX IF NOT EXISTS "wf_delegation_revoked_by_idx" ON "public"."wf_delegation" USING "btree" ("revoked_by");
 
 
 --
@@ -27571,7 +29711,7 @@ CREATE INDEX "wf_delegation_revoked_by_idx" ON "public"."wf_delegation" USING "b
 
 --
 
-CREATE INDEX "wf_instance_definition_id_idx" ON "public"."wf_instance" USING "btree" ("definition_id");
+CREATE INDEX IF NOT EXISTS "wf_instance_definition_id_idx" ON "public"."wf_instance" USING "btree" ("definition_id");
 
 
 --
@@ -27582,7 +29722,7 @@ CREATE INDEX "wf_instance_definition_id_idx" ON "public"."wf_instance" USING "bt
 
 --
 
-CREATE INDEX "wf_instance_initiator_time_idx" ON "public"."wf_instance" USING "btree" ("initiator_user_id", "started_at" DESC);
+CREATE INDEX IF NOT EXISTS "wf_instance_initiator_time_idx" ON "public"."wf_instance" USING "btree" ("initiator_user_id", "started_at" DESC);
 
 
 --
@@ -27593,7 +29733,7 @@ CREATE INDEX "wf_instance_initiator_time_idx" ON "public"."wf_instance" USING "b
 
 --
 
-CREATE UNIQUE INDEX "wf_instance_one_running_business_idx" ON "public"."wf_instance" USING "btree" ("tenant_id", "business_type", "business_id") WHERE ("status" = 'running'::"text");
+CREATE UNIQUE INDEX IF NOT EXISTS "wf_instance_one_running_business_idx" ON "public"."wf_instance" USING "btree" ("tenant_id", "business_type", "business_id") WHERE ("status" = 'running'::"text");
 
 
 --
@@ -27604,7 +29744,7 @@ CREATE UNIQUE INDEX "wf_instance_one_running_business_idx" ON "public"."wf_insta
 
 --
 
-CREATE INDEX "wf_instance_tenant_business_history_idx" ON "public"."wf_instance" USING "btree" ("tenant_id", "business_type", "business_id", "started_at" DESC);
+CREATE INDEX IF NOT EXISTS "wf_instance_tenant_business_history_idx" ON "public"."wf_instance" USING "btree" ("tenant_id", "business_type", "business_id", "started_at" DESC);
 
 
 --
@@ -27615,7 +29755,7 @@ CREATE INDEX "wf_instance_tenant_business_history_idx" ON "public"."wf_instance"
 
 --
 
-CREATE INDEX "wf_instance_tenant_status_time_idx" ON "public"."wf_instance" USING "btree" ("tenant_id", "status", "started_at" DESC);
+CREATE INDEX IF NOT EXISTS "wf_instance_tenant_status_time_idx" ON "public"."wf_instance" USING "btree" ("tenant_id", "status", "started_at" DESC);
 
 
 --
@@ -27626,7 +29766,7 @@ CREATE INDEX "wf_instance_tenant_status_time_idx" ON "public"."wf_instance" USIN
 
 --
 
-CREATE INDEX "wf_instance_version_id_idx" ON "public"."wf_instance" USING "btree" ("version_id");
+CREATE INDEX IF NOT EXISTS "wf_instance_version_id_idx" ON "public"."wf_instance" USING "btree" ("version_id");
 
 
 --
@@ -27637,7 +29777,7 @@ CREATE INDEX "wf_instance_version_id_idx" ON "public"."wf_instance" USING "btree
 
 --
 
-CREATE INDEX "wf_task_assignee_status_time_idx" ON "public"."wf_task" USING "btree" ("assignee_user_id", "status", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "wf_task_assignee_status_time_idx" ON "public"."wf_task" USING "btree" ("assignee_user_id", "status", "create_time" DESC);
 
 
 --
@@ -27648,7 +29788,7 @@ CREATE INDEX "wf_task_assignee_status_time_idx" ON "public"."wf_task" USING "btr
 
 --
 
-CREATE INDEX "wf_task_delegation_id_idx" ON "public"."wf_task" USING "btree" ("delegation_id") WHERE ("delegation_id" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "wf_task_delegation_id_idx" ON "public"."wf_task" USING "btree" ("delegation_id") WHERE ("delegation_id" IS NOT NULL);
 
 
 --
@@ -27659,7 +29799,7 @@ CREATE INDEX "wf_task_delegation_id_idx" ON "public"."wf_task" USING "btree" ("d
 
 --
 
-CREATE INDEX "wf_task_instance_node_idx" ON "public"."wf_task" USING "btree" ("instance_id", "node_order", "node_key");
+CREATE INDEX IF NOT EXISTS "wf_task_instance_node_idx" ON "public"."wf_task" USING "btree" ("instance_id", "node_order", "node_key");
 
 
 --
@@ -27670,7 +29810,7 @@ CREATE INDEX "wf_task_instance_node_idx" ON "public"."wf_task" USING "btree" ("i
 
 --
 
-CREATE INDEX "wf_task_last_assigned_by_idx" ON "public"."wf_task" USING "btree" ("last_assigned_by");
+CREATE INDEX IF NOT EXISTS "wf_task_last_assigned_by_idx" ON "public"."wf_task" USING "btree" ("last_assigned_by");
 
 
 --
@@ -27681,7 +29821,7 @@ CREATE INDEX "wf_task_last_assigned_by_idx" ON "public"."wf_task" USING "btree" 
 
 --
 
-CREATE INDEX "wf_task_original_assignee_idx" ON "public"."wf_task" USING "btree" ("original_assignee_user_id", "status", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "wf_task_original_assignee_idx" ON "public"."wf_task" USING "btree" ("original_assignee_user_id", "status", "create_time" DESC);
 
 
 --
@@ -27692,7 +29832,7 @@ CREATE INDEX "wf_task_original_assignee_idx" ON "public"."wf_task" USING "btree"
 
 --
 
-CREATE INDEX "wf_task_pending_due_idx" ON "public"."wf_task" USING "btree" ("tenant_id", "due_at", "instance_id") WHERE (("status" = 'pending'::"text") AND ("due_at" IS NOT NULL));
+CREATE INDEX IF NOT EXISTS "wf_task_pending_due_idx" ON "public"."wf_task" USING "btree" ("tenant_id", "due_at", "instance_id") WHERE (("status" = 'pending'::"text") AND ("due_at" IS NOT NULL));
 
 
 --
@@ -27703,7 +29843,7 @@ CREATE INDEX "wf_task_pending_due_idx" ON "public"."wf_task" USING "btree" ("ten
 
 --
 
-CREATE INDEX "wf_task_reminder_instance_idx" ON "public"."wf_task_reminder_event" USING "btree" ("instance_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "wf_task_reminder_instance_idx" ON "public"."wf_task_reminder_event" USING "btree" ("instance_id", "create_time" DESC);
 
 
 --
@@ -27714,7 +29854,7 @@ CREATE INDEX "wf_task_reminder_instance_idx" ON "public"."wf_task_reminder_event
 
 --
 
-CREATE INDEX "wf_task_reminder_retry_idx" ON "public"."wf_task_reminder_event" USING "btree" ("status", "next_retry_at", "scheduled_at") WHERE (("status" = ANY (ARRAY['pending'::"text", 'failed'::"text"])) AND ("attempt_count" < 10));
+CREATE INDEX IF NOT EXISTS "wf_task_reminder_retry_idx" ON "public"."wf_task_reminder_event" USING "btree" ("status", "next_retry_at", "scheduled_at") WHERE (("status" = ANY (ARRAY['pending'::"text", 'failed'::"text"])) AND ("attempt_count" < 10));
 
 
 --
@@ -27725,7 +29865,7 @@ CREATE INDEX "wf_task_reminder_retry_idx" ON "public"."wf_task_reminder_event" U
 
 --
 
-CREATE INDEX "wf_task_reminder_tenant_time_idx" ON "public"."wf_task_reminder_event" USING "btree" ("tenant_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "wf_task_reminder_tenant_time_idx" ON "public"."wf_task_reminder_event" USING "btree" ("tenant_id", "create_time" DESC);
 
 
 --
@@ -27736,7 +29876,7 @@ CREATE INDEX "wf_task_reminder_tenant_time_idx" ON "public"."wf_task_reminder_ev
 
 --
 
-CREATE INDEX "wf_task_tenant_create_time_idx" ON "public"."wf_task" USING "btree" ("tenant_id", "create_time" DESC);
+CREATE INDEX IF NOT EXISTS "wf_task_tenant_create_time_idx" ON "public"."wf_task" USING "btree" ("tenant_id", "create_time" DESC);
 
 
 --
@@ -27747,7 +29887,7 @@ CREATE INDEX "wf_task_tenant_create_time_idx" ON "public"."wf_task" USING "btree
 
 --
 
-CREATE INDEX "wf_version_definition_status_idx" ON "public"."wf_version" USING "btree" ("definition_id", "status", "version_no" DESC);
+CREATE INDEX IF NOT EXISTS "wf_version_definition_status_idx" ON "public"."wf_version" USING "btree" ("definition_id", "status", "version_no" DESC);
 
 
 --
@@ -27758,7 +29898,7 @@ CREATE INDEX "wf_version_definition_status_idx" ON "public"."wf_version" USING "
 
 --
 
-CREATE UNIQUE INDEX "wf_version_one_draft_idx" ON "public"."wf_version" USING "btree" ("definition_id") WHERE ("status" = 'draft'::"text");
+CREATE UNIQUE INDEX IF NOT EXISTS "wf_version_one_draft_idx" ON "public"."wf_version" USING "btree" ("definition_id") WHERE ("status" = 'draft'::"text");
 
 
 --
@@ -27769,7 +29909,7 @@ CREATE UNIQUE INDEX "wf_version_one_draft_idx" ON "public"."wf_version" USING "b
 
 --
 
-CREATE UNIQUE INDEX "wf_version_one_published_idx" ON "public"."wf_version" USING "btree" ("definition_id") WHERE ("status" = 'published'::"text");
+CREATE UNIQUE INDEX IF NOT EXISTS "wf_version_one_published_idx" ON "public"."wf_version" USING "btree" ("definition_id") WHERE ("status" = 'published'::"text");
 
 
 --
@@ -30451,6 +32591,13 @@ CREATE OR REPLACE TRIGGER "wms_warehouse_organization_guard" BEFORE INSERT OR UP
 -- Name: mdm_accessory_processing_item accessory_item_category_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'accessory_item_category_tenant_fk'
+       AND c.conrelid = 'public.mdm_accessory_processing_item'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
@@ -30458,11 +32605,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_item accessory_item_code_rule_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'accessory_item_code_rule_tenant_fk'
+       AND c.conrelid = 'public.mdm_accessory_processing_item'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
@@ -30470,11 +32627,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_item accessory_item_type_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'accessory_item_type_tenant_fk'
+       AND c.conrelid = 'public.mdm_accessory_processing_item'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
@@ -30482,11 +32649,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_item accessory_item_unit_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'accessory_item_unit_tenant_fk'
+       AND c.conrelid = 'public.mdm_accessory_processing_item'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
@@ -30494,11 +32671,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_artifact_review ai_artifact_review_ai_run_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_artifact_review_ai_run_id_fkey'
+       AND c.conrelid = 'public.ai_artifact_review'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_artifact_review"
@@ -30506,11 +32693,21 @@ ALTER TABLE ONLY "public"."ai_artifact_review"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_conversation ai_conversation_auth_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_conversation_auth_user_id_fkey'
+       AND c.conrelid = 'public.ai_conversation'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_conversation"
@@ -30518,11 +32715,21 @@ ALTER TABLE ONLY "public"."ai_conversation"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feedback ai_feedback_auth_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feedback_auth_user_id_fkey'
+       AND c.conrelid = 'public.ai_feedback'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feedback"
@@ -30530,11 +32737,21 @@ ALTER TABLE ONLY "public"."ai_feedback"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feedback_resolution ai_feedback_resolution_feedback_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feedback_resolution_feedback_id_fkey'
+       AND c.conrelid = 'public.ai_feedback_resolution'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feedback_resolution"
@@ -30542,11 +32759,21 @@ ALTER TABLE ONLY "public"."ai_feedback_resolution"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feedback_resolution ai_feedback_resolution_handled_by_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feedback_resolution_handled_by_fkey'
+       AND c.conrelid = 'public.ai_feedback_resolution'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feedback_resolution"
@@ -30554,11 +32781,21 @@ ALTER TABLE ONLY "public"."ai_feedback_resolution"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feedback_resolution ai_feedback_resolution_resolved_by_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feedback_resolution_resolved_by_fkey'
+       AND c.conrelid = 'public.ai_feedback_resolution'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feedback_resolution"
@@ -30566,11 +32803,21 @@ ALTER TABLE ONLY "public"."ai_feedback_resolution"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_feedback ai_feedback_run_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_feedback_run_id_fkey'
+       AND c.conrelid = 'public.ai_feedback'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_feedback"
@@ -30578,11 +32825,21 @@ ALTER TABLE ONLY "public"."ai_feedback"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_message ai_message_auth_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_message_auth_user_id_fkey'
+       AND c.conrelid = 'public.ai_message'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_message"
@@ -30590,11 +32847,21 @@ ALTER TABLE ONLY "public"."ai_message"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_message ai_message_conversation_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_message_conversation_id_fkey'
+       AND c.conrelid = 'public.ai_message'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_message"
@@ -30602,11 +32869,21 @@ ALTER TABLE ONLY "public"."ai_message"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_ocr_quality_threshold ai_ocr_quality_threshold_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_ocr_quality_threshold_tenant_id_fkey'
+       AND c.conrelid = 'public.ai_ocr_quality_threshold'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_ocr_quality_threshold"
@@ -30614,11 +32891,21 @@ ALTER TABLE ONLY "public"."ai_ocr_quality_threshold"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_project_snapshot ai_project_snapshot_auth_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_project_snapshot_auth_user_id_fkey'
+       AND c.conrelid = 'public.ai_project_snapshot'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_project_snapshot"
@@ -30626,11 +32913,21 @@ ALTER TABLE ONLY "public"."ai_project_snapshot"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_run ai_run_auth_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_run_auth_user_id_fkey'
+       AND c.conrelid = 'public.ai_run'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_run"
@@ -30638,11 +32935,21 @@ ALTER TABLE ONLY "public"."ai_run"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_run ai_run_conversation_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_run_conversation_id_fkey'
+       AND c.conrelid = 'public.ai_run'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_run"
@@ -30650,11 +32957,21 @@ ALTER TABLE ONLY "public"."ai_run"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_security_event ai_security_event_feedback_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_security_event_feedback_id_fkey'
+       AND c.conrelid = 'public.ai_security_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_security_event"
@@ -30662,11 +32979,21 @@ ALTER TABLE ONLY "public"."ai_security_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_security_event ai_security_event_resolved_by_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_security_event_resolved_by_fkey'
+       AND c.conrelid = 'public.ai_security_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_security_event"
@@ -30674,11 +33001,21 @@ ALTER TABLE ONLY "public"."ai_security_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_security_event ai_security_event_run_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_security_event_run_id_fkey'
+       AND c.conrelid = 'public.ai_security_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_security_event"
@@ -30686,11 +33023,21 @@ ALTER TABLE ONLY "public"."ai_security_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_security_event ai_security_event_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_security_event_tenant_id_fkey'
+       AND c.conrelid = 'public.ai_security_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_security_event"
@@ -30698,11 +33045,21 @@ ALTER TABLE ONLY "public"."ai_security_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_security_event ai_security_event_tool_call_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_security_event_tool_call_id_fkey'
+       AND c.conrelid = 'public.ai_security_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_security_event"
@@ -30710,11 +33067,21 @@ ALTER TABLE ONLY "public"."ai_security_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion ai_suggestion_auth_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_auth_user_id_fkey'
+       AND c.conrelid = 'public.ai_suggestion'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion"
@@ -30722,11 +33089,21 @@ ALTER TABLE ONLY "public"."ai_suggestion"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion_batch ai_suggestion_batch_ai_run_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_batch_ai_run_id_fkey'
+       AND c.conrelid = 'public.ai_suggestion_batch'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion_batch"
@@ -30734,11 +33111,21 @@ ALTER TABLE ONLY "public"."ai_suggestion_batch"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion_batch ai_suggestion_batch_auth_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_batch_auth_user_id_fkey'
+       AND c.conrelid = 'public.ai_suggestion_batch'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion_batch"
@@ -30746,11 +33133,21 @@ ALTER TABLE ONLY "public"."ai_suggestion_batch"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion ai_suggestion_batch_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_batch_id_fkey'
+       AND c.conrelid = 'public.ai_suggestion'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion"
@@ -30758,11 +33155,21 @@ ALTER TABLE ONLY "public"."ai_suggestion"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion_batch ai_suggestion_batch_snapshot_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_batch_snapshot_id_fkey'
+       AND c.conrelid = 'public.ai_suggestion_batch'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion_batch"
@@ -30770,11 +33177,21 @@ ALTER TABLE ONLY "public"."ai_suggestion_batch"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion_event ai_suggestion_event_auth_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_event_auth_user_id_fkey'
+       AND c.conrelid = 'public.ai_suggestion_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion_event"
@@ -30782,11 +33199,21 @@ ALTER TABLE ONLY "public"."ai_suggestion_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion_event ai_suggestion_event_batch_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_event_batch_id_fkey'
+       AND c.conrelid = 'public.ai_suggestion_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion_event"
@@ -30794,11 +33221,21 @@ ALTER TABLE ONLY "public"."ai_suggestion_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_suggestion_event ai_suggestion_event_suggestion_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_suggestion_event_suggestion_id_fkey'
+       AND c.conrelid = 'public.ai_suggestion_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_suggestion_event"
@@ -30806,11 +33243,21 @@ ALTER TABLE ONLY "public"."ai_suggestion_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_tool_call ai_tool_call_auth_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_tool_call_auth_user_id_fkey'
+       AND c.conrelid = 'public.ai_tool_call'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_tool_call"
@@ -30818,11 +33265,21 @@ ALTER TABLE ONLY "public"."ai_tool_call"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_tool_call ai_tool_call_run_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_tool_call_run_id_fkey'
+       AND c.conrelid = 'public.ai_tool_call'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_tool_call"
@@ -30830,11 +33287,21 @@ ALTER TABLE ONLY "public"."ai_tool_call"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_ui_design_reference_image ai_ui_design_reference_image_reference_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_ui_design_reference_image_reference_id_fkey'
+       AND c.conrelid = 'public.ai_ui_design_reference_image'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_ui_design_reference_image"
@@ -30842,11 +33309,21 @@ ALTER TABLE ONLY "public"."ai_ui_design_reference_image"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: ai_ui_design_reference ai_ui_design_reference_menu_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'ai_ui_design_reference_menu_id_fkey'
+       AND c.conrelid = 'public.ai_ui_design_reference'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."ai_ui_design_reference"
@@ -30854,11 +33331,21 @@ ALTER TABLE ONLY "public"."ai_ui_design_reference"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_employee hr_employee_creator_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_employee_creator_tenant_fkey'
+       AND c.conrelid = 'public.mdm_employee'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_employee"
@@ -30866,11 +33353,21 @@ ALTER TABLE ONLY "public"."mdm_employee"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_employee hr_employee_organization_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_employee_organization_tenant_fkey'
+       AND c.conrelid = 'public.mdm_employee'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_employee"
@@ -30878,11 +33375,21 @@ ALTER TABLE ONLY "public"."mdm_employee"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_employee hr_employee_position_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_employee_position_tenant_fkey'
+       AND c.conrelid = 'public.mdm_employee'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_employee"
@@ -30890,11 +33397,21 @@ ALTER TABLE ONLY "public"."mdm_employee"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_employee hr_employee_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_employee_tenant_fkey'
+       AND c.conrelid = 'public.mdm_employee'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_employee"
@@ -30902,11 +33419,21 @@ ALTER TABLE ONLY "public"."mdm_employee"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_grade hr_grade_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_grade_tenant_fkey'
+       AND c.conrelid = 'public.mdm_grade'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_grade"
@@ -30914,11 +33441,21 @@ ALTER TABLE ONLY "public"."mdm_grade"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_job_family hr_job_family_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_job_family_tenant_fkey'
+       AND c.conrelid = 'public.mdm_job_family'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_job_family"
@@ -30926,11 +33463,21 @@ ALTER TABLE ONLY "public"."mdm_job_family"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_job_profile hr_job_profile_family_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_job_profile_family_fkey'
+       AND c.conrelid = 'public.mdm_job_profile'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_job_profile"
@@ -30938,11 +33485,21 @@ ALTER TABLE ONLY "public"."mdm_job_profile"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_job_profile hr_job_profile_grade_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_job_profile_grade_fkey'
+       AND c.conrelid = 'public.mdm_job_profile'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_job_profile"
@@ -30950,11 +33507,21 @@ ALTER TABLE ONLY "public"."mdm_job_profile"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_job_profile hr_job_profile_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_job_profile_tenant_fkey'
+       AND c.conrelid = 'public.mdm_job_profile'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_job_profile"
@@ -30962,11 +33529,21 @@ ALTER TABLE ONLY "public"."mdm_job_profile"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_position hr_position_grade_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_position_grade_tenant_fkey'
+       AND c.conrelid = 'public.mdm_position'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_position"
@@ -30974,11 +33551,21 @@ ALTER TABLE ONLY "public"."mdm_position"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_position hr_position_job_profile_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_position_job_profile_tenant_fkey'
+       AND c.conrelid = 'public.mdm_position'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_position"
@@ -30986,11 +33573,21 @@ ALTER TABLE ONLY "public"."mdm_position"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_position hr_position_organization_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_position_organization_tenant_fkey'
+       AND c.conrelid = 'public.mdm_position'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_position"
@@ -30998,11 +33595,21 @@ ALTER TABLE ONLY "public"."mdm_position"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_position hr_position_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'hr_position_tenant_fkey'
+       AND c.conrelid = 'public.mdm_position'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_position"
@@ -31010,11 +33617,21 @@ ALTER TABLE ONLY "public"."mdm_position"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_item mdm_accessory_processing_item_list_id_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_accessory_processing_item_list_id_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_accessory_processing_item'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
@@ -31022,11 +33639,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_item mdm_accessory_processing_item_material_id_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_accessory_processing_item_material_id_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_accessory_processing_item'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
@@ -31034,11 +33661,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_item"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_list mdm_accessory_processing_list_bom_id_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_accessory_processing_list_bom_id_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_accessory_processing_list'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_list"
@@ -31046,11 +33683,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_list"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_accessory_processing_list mdm_accessory_processing_list_project_id_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_accessory_processing_list_project_id_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_accessory_processing_list'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_accessory_processing_list"
@@ -31058,11 +33705,21 @@ ALTER TABLE ONLY "public"."mdm_accessory_processing_list"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_bom mdm_bom_group_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_bom_group_fkey'
+       AND c.conrelid = 'public.mdm_bom'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_bom"
@@ -31070,11 +33727,21 @@ ALTER TABLE ONLY "public"."mdm_bom"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_bom mdm_bom_material_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_bom_material_fkey'
+       AND c.conrelid = 'public.mdm_bom'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_bom"
@@ -31082,11 +33749,21 @@ ALTER TABLE ONLY "public"."mdm_bom"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_bom mdm_bom_process_route_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_bom_process_route_fkey'
+       AND c.conrelid = 'public.mdm_bom'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_bom"
@@ -31094,11 +33771,21 @@ ALTER TABLE ONLY "public"."mdm_bom"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_bom mdm_bom_project_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_bom_project_fk'
+       AND c.conrelid = 'public.mdm_bom'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_bom"
@@ -31106,11 +33793,21 @@ ALTER TABLE ONLY "public"."mdm_bom"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_bom mdm_bom_source_quotation_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_bom_source_quotation_fk'
+       AND c.conrelid = 'public.mdm_bom'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_bom"
@@ -31118,11 +33815,21 @@ ALTER TABLE ONLY "public"."mdm_bom"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_bom mdm_bom_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_bom_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_bom'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_bom"
@@ -31130,11 +33837,21 @@ ALTER TABLE ONLY "public"."mdm_bom"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_bom mdm_bom_unit_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_bom_unit_fkey'
+       AND c.conrelid = 'public.mdm_bom'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_bom"
@@ -31142,11 +33859,21 @@ ALTER TABLE ONLY "public"."mdm_bom"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer_address mdm_customer_address_creator_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_customer_address_creator_fkey'
+       AND c.conrelid = 'public.mdm_customer_address'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer_address"
@@ -31154,11 +33881,21 @@ ALTER TABLE ONLY "public"."mdm_customer_address"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer mdm_customer_created_by_user_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_customer_created_by_user_fkey'
+       AND c.conrelid = 'public.mdm_customer'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer"
@@ -31166,11 +33903,21 @@ ALTER TABLE ONLY "public"."mdm_customer"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer mdm_customer_group_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_customer_group_tenant_fk'
+       AND c.conrelid = 'public.mdm_customer'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer"
@@ -31178,11 +33925,21 @@ ALTER TABLE ONLY "public"."mdm_customer"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_document_type mdm_document_type_menu_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_document_type_menu_id_fkey'
+       AND c.conrelid = 'public.mdm_document_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_document_type"
@@ -31190,11 +33947,21 @@ ALTER TABLE ONLY "public"."mdm_document_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_document_type mdm_document_type_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_document_type_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_document_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_document_type"
@@ -31202,11 +33969,21 @@ ALTER TABLE ONLY "public"."mdm_document_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_master_group mdm_master_group_parent_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_master_group_parent_fk'
+       AND c.conrelid = 'public.mdm_master_group'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_master_group"
@@ -31214,11 +33991,21 @@ ALTER TABLE ONLY "public"."mdm_master_group"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_advance_period_unit_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_advance_period_unit_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31226,11 +34013,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_attribute_group_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_attribute_group_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31238,11 +34035,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_attribute_group mdm_material_attribute_group_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_attribute_group_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_material_attribute_group'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_attribute_group"
@@ -31250,11 +34057,21 @@ ALTER TABLE ONLY "public"."mdm_material_attribute_group"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_aux_unit_2_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_aux_unit_2_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31262,11 +34079,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_aux_unit_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_aux_unit_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31274,11 +34101,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_base_unit_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_base_unit_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31286,11 +34123,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_batch_rule_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_batch_rule_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31298,11 +34145,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_category mdm_material_category_purchaser_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_category_purchaser_fkey'
+       AND c.conrelid = 'public.mdm_material_category'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_category"
@@ -31310,11 +34167,21 @@ ALTER TABLE ONLY "public"."mdm_material_category"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_category mdm_material_category_site_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_category_site_fkey'
+       AND c.conrelid = 'public.mdm_material_category'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_category"
@@ -31322,11 +34189,21 @@ ALTER TABLE ONLY "public"."mdm_material_category"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_category mdm_material_category_type_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_category_type_fkey'
+       AND c.conrelid = 'public.mdm_material_category'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_category"
@@ -31334,11 +34211,21 @@ ALTER TABLE ONLY "public"."mdm_material_category"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_code_rule_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_code_rule_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31346,11 +34233,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_code_rule mdm_material_code_rule_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_code_rule_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_material_code_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_code_rule"
@@ -31358,11 +34255,21 @@ ALTER TABLE ONLY "public"."mdm_material_code_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_cost_unit_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_cost_unit_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31370,11 +34277,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_custodian_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_custodian_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31382,11 +34299,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_default_warehouse_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_default_warehouse_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31394,11 +34321,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_dispatcher_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_dispatcher_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31406,11 +34343,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_group_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_group_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31418,11 +34365,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_inbound_warehouse_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_inbound_warehouse_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31430,11 +34387,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_inventory_unit_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_inventory_unit_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31442,11 +34409,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_issuing_warehouse_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_issuing_warehouse_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31454,11 +34431,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_outbound_rule_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_outbound_rule_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31466,11 +34453,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_planner_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_planner_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31478,11 +34475,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_production_planner_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_production_planner_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31490,11 +34497,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_production_unit_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_production_unit_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31502,11 +34519,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_purchase_unit_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_purchase_unit_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31514,11 +34541,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_purchaser_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_purchaser_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31526,11 +34563,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_sales_unit_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_sales_unit_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31538,11 +34585,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_salesperson_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_salesperson_id_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31550,11 +34607,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_serial_rule_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_serial_rule_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31562,11 +34629,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_shelf_life_unit_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_shelf_life_unit_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31574,11 +34651,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_storage_location_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_storage_location_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31586,11 +34673,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_supplier_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_supplier_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31598,11 +34695,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material mdm_material_type_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_type_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -31610,11 +34717,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_type mdm_material_type_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_material_type_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_material_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_type"
@@ -31622,11 +34739,21 @@ ALTER TABLE ONLY "public"."mdm_material_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_outbound_rule mdm_outbound_rule_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_outbound_rule_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_outbound_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_outbound_rule"
@@ -31634,11 +34761,21 @@ ALTER TABLE ONLY "public"."mdm_outbound_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_process_route mdm_process_route_department_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_process_route_department_fk'
+       AND c.conrelid = 'public.mdm_process_route'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_process_route"
@@ -31646,11 +34783,21 @@ ALTER TABLE ONLY "public"."mdm_process_route"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_process_route mdm_process_route_group_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_process_route_group_fk'
+       AND c.conrelid = 'public.mdm_process_route'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_process_route"
@@ -31658,11 +34805,21 @@ ALTER TABLE ONLY "public"."mdm_process_route"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_process_route mdm_process_route_material_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_process_route_material_tenant_fkey'
+       AND c.conrelid = 'public.mdm_process_route'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_process_route"
@@ -31670,11 +34827,21 @@ ALTER TABLE ONLY "public"."mdm_process_route"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_process_route mdm_process_route_production_unit_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_process_route_production_unit_fk'
+       AND c.conrelid = 'public.mdm_process_route'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_process_route"
@@ -31682,11 +34849,21 @@ ALTER TABLE ONLY "public"."mdm_process_route"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_production_department mdm_production_department_organization_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_production_department_organization_tenant_fkey'
+       AND c.conrelid = 'public.mdm_production_department'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_production_department"
@@ -31694,11 +34871,21 @@ ALTER TABLE ONLY "public"."mdm_production_department"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_production_department mdm_production_department_parent_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_production_department_parent_tenant_fkey'
+       AND c.conrelid = 'public.mdm_production_department'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_production_department"
@@ -31706,11 +34893,21 @@ ALTER TABLE ONLY "public"."mdm_production_department"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project_construction mdm_project_construction_project_id_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_construction_project_id_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_project_construction'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project_construction"
@@ -31718,11 +34915,21 @@ ALTER TABLE ONLY "public"."mdm_project_construction"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project mdm_project_customer_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_customer_tenant_fk'
+       AND c.conrelid = 'public.mdm_project'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project"
@@ -31730,11 +34937,21 @@ ALTER TABLE ONLY "public"."mdm_project"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project mdm_project_group_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_group_tenant_fk'
+       AND c.conrelid = 'public.mdm_project'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project"
@@ -31742,11 +34959,21 @@ ALTER TABLE ONLY "public"."mdm_project"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project mdm_project_owner_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_owner_tenant_fk'
+       AND c.conrelid = 'public.mdm_project'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project"
@@ -31754,11 +34981,21 @@ ALTER TABLE ONLY "public"."mdm_project"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_project mdm_project_sales_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_project_sales_tenant_fk'
+       AND c.conrelid = 'public.mdm_project'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_project"
@@ -31766,11 +35003,21 @@ ALTER TABLE ONLY "public"."mdm_project"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supplier mdm_supplier_creator_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_supplier_creator_fk'
+       AND c.conrelid = 'public.mdm_supplier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supplier"
@@ -31778,11 +35025,21 @@ ALTER TABLE ONLY "public"."mdm_supplier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supplier mdm_supplier_group_tenant_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_supplier_group_tenant_fk'
+       AND c.conrelid = 'public.mdm_supplier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supplier"
@@ -31790,11 +35047,21 @@ ALTER TABLE ONLY "public"."mdm_supplier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supply_chain_code_rule mdm_supply_chain_code_rule_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_supply_chain_code_rule_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_supply_chain_code_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
@@ -31802,11 +35069,21 @@ ALTER TABLE ONLY "public"."mdm_supply_chain_code_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_unit_of_measure mdm_unit_of_measure_base_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_unit_of_measure_base_fkey'
+       AND c.conrelid = 'public.mdm_unit_of_measure'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_unit_of_measure"
@@ -31814,11 +35091,21 @@ ALTER TABLE ONLY "public"."mdm_unit_of_measure"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_unit_of_measure mdm_unit_of_measure_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_unit_of_measure_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_unit_of_measure'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_unit_of_measure"
@@ -31826,11 +35113,21 @@ ALTER TABLE ONLY "public"."mdm_unit_of_measure"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_fixed_material_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_bin_fixed_material_fk'
+       AND c.conrelid = 'public.mdm_warehouse_bin'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_bin"
@@ -31838,11 +35135,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_bin"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_parent_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_bin_parent_fk'
+       AND c.conrelid = 'public.mdm_warehouse_bin'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_bin"
@@ -31850,11 +35157,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_bin"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_warehouse_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_bin_warehouse_fk'
+       AND c.conrelid = 'public.mdm_warehouse_bin'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_bin"
@@ -31862,11 +35179,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_bin"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_zone_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_bin_zone_fk'
+       AND c.conrelid = 'public.mdm_warehouse_bin'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_bin"
@@ -31874,11 +35201,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_bin"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse mdm_warehouse_group_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_group_fkey'
+       AND c.conrelid = 'public.mdm_warehouse'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse"
@@ -31886,11 +35223,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse mdm_warehouse_organization_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_organization_fk'
+       AND c.conrelid = 'public.mdm_warehouse'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse"
@@ -31898,11 +35245,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse mdm_warehouse_responsible_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_responsible_fkey'
+       AND c.conrelid = 'public.mdm_warehouse'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse"
@@ -31910,11 +35267,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse mdm_warehouse_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_tenant_fkey'
+       AND c.conrelid = 'public.mdm_warehouse'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse"
@@ -31922,11 +35289,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_zone mdm_warehouse_zone_category_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_zone_category_fk'
+       AND c.conrelid = 'public.mdm_warehouse_zone'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_zone"
@@ -31934,11 +35311,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_zone"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_warehouse_zone mdm_warehouse_zone_warehouse_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'mdm_warehouse_zone_warehouse_fk'
+       AND c.conrelid = 'public.mdm_warehouse_zone'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_warehouse_zone"
@@ -31946,11 +35333,21 @@ ALTER TABLE ONLY "public"."mdm_warehouse_zone"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_purchase_document scm_purchase_document_document_type_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_purchase_document_document_type_id_fkey'
+       AND c.conrelid = 'public.scm_purchase_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_purchase_document"
@@ -31958,11 +35355,21 @@ ALTER TABLE ONLY "public"."scm_purchase_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_purchase_document scm_purchase_document_project_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_purchase_document_project_id_fkey'
+       AND c.conrelid = 'public.scm_purchase_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_purchase_document"
@@ -31970,11 +35377,21 @@ ALTER TABLE ONLY "public"."scm_purchase_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_purchase_document scm_purchase_document_source_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_purchase_document_source_id_fkey'
+       AND c.conrelid = 'public.scm_purchase_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_purchase_document"
@@ -31982,11 +35399,21 @@ ALTER TABLE ONLY "public"."scm_purchase_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_purchase_document scm_purchase_document_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_purchase_document_supplier_id_fkey'
+       AND c.conrelid = 'public.scm_purchase_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_purchase_document"
@@ -31994,11 +35421,21 @@ ALTER TABLE ONLY "public"."scm_purchase_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_purchase_document scm_purchase_document_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_purchase_document_tenant_id_fkey'
+       AND c.conrelid = 'public.scm_purchase_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_purchase_document"
@@ -32006,11 +35443,21 @@ ALTER TABLE ONLY "public"."scm_purchase_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_document scm_receipt_target_document_project_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_document_project_id_fkey'
+       AND c.conrelid = 'public.scm_receipt_target_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_document"
@@ -32018,11 +35465,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_document scm_receipt_target_document_source_receipt_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_document_source_receipt_id_fkey'
+       AND c.conrelid = 'public.scm_receipt_target_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_document"
@@ -32030,11 +35487,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_document scm_receipt_target_document_supplier_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_document_supplier_id_fkey'
+       AND c.conrelid = 'public.scm_receipt_target_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_document"
@@ -32042,11 +35509,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_document scm_receipt_target_document_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_document_tenant_id_fkey'
+       AND c.conrelid = 'public.scm_receipt_target_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_document"
@@ -32054,11 +35531,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_line scm_receipt_target_line_source_receipt_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_line_source_receipt_id_fkey'
+       AND c.conrelid = 'public.scm_receipt_target_line'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_line"
@@ -32066,11 +35553,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_line"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_line scm_receipt_target_line_target_document_id_tenant_id_targe_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_line_target_document_id_tenant_id_targe_fkey'
+       AND c.conrelid = 'public.scm_receipt_target_line'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_line"
@@ -32078,11 +35575,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_line"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_receipt_target_document scm_receipt_target_section_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_receipt_target_section_fk'
+       AND c.conrelid = 'public.scm_receipt_target_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_receipt_target_document"
@@ -32090,11 +35597,21 @@ ALTER TABLE ONLY "public"."scm_receipt_target_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_sales_document scm_sales_document_customer_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_sales_document_customer_id_fkey'
+       AND c.conrelid = 'public.scm_sales_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_sales_document"
@@ -32102,11 +35619,21 @@ ALTER TABLE ONLY "public"."scm_sales_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_sales_document scm_sales_document_document_type_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_sales_document_document_type_id_fkey'
+       AND c.conrelid = 'public.scm_sales_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_sales_document"
@@ -32114,11 +35641,21 @@ ALTER TABLE ONLY "public"."scm_sales_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_sales_document scm_sales_document_project_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_sales_document_project_id_fkey'
+       AND c.conrelid = 'public.scm_sales_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_sales_document"
@@ -32126,11 +35663,21 @@ ALTER TABLE ONLY "public"."scm_sales_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_sales_document scm_sales_document_source_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_sales_document_source_id_fkey'
+       AND c.conrelid = 'public.scm_sales_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_sales_document"
@@ -32138,11 +35685,21 @@ ALTER TABLE ONLY "public"."scm_sales_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: scm_sales_document scm_sales_document_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'scm_sales_document_tenant_id_fkey'
+       AND c.conrelid = 'public.scm_sales_document'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."scm_sales_document"
@@ -32150,11 +35707,21 @@ ALTER TABLE ONLY "public"."scm_sales_document"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material smis_material_category_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_material_category_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -32162,11 +35729,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_category smis_material_category_parent_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_material_category_parent_fkey'
+       AND c.conrelid = 'public.mdm_material_category'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_category"
@@ -32174,11 +35751,21 @@ ALTER TABLE ONLY "public"."mdm_material_category"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material_category smis_material_category_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_material_category_tenant_fkey'
+       AND c.conrelid = 'public.mdm_material_category'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material_category"
@@ -32186,11 +35773,21 @@ ALTER TABLE ONLY "public"."mdm_material_category"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_material smis_material_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_material_tenant_fkey'
+       AND c.conrelid = 'public.mdm_material'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_material"
@@ -32198,11 +35795,21 @@ ALTER TABLE ONLY "public"."mdm_material"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_site smis_site_organization_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_site_organization_fk'
+       AND c.conrelid = 'public.mdm_site'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_site"
@@ -32210,11 +35817,21 @@ ALTER TABLE ONLY "public"."mdm_site"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_site smis_site_parent_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_site_parent_fk'
+       AND c.conrelid = 'public.mdm_site'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_site"
@@ -32222,11 +35839,21 @@ ALTER TABLE ONLY "public"."mdm_site"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_site smis_site_responsible_fk; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_site_responsible_fk'
+       AND c.conrelid = 'public.mdm_site'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_site"
@@ -32234,11 +35861,21 @@ ALTER TABLE ONLY "public"."mdm_site"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_storage_location smis_storage_location_organization_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_storage_location_organization_fkey'
+       AND c.conrelid = 'public.mdm_storage_location'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_storage_location"
@@ -32246,11 +35883,21 @@ ALTER TABLE ONLY "public"."mdm_storage_location"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_storage_location smis_storage_location_parent_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_storage_location_parent_fkey'
+       AND c.conrelid = 'public.mdm_storage_location'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_storage_location"
@@ -32258,11 +35905,21 @@ ALTER TABLE ONLY "public"."mdm_storage_location"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_storage_location smis_storage_location_responsible_employee_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_storage_location_responsible_employee_fkey'
+       AND c.conrelid = 'public.mdm_storage_location'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_storage_location"
@@ -32270,11 +35927,21 @@ ALTER TABLE ONLY "public"."mdm_storage_location"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_storage_location smis_storage_location_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'smis_storage_location_tenant_fkey'
+       AND c.conrelid = 'public.mdm_storage_location'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_storage_location"
@@ -32282,11 +35949,21 @@ ALTER TABLE ONLY "public"."mdm_storage_location"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_attachment sys_attachment_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_attachment_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_attachment'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_attachment"
@@ -32294,11 +35971,21 @@ ALTER TABLE ONLY "public"."sys_attachment"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_audit_log sys_audit_log_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_audit_log_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_audit_log'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_audit_log"
@@ -32306,11 +35993,21 @@ ALTER TABLE ONLY "public"."sys_audit_log"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dict_type sys_dict_type_cascade_parent_type_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dict_type_cascade_parent_type_id_fkey'
+       AND c.conrelid = 'public.sys_dict_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dict_type"
@@ -32318,11 +36015,21 @@ ALTER TABLE ONLY "public"."sys_dict_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dict_type sys_dict_type_parent_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dict_type_parent_id_fkey'
+       AND c.conrelid = 'public.sys_dict_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dict_type"
@@ -32330,11 +36037,21 @@ ALTER TABLE ONLY "public"."sys_dict_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dict_type sys_dict_type_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dict_type_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_dict_type'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dict_type"
@@ -32342,11 +36059,21 @@ ALTER TABLE ONLY "public"."sys_dict_type"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dictionary sys_dictionary_cascade_parent_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dictionary_cascade_parent_id_fkey'
+       AND c.conrelid = 'public.sys_dictionary'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dictionary"
@@ -32354,11 +36081,21 @@ ALTER TABLE ONLY "public"."sys_dictionary"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dictionary sys_dictionary_parent_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dictionary_parent_id_fkey'
+       AND c.conrelid = 'public.sys_dictionary'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dictionary"
@@ -32366,11 +36103,21 @@ ALTER TABLE ONLY "public"."sys_dictionary"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dictionary sys_dictionary_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dictionary_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_dictionary'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dictionary"
@@ -32378,11 +36125,21 @@ ALTER TABLE ONLY "public"."sys_dictionary"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_dictionary sys_dictionary_type_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_dictionary_type_id_fkey'
+       AND c.conrelid = 'public.sys_dictionary'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_dictionary"
@@ -32390,11 +36147,21 @@ ALTER TABLE ONLY "public"."sys_dictionary"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_counter sys_document_number_counter_rule_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_counter_rule_id_fkey'
+       AND c.conrelid = 'public.sys_document_number_counter'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_counter"
@@ -32402,11 +36169,21 @@ ALTER TABLE ONLY "public"."sys_document_number_counter"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_counter sys_document_number_counter_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_counter_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_document_number_counter'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_counter"
@@ -32414,11 +36191,21 @@ ALTER TABLE ONLY "public"."sys_document_number_counter"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_rule sys_document_number_rule_scene_key_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_rule_scene_key_fkey'
+       AND c.conrelid = 'public.sys_document_number_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_rule"
@@ -32426,11 +36213,21 @@ ALTER TABLE ONLY "public"."sys_document_number_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_rule sys_document_number_rule_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_rule_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_document_number_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_rule"
@@ -32438,11 +36235,21 @@ ALTER TABLE ONLY "public"."sys_document_number_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_scene sys_document_number_scene_menu_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_scene_menu_id_fkey'
+       AND c.conrelid = 'public.sys_document_number_scene'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_scene"
@@ -32450,11 +36257,21 @@ ALTER TABLE ONLY "public"."sys_document_number_scene"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_document_number_scene sys_document_number_scene_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_document_number_scene_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_document_number_scene'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_document_number_scene"
@@ -32462,11 +36279,21 @@ ALTER TABLE ONLY "public"."sys_document_number_scene"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_menu sys_menu_app_code_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_menu_app_code_fkey'
+       AND c.conrelid = 'public.sys_menu'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_menu"
@@ -32474,11 +36301,21 @@ ALTER TABLE ONLY "public"."sys_menu"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_channel_config sys_notification_channel_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_channel_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_channel_config'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_channel_config"
@@ -32486,11 +36323,21 @@ ALTER TABLE ONLY "public"."sys_notification_channel_config"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_delivery sys_notification_delivery_event_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_delivery_event_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_delivery'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_delivery"
@@ -32498,11 +36345,21 @@ ALTER TABLE ONLY "public"."sys_notification_delivery"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_delivery sys_notification_delivery_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_delivery_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_delivery'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_delivery"
@@ -32510,11 +36367,21 @@ ALTER TABLE ONLY "public"."sys_notification_delivery"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_delivery sys_notification_delivery_user_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_delivery_user_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_delivery'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_delivery"
@@ -32522,11 +36389,21 @@ ALTER TABLE ONLY "public"."sys_notification_delivery"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_event sys_notification_event_rule_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_event_rule_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_event"
@@ -32534,11 +36411,21 @@ ALTER TABLE ONLY "public"."sys_notification_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_event sys_notification_event_subject_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_event_subject_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_event"
@@ -32546,11 +36433,21 @@ ALTER TABLE ONLY "public"."sys_notification_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_event sys_notification_event_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_event_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_event"
@@ -32558,11 +36455,21 @@ ALTER TABLE ONLY "public"."sys_notification_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification sys_notification_instance_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_instance_id_fkey'
+       AND c.conrelid = 'public.sys_notification'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification"
@@ -32570,11 +36477,21 @@ ALTER TABLE ONLY "public"."sys_notification"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification sys_notification_recipient_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_recipient_user_id_fkey'
+       AND c.conrelid = 'public.sys_notification'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification"
@@ -32582,11 +36499,21 @@ ALTER TABLE ONLY "public"."sys_notification"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_rule sys_notification_rule_scenario_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_rule_scenario_fkey'
+       AND c.conrelid = 'public.sys_notification_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_rule"
@@ -32594,11 +36521,21 @@ ALTER TABLE ONLY "public"."sys_notification_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_rule sys_notification_rule_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_rule_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_rule'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_rule"
@@ -32606,11 +36543,21 @@ ALTER TABLE ONLY "public"."sys_notification_rule"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_subject sys_notification_subject_owner_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_subject_owner_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_subject'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_subject"
@@ -32618,11 +36565,21 @@ ALTER TABLE ONLY "public"."sys_notification_subject"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_subject sys_notification_subject_scenario_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_subject_scenario_fkey'
+       AND c.conrelid = 'public.sys_notification_subject'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_subject"
@@ -32630,11 +36587,21 @@ ALTER TABLE ONLY "public"."sys_notification_subject"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_notification_subject sys_notification_subject_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_notification_subject_tenant_fkey'
+       AND c.conrelid = 'public.sys_notification_subject'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_notification_subject"
@@ -32642,11 +36609,21 @@ ALTER TABLE ONLY "public"."sys_notification_subject"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_organization sys_organization_leader_user_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_organization_leader_user_tenant_fkey'
+       AND c.conrelid = 'public.mdm_organization'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_organization"
@@ -32654,11 +36631,21 @@ ALTER TABLE ONLY "public"."mdm_organization"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_organization sys_organization_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_organization_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_organization'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_organization"
@@ -32666,11 +36653,21 @@ ALTER TABLE ONLY "public"."mdm_organization"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_organization sys_organization_tenant_parent_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_organization_tenant_parent_fkey'
+       AND c.conrelid = 'public.mdm_organization'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_organization"
@@ -32678,11 +36675,21 @@ ALTER TABLE ONLY "public"."mdm_organization"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_param sys_param_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_param_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_param'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_param"
@@ -32690,11 +36697,21 @@ ALTER TABLE ONLY "public"."sys_param"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_audit_log sys_permission_audit_log_actor_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_audit_log_actor_tenant_fkey'
+       AND c.conrelid = 'public.sys_permission_audit_log'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_audit_log"
@@ -32702,11 +36719,21 @@ ALTER TABLE ONLY "public"."sys_permission_audit_log"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_audit_log sys_permission_audit_log_resource_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_audit_log_resource_tenant_fkey'
+       AND c.conrelid = 'public.sys_permission_audit_log'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_audit_log"
@@ -32714,11 +36741,21 @@ ALTER TABLE ONLY "public"."sys_permission_audit_log"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_audit_log sys_permission_audit_log_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_audit_log_tenant_fkey'
+       AND c.conrelid = 'public.sys_permission_audit_log'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_audit_log"
@@ -32726,11 +36763,21 @@ ALTER TABLE ONLY "public"."sys_permission_audit_log"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_field sys_permission_field_resource_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_field_resource_tenant_fkey'
+       AND c.conrelid = 'public.sys_permission_field'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_field"
@@ -32738,11 +36785,21 @@ ALTER TABLE ONLY "public"."sys_permission_field"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_permission_resource sys_permission_resource_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_permission_resource_tenant_fkey'
+       AND c.conrelid = 'public.sys_permission_resource'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_permission_resource"
@@ -32750,11 +36807,21 @@ ALTER TABLE ONLY "public"."sys_permission_resource"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role_field_permission sys_role_field_permission_field_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_field_permission_field_tenant_fkey'
+       AND c.conrelid = 'public.sys_role_field_permission'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role_field_permission"
@@ -32762,11 +36829,21 @@ ALTER TABLE ONLY "public"."sys_role_field_permission"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role_field_permission sys_role_field_permission_role_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_field_permission_role_tenant_fkey'
+       AND c.conrelid = 'public.sys_role_field_permission'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role_field_permission"
@@ -32774,11 +36851,21 @@ ALTER TABLE ONLY "public"."sys_role_field_permission"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role_menu sys_role_menu_menu_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_menu_menu_id_fkey'
+       AND c.conrelid = 'public.sys_role_menu'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role_menu"
@@ -32786,11 +36873,21 @@ ALTER TABLE ONLY "public"."sys_role_menu"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role_menu sys_role_menu_role_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_menu_role_id_fkey'
+       AND c.conrelid = 'public.sys_role_menu'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role_menu"
@@ -32798,11 +36895,21 @@ ALTER TABLE ONLY "public"."sys_role_menu"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role_menu sys_role_menu_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_menu_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_role_menu'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role_menu"
@@ -32810,11 +36917,21 @@ ALTER TABLE ONLY "public"."sys_role_menu"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role sys_role_organization_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_organization_id_fkey'
+       AND c.conrelid = 'public.sys_role'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role"
@@ -32822,11 +36939,21 @@ ALTER TABLE ONLY "public"."sys_role"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_role sys_role_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_role_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_role'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_role"
@@ -32834,11 +36961,21 @@ ALTER TABLE ONLY "public"."sys_role"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user_field_permission sys_user_field_permission_field_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_field_permission_field_tenant_fkey'
+       AND c.conrelid = 'public.sys_user_field_permission'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user_field_permission"
@@ -32846,11 +36983,21 @@ ALTER TABLE ONLY "public"."sys_user_field_permission"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user_field_permission sys_user_field_permission_user_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_field_permission_user_tenant_fkey'
+       AND c.conrelid = 'public.sys_user_field_permission'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user_field_permission"
@@ -32858,11 +37005,21 @@ ALTER TABLE ONLY "public"."sys_user_field_permission"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user sys_user_hr_employee_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_hr_employee_tenant_fkey'
+       AND c.conrelid = 'public.sys_user'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user"
@@ -32870,11 +37027,21 @@ ALTER TABLE ONLY "public"."sys_user"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user sys_user_organization_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_organization_id_fkey'
+       AND c.conrelid = 'public.sys_user'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user"
@@ -32882,11 +37049,21 @@ ALTER TABLE ONLY "public"."sys_user"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user sys_user_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_user'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user"
@@ -32894,11 +37071,21 @@ ALTER TABLE ONLY "public"."sys_user"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user_tenant sys_user_tenant_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_tenant_tenant_id_fkey'
+       AND c.conrelid = 'public.sys_user_tenant'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user_tenant"
@@ -32906,11 +37093,21 @@ ALTER TABLE ONLY "public"."sys_user_tenant"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: sys_user_tenant sys_user_tenant_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'sys_user_tenant_user_id_fkey'
+       AND c.conrelid = 'public.sys_user_tenant'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."sys_user_tenant"
@@ -32918,11 +37115,21 @@ ALTER TABLE ONLY "public"."sys_user_tenant"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_carrier tms_carrier_created_by_user_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_carrier_created_by_user_tenant_fkey'
+       AND c.conrelid = 'public.mdm_carrier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_carrier"
@@ -32930,11 +37137,21 @@ ALTER TABLE ONLY "public"."mdm_carrier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_carrier tms_carrier_parent_unit_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_carrier_parent_unit_tenant_fkey'
+       AND c.conrelid = 'public.mdm_carrier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_carrier"
@@ -32942,11 +37159,21 @@ ALTER TABLE ONLY "public"."mdm_carrier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer_address tms_customer_address_customer_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_customer_address_customer_tenant_fkey'
+       AND c.conrelid = 'public.mdm_customer_address'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer_address"
@@ -32954,11 +37181,21 @@ ALTER TABLE ONLY "public"."mdm_customer_address"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer_address tms_customer_address_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_customer_address_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_customer_address'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer_address"
@@ -32966,11 +37203,21 @@ ALTER TABLE ONLY "public"."mdm_customer_address"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer tms_customer_parent_unit_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_customer_parent_unit_tenant_fkey'
+       AND c.conrelid = 'public.mdm_customer'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer"
@@ -32978,11 +37225,21 @@ ALTER TABLE ONLY "public"."mdm_customer"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer tms_customer_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_customer_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_customer'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_customer"
@@ -32990,11 +37247,21 @@ ALTER TABLE ONLY "public"."mdm_customer"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: tms_invoice tms_invoice_carrier_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_invoice_carrier_id_fkey'
+       AND c.conrelid = 'public.tms_invoice'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."tms_invoice"
@@ -33002,11 +37269,21 @@ ALTER TABLE ONLY "public"."tms_invoice"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: tms_invoice tms_invoice_created_by_user_tenant_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_invoice_created_by_user_tenant_fkey'
+       AND c.conrelid = 'public.tms_invoice'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."tms_invoice"
@@ -33014,11 +37291,21 @@ ALTER TABLE ONLY "public"."tms_invoice"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: tms_invoice tms_invoice_customer_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'tms_invoice_customer_id_fkey'
+       AND c.conrelid = 'public.tms_invoice'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."tms_invoice"
@@ -33026,11 +37313,21 @@ ALTER TABLE ONLY "public"."tms_invoice"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_supplier vehicle_supplier_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'vehicle_supplier_tenant_id_fkey'
+       AND c.conrelid = 'public.mdm_supplier'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."mdm_supplier"
@@ -33038,11 +37335,21 @@ ALTER TABLE ONLY "public"."mdm_supplier"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_action wf_action_actor_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_action_actor_user_id_fkey'
+       AND c.conrelid = 'public.wf_action'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_action"
@@ -33050,11 +37357,21 @@ ALTER TABLE ONLY "public"."wf_action"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_action wf_action_instance_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_action_instance_id_fkey'
+       AND c.conrelid = 'public.wf_action'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_action"
@@ -33062,11 +37379,21 @@ ALTER TABLE ONLY "public"."wf_action"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_action wf_action_task_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_action_task_id_fkey'
+       AND c.conrelid = 'public.wf_action'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_action"
@@ -33074,11 +37401,21 @@ ALTER TABLE ONLY "public"."wf_action"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_business_callback_attempt wf_business_callback_attempt_outbox_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_business_callback_attempt_outbox_id_fkey'
+       AND c.conrelid = 'public.wf_business_callback_attempt'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_business_callback_attempt"
@@ -33086,11 +37423,21 @@ ALTER TABLE ONLY "public"."wf_business_callback_attempt"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_business_callback_outbox wf_business_callback_outbox_instance_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_business_callback_outbox_instance_id_fkey'
+       AND c.conrelid = 'public.wf_business_callback_outbox'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_business_callback_outbox"
@@ -33098,11 +37445,21 @@ ALTER TABLE ONLY "public"."wf_business_callback_outbox"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_business_callback_outbox wf_business_callback_outbox_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_business_callback_outbox_tenant_id_fkey'
+       AND c.conrelid = 'public.wf_business_callback_outbox'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_business_callback_outbox"
@@ -33110,11 +37467,21 @@ ALTER TABLE ONLY "public"."wf_business_callback_outbox"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_definition wf_definition_current_version_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_definition_current_version_fkey'
+       AND c.conrelid = 'public.wf_definition'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_definition"
@@ -33122,11 +37489,21 @@ ALTER TABLE ONLY "public"."wf_definition"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_definition wf_definition_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_definition_tenant_id_fkey'
+       AND c.conrelid = 'public.wf_definition'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_definition"
@@ -33134,11 +37511,21 @@ ALTER TABLE ONLY "public"."wf_definition"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_delegation wf_delegation_delegate_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_delegation_delegate_user_id_fkey'
+       AND c.conrelid = 'public.wf_delegation'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_delegation"
@@ -33146,11 +37533,21 @@ ALTER TABLE ONLY "public"."wf_delegation"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_delegation wf_delegation_delegator_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_delegation_delegator_user_id_fkey'
+       AND c.conrelid = 'public.wf_delegation'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_delegation"
@@ -33158,11 +37555,21 @@ ALTER TABLE ONLY "public"."wf_delegation"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_delegation wf_delegation_revoked_by_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_delegation_revoked_by_fkey'
+       AND c.conrelid = 'public.wf_delegation'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_delegation"
@@ -33170,11 +37577,21 @@ ALTER TABLE ONLY "public"."wf_delegation"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_delegation wf_delegation_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_delegation_tenant_id_fkey'
+       AND c.conrelid = 'public.wf_delegation'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_delegation"
@@ -33182,11 +37599,21 @@ ALTER TABLE ONLY "public"."wf_delegation"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_instance wf_instance_definition_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_instance_definition_id_fkey'
+       AND c.conrelid = 'public.wf_instance'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_instance"
@@ -33194,11 +37621,21 @@ ALTER TABLE ONLY "public"."wf_instance"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_instance wf_instance_initiator_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_instance_initiator_user_id_fkey'
+       AND c.conrelid = 'public.wf_instance'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_instance"
@@ -33206,11 +37643,21 @@ ALTER TABLE ONLY "public"."wf_instance"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_instance wf_instance_version_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_instance_version_id_fkey'
+       AND c.conrelid = 'public.wf_instance'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_instance"
@@ -33218,11 +37665,21 @@ ALTER TABLE ONLY "public"."wf_instance"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task wf_task_assignee_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_assignee_user_id_fkey'
+       AND c.conrelid = 'public.wf_task'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task"
@@ -33230,11 +37687,21 @@ ALTER TABLE ONLY "public"."wf_task"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task wf_task_delegation_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_delegation_id_fkey'
+       AND c.conrelid = 'public.wf_task'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task"
@@ -33242,11 +37709,21 @@ ALTER TABLE ONLY "public"."wf_task"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task wf_task_instance_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_instance_id_fkey'
+       AND c.conrelid = 'public.wf_task'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task"
@@ -33254,11 +37731,21 @@ ALTER TABLE ONLY "public"."wf_task"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task wf_task_last_assigned_by_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_last_assigned_by_fkey'
+       AND c.conrelid = 'public.wf_task'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task"
@@ -33266,11 +37753,21 @@ ALTER TABLE ONLY "public"."wf_task"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task wf_task_original_assignee_user_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_original_assignee_user_id_fkey'
+       AND c.conrelid = 'public.wf_task'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task"
@@ -33278,11 +37775,21 @@ ALTER TABLE ONLY "public"."wf_task"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task_reminder_event wf_task_reminder_event_instance_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_reminder_event_instance_id_fkey'
+       AND c.conrelid = 'public.wf_task_reminder_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task_reminder_event"
@@ -33290,11 +37797,21 @@ ALTER TABLE ONLY "public"."wf_task_reminder_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_task_reminder_event wf_task_reminder_event_task_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_task_reminder_event_task_id_fkey'
+       AND c.conrelid = 'public.wf_task_reminder_event'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_task_reminder_event"
@@ -33302,11 +37819,21 @@ ALTER TABLE ONLY "public"."wf_task_reminder_event"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: wf_version wf_version_definition_id_fkey; Type: FK CONSTRAINT; Schema: public
 --
 
+DO $already_exists$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+     WHERE c.conname = 'wf_version_definition_id_fkey'
+       AND c.conrelid = 'public.wf_version'::regclass
+  ) THEN
 --
 
 ALTER TABLE ONLY "public"."wf_version"
@@ -33314,11 +37841,15 @@ ALTER TABLE ONLY "public"."wf_version"
 
 
 --
+  END IF;
+END
+$already_exists$;
 
 --
 -- Name: mdm_customer accessory_processing_tenant_customer_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "accessory_processing_tenant_customer_read" ON "public"."mdm_customer";
 --
 
 CREATE POLICY "accessory_processing_tenant_customer_read" ON "public"."mdm_customer" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmAccessoryProcessing:SaveDraft'::"text")));
@@ -33330,6 +37861,7 @@ CREATE POLICY "accessory_processing_tenant_customer_read" ON "public"."mdm_custo
 -- Name: mdm_project accessory_processing_tenant_project_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "accessory_processing_tenant_project_read" ON "public"."mdm_project";
 --
 
 CREATE POLICY "accessory_processing_tenant_project_read" ON "public"."mdm_project" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmAccessoryProcessing:SaveDraft'::"text")));
@@ -33351,6 +37883,7 @@ ALTER TABLE "public"."ai_artifact_review" ENABLE ROW LEVEL SECURITY;
 -- Name: ai_artifact_review ai_artifact_review_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_artifact_review_tenant_select" ON "public"."ai_artifact_review";
 --
 
 CREATE POLICY "ai_artifact_review_tenant_select" ON "public"."ai_artifact_review" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."is_tenant_admin"() AS "is_tenant_admin") OR ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
@@ -33402,6 +37935,7 @@ ALTER TABLE "public"."ai_feedback_resolution" ENABLE ROW LEVEL SECURITY;
 -- Name: ai_feedback_resolution ai_feedback_resolution_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_feedback_resolution_tenant_insert" ON "public"."ai_feedback_resolution";
 --
 
 CREATE POLICY "ai_feedback_resolution_tenant_insert" ON "public"."ai_feedback_resolution" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."is_tenant_admin"() AS "is_tenant_admin"))));
@@ -33413,6 +37947,7 @@ CREATE POLICY "ai_feedback_resolution_tenant_insert" ON "public"."ai_feedback_re
 -- Name: ai_feedback_resolution ai_feedback_resolution_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_feedback_resolution_tenant_select" ON "public"."ai_feedback_resolution";
 --
 
 CREATE POLICY "ai_feedback_resolution_tenant_select" ON "public"."ai_feedback_resolution" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."is_tenant_admin"() AS "is_tenant_admin") OR (EXISTS ( SELECT 1
@@ -33426,6 +37961,7 @@ CREATE POLICY "ai_feedback_resolution_tenant_select" ON "public"."ai_feedback_re
 -- Name: ai_feedback_resolution ai_feedback_resolution_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_feedback_resolution_tenant_update" ON "public"."ai_feedback_resolution";
 --
 
 CREATE POLICY "ai_feedback_resolution_tenant_update" ON "public"."ai_feedback_resolution" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."is_tenant_admin"() AS "is_tenant_admin")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."is_tenant_admin"() AS "is_tenant_admin"))));
@@ -33457,6 +37993,7 @@ ALTER TABLE "public"."ai_ocr_quality_threshold" ENABLE ROW LEVEL SECURITY;
 -- Name: ai_ocr_quality_threshold ai_ocr_quality_threshold_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_ocr_quality_threshold_delete" ON "public"."ai_ocr_quality_threshold";
 --
 
 CREATE POLICY "ai_ocr_quality_threshold_delete" ON "public"."ai_ocr_quality_threshold" FOR DELETE TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33468,6 +38005,7 @@ CREATE POLICY "ai_ocr_quality_threshold_delete" ON "public"."ai_ocr_quality_thre
 -- Name: ai_ocr_quality_threshold ai_ocr_quality_threshold_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_ocr_quality_threshold_insert" ON "public"."ai_ocr_quality_threshold";
 --
 
 CREATE POLICY "ai_ocr_quality_threshold_insert" ON "public"."ai_ocr_quality_threshold" FOR INSERT TO "authenticated" WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33479,6 +38017,7 @@ CREATE POLICY "ai_ocr_quality_threshold_insert" ON "public"."ai_ocr_quality_thre
 -- Name: ai_ocr_quality_threshold ai_ocr_quality_threshold_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_ocr_quality_threshold_select" ON "public"."ai_ocr_quality_threshold";
 --
 
 CREATE POLICY "ai_ocr_quality_threshold_select" ON "public"."ai_ocr_quality_threshold" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -33490,6 +38029,7 @@ CREATE POLICY "ai_ocr_quality_threshold_select" ON "public"."ai_ocr_quality_thre
 -- Name: ai_ocr_quality_threshold ai_ocr_quality_threshold_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_ocr_quality_threshold_update" ON "public"."ai_ocr_quality_threshold";
 --
 
 CREATE POLICY "ai_ocr_quality_threshold_update" ON "public"."ai_ocr_quality_threshold" FOR UPDATE TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33511,6 +38051,7 @@ ALTER TABLE "public"."ai_project_snapshot" ENABLE ROW LEVEL SECURITY;
 -- Name: ai_project_snapshot ai_project_snapshot_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_project_snapshot_tenant_delete" ON "public"."ai_project_snapshot";
 --
 
 CREATE POLICY "ai_project_snapshot_tenant_delete" ON "public"."ai_project_snapshot" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33522,6 +38063,7 @@ CREATE POLICY "ai_project_snapshot_tenant_delete" ON "public"."ai_project_snapsh
 -- Name: ai_project_snapshot ai_project_snapshot_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_project_snapshot_tenant_insert" ON "public"."ai_project_snapshot";
 --
 
 CREATE POLICY "ai_project_snapshot_tenant_insert" ON "public"."ai_project_snapshot" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33533,6 +38075,7 @@ CREATE POLICY "ai_project_snapshot_tenant_insert" ON "public"."ai_project_snapsh
 -- Name: ai_project_snapshot ai_project_snapshot_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_project_snapshot_tenant_select" ON "public"."ai_project_snapshot";
 --
 
 CREATE POLICY "ai_project_snapshot_tenant_select" ON "public"."ai_project_snapshot" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33544,6 +38087,7 @@ CREATE POLICY "ai_project_snapshot_tenant_select" ON "public"."ai_project_snapsh
 -- Name: ai_project_snapshot ai_project_snapshot_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_project_snapshot_tenant_update" ON "public"."ai_project_snapshot";
 --
 
 CREATE POLICY "ai_project_snapshot_tenant_update" ON "public"."ai_project_snapshot" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33605,6 +38149,7 @@ ALTER TABLE "public"."ai_suggestion_batch" ENABLE ROW LEVEL SECURITY;
 -- Name: ai_suggestion_batch ai_suggestion_batch_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_batch_tenant_delete" ON "public"."ai_suggestion_batch";
 --
 
 CREATE POLICY "ai_suggestion_batch_tenant_delete" ON "public"."ai_suggestion_batch" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33616,6 +38161,7 @@ CREATE POLICY "ai_suggestion_batch_tenant_delete" ON "public"."ai_suggestion_bat
 -- Name: ai_suggestion_batch ai_suggestion_batch_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_batch_tenant_insert" ON "public"."ai_suggestion_batch";
 --
 
 CREATE POLICY "ai_suggestion_batch_tenant_insert" ON "public"."ai_suggestion_batch" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33627,6 +38173,7 @@ CREATE POLICY "ai_suggestion_batch_tenant_insert" ON "public"."ai_suggestion_bat
 -- Name: ai_suggestion_batch ai_suggestion_batch_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_batch_tenant_select" ON "public"."ai_suggestion_batch";
 --
 
 CREATE POLICY "ai_suggestion_batch_tenant_select" ON "public"."ai_suggestion_batch" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33638,6 +38185,7 @@ CREATE POLICY "ai_suggestion_batch_tenant_select" ON "public"."ai_suggestion_bat
 -- Name: ai_suggestion_batch ai_suggestion_batch_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_batch_tenant_update" ON "public"."ai_suggestion_batch";
 --
 
 CREATE POLICY "ai_suggestion_batch_tenant_update" ON "public"."ai_suggestion_batch" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33659,6 +38207,7 @@ ALTER TABLE "public"."ai_suggestion_event" ENABLE ROW LEVEL SECURITY;
 -- Name: ai_suggestion_event ai_suggestion_event_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_event_tenant_delete" ON "public"."ai_suggestion_event";
 --
 
 CREATE POLICY "ai_suggestion_event_tenant_delete" ON "public"."ai_suggestion_event" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33670,6 +38219,7 @@ CREATE POLICY "ai_suggestion_event_tenant_delete" ON "public"."ai_suggestion_eve
 -- Name: ai_suggestion_event ai_suggestion_event_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_event_tenant_insert" ON "public"."ai_suggestion_event";
 --
 
 CREATE POLICY "ai_suggestion_event_tenant_insert" ON "public"."ai_suggestion_event" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33681,6 +38231,7 @@ CREATE POLICY "ai_suggestion_event_tenant_insert" ON "public"."ai_suggestion_eve
 -- Name: ai_suggestion_event ai_suggestion_event_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_event_tenant_select" ON "public"."ai_suggestion_event";
 --
 
 CREATE POLICY "ai_suggestion_event_tenant_select" ON "public"."ai_suggestion_event" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33692,6 +38243,7 @@ CREATE POLICY "ai_suggestion_event_tenant_select" ON "public"."ai_suggestion_eve
 -- Name: ai_suggestion_event ai_suggestion_event_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_event_tenant_update" ON "public"."ai_suggestion_event";
 --
 
 CREATE POLICY "ai_suggestion_event_tenant_update" ON "public"."ai_suggestion_event" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33703,6 +38255,7 @@ CREATE POLICY "ai_suggestion_event_tenant_update" ON "public"."ai_suggestion_eve
 -- Name: ai_suggestion ai_suggestion_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_tenant_delete" ON "public"."ai_suggestion";
 --
 
 CREATE POLICY "ai_suggestion_tenant_delete" ON "public"."ai_suggestion" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33714,6 +38267,7 @@ CREATE POLICY "ai_suggestion_tenant_delete" ON "public"."ai_suggestion" FOR DELE
 -- Name: ai_suggestion ai_suggestion_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_tenant_insert" ON "public"."ai_suggestion";
 --
 
 CREATE POLICY "ai_suggestion_tenant_insert" ON "public"."ai_suggestion" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33725,6 +38279,7 @@ CREATE POLICY "ai_suggestion_tenant_insert" ON "public"."ai_suggestion" FOR INSE
 -- Name: ai_suggestion ai_suggestion_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_tenant_select" ON "public"."ai_suggestion";
 --
 
 CREATE POLICY "ai_suggestion_tenant_select" ON "public"."ai_suggestion" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33736,6 +38291,7 @@ CREATE POLICY "ai_suggestion_tenant_select" ON "public"."ai_suggestion" FOR SELE
 -- Name: ai_suggestion ai_suggestion_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_suggestion_tenant_update" ON "public"."ai_suggestion";
 --
 
 CREATE POLICY "ai_suggestion_tenant_update" ON "public"."ai_suggestion" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -33777,6 +38333,7 @@ ALTER TABLE "public"."ai_ui_design_reference_image" ENABLE ROW LEVEL SECURITY;
 -- Name: ai_ui_design_reference_image ai_ui_design_reference_image_platform_super_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_ui_design_reference_image_platform_super_delete" ON "public"."ai_ui_design_reference_image";
 --
 
 CREATE POLICY "ai_ui_design_reference_image_platform_super_delete" ON "public"."ai_ui_design_reference_image" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND (EXISTS ( SELECT 1
@@ -33790,6 +38347,7 @@ CREATE POLICY "ai_ui_design_reference_image_platform_super_delete" ON "public"."
 -- Name: ai_ui_design_reference_image ai_ui_design_reference_image_platform_super_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_ui_design_reference_image_platform_super_insert" ON "public"."ai_ui_design_reference_image";
 --
 
 CREATE POLICY "ai_ui_design_reference_image_platform_super_insert" ON "public"."ai_ui_design_reference_image" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND (EXISTS ( SELECT 1
@@ -33803,6 +38361,7 @@ CREATE POLICY "ai_ui_design_reference_image_platform_super_insert" ON "public"."
 -- Name: ai_ui_design_reference_image ai_ui_design_reference_image_platform_super_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_ui_design_reference_image_platform_super_select" ON "public"."ai_ui_design_reference_image";
 --
 
 CREATE POLICY "ai_ui_design_reference_image_platform_super_select" ON "public"."ai_ui_design_reference_image" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND (EXISTS ( SELECT 1
@@ -33816,6 +38375,7 @@ CREATE POLICY "ai_ui_design_reference_image_platform_super_select" ON "public"."
 -- Name: ai_ui_design_reference ai_ui_design_reference_platform_super_only; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "ai_ui_design_reference_platform_super_only" ON "public"."ai_ui_design_reference";
 --
 
 CREATE POLICY "ai_ui_design_reference_platform_super_only" ON "public"."ai_ui_design_reference" TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND (( SELECT "auth"."uid"() AS "uid") IS NOT NULL) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")) AND ("tenant_id" = ( SELECT "app_private"."auth_user_tenant_id"() AS "auth_user_tenant_id")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND (( SELECT "auth"."uid"() AS "uid") IS NOT NULL) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")) AND ("tenant_id" = ( SELECT "app_private"."auth_user_tenant_id"() AS "auth_user_tenant_id"))));
@@ -33827,6 +38387,7 @@ CREATE POLICY "ai_ui_design_reference_platform_super_only" ON "public"."ai_ui_de
 -- Name: sys_param anon_read_website_config; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "anon_read_website_config" ON "public"."sys_param";
 --
 
 CREATE POLICY "anon_read_website_config" ON "public"."sys_param" FOR SELECT TO "anon" USING ((("param_key" = 'website.config'::"text") AND ("enabled" = true)));
@@ -33838,6 +38399,7 @@ CREATE POLICY "anon_read_website_config" ON "public"."sys_param" FOR SELECT TO "
 -- Name: mdm_master_group bom_group_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "bom_group_tenant_delete" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "bom_group_tenant_delete" ON "public"."mdm_master_group" FOR DELETE TO "authenticated" USING ((("domain" = 'bom'::"text") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmBomMaintenance:ManageGroup'::"text") AS "has_permission")));
@@ -33849,6 +38411,7 @@ CREATE POLICY "bom_group_tenant_delete" ON "public"."mdm_master_group" FOR DELET
 -- Name: mdm_master_group bom_group_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "bom_group_tenant_insert" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "bom_group_tenant_insert" ON "public"."mdm_master_group" FOR INSERT TO "authenticated" WITH CHECK ((("domain" = 'bom'::"text") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmBomMaintenance:ManageGroup'::"text") AS "has_permission")));
@@ -33860,6 +38423,7 @@ CREATE POLICY "bom_group_tenant_insert" ON "public"."mdm_master_group" FOR INSER
 -- Name: mdm_master_group bom_group_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "bom_group_tenant_select" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "bom_group_tenant_select" ON "public"."mdm_master_group" FOR SELECT TO "authenticated" USING ((("domain" = 'bom'::"text") AND ( SELECT "app_private"."tenant_in_current_read_scope"("mdm_master_group"."tenant_id") AS "tenant_in_current_read_scope") AND (( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ( SELECT "app_private"."has_permission"('MdmBomMaintenance:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('MdmBomStructure:View'::"text") AS "has_permission"))));
@@ -33871,6 +38435,7 @@ CREATE POLICY "bom_group_tenant_select" ON "public"."mdm_master_group" FOR SELEC
 -- Name: mdm_master_group bom_group_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "bom_group_tenant_update" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "bom_group_tenant_update" ON "public"."mdm_master_group" FOR UPDATE TO "authenticated" USING ((("domain" = 'bom'::"text") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmBomMaintenance:ManageGroup'::"text") AS "has_permission"))) WITH CHECK ((("domain" = 'bom'::"text") AND ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmBomMaintenance:ManageGroup'::"text") AS "has_permission")));
@@ -33882,6 +38447,7 @@ CREATE POLICY "bom_group_tenant_update" ON "public"."mdm_master_group" FOR UPDAT
 -- Name: mdm_outbound_rule canonical_platform_super_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_delete" ON "public"."mdm_outbound_rule";
 --
 
 CREATE POLICY "canonical_platform_super_delete" ON "public"."mdm_outbound_rule" FOR DELETE TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33893,6 +38459,7 @@ CREATE POLICY "canonical_platform_super_delete" ON "public"."mdm_outbound_rule" 
 -- Name: mdm_supply_chain_code_rule canonical_platform_super_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_delete" ON "public"."mdm_supply_chain_code_rule";
 --
 
 CREATE POLICY "canonical_platform_super_delete" ON "public"."mdm_supply_chain_code_rule" FOR DELETE TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33904,6 +38471,7 @@ CREATE POLICY "canonical_platform_super_delete" ON "public"."mdm_supply_chain_co
 -- Name: mdm_outbound_rule canonical_platform_super_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_insert" ON "public"."mdm_outbound_rule";
 --
 
 CREATE POLICY "canonical_platform_super_insert" ON "public"."mdm_outbound_rule" FOR INSERT TO "authenticated" WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33915,6 +38483,7 @@ CREATE POLICY "canonical_platform_super_insert" ON "public"."mdm_outbound_rule" 
 -- Name: mdm_supply_chain_code_rule canonical_platform_super_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_insert" ON "public"."mdm_supply_chain_code_rule";
 --
 
 CREATE POLICY "canonical_platform_super_insert" ON "public"."mdm_supply_chain_code_rule" FOR INSERT TO "authenticated" WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33926,6 +38495,7 @@ CREATE POLICY "canonical_platform_super_insert" ON "public"."mdm_supply_chain_co
 -- Name: mdm_outbound_rule canonical_platform_super_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_update" ON "public"."mdm_outbound_rule";
 --
 
 CREATE POLICY "canonical_platform_super_update" ON "public"."mdm_outbound_rule" FOR UPDATE TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33937,6 +38507,7 @@ CREATE POLICY "canonical_platform_super_update" ON "public"."mdm_outbound_rule" 
 -- Name: mdm_supply_chain_code_rule canonical_platform_super_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_update" ON "public"."mdm_supply_chain_code_rule";
 --
 
 CREATE POLICY "canonical_platform_super_update" ON "public"."mdm_supply_chain_code_rule" FOR UPDATE TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33948,6 +38519,7 @@ CREATE POLICY "canonical_platform_super_update" ON "public"."mdm_supply_chain_co
 -- Name: ai_artifact_review canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_artifact_review";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_artifact_review" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33959,6 +38531,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_artifact_review" 
 -- Name: ai_conversation canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_conversation";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_conversation" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33970,6 +38543,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_conversation" TO 
 -- Name: ai_feature_config canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_feature_config";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_feature_config" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33981,6 +38555,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_feature_config" T
 -- Name: ai_feedback canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_feedback";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_feedback" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -33992,6 +38567,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_feedback" TO "aut
 -- Name: ai_feedback_resolution canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_feedback_resolution";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_feedback_resolution" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34003,6 +38579,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_feedback_resoluti
 -- Name: ai_message canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_message";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_message" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34014,6 +38591,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_message" TO "auth
 -- Name: ai_ocr_quality_threshold canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_ocr_quality_threshold";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_ocr_quality_threshold" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34025,6 +38603,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_ocr_quality_thres
 -- Name: ai_project_snapshot canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_project_snapshot";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_project_snapshot" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34036,6 +38615,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_project_snapshot"
 -- Name: ai_prompt_template canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_prompt_template";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_prompt_template" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34047,6 +38627,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_prompt_template" 
 -- Name: ai_run canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_run";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_run" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34058,6 +38639,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_run" TO "authenti
 -- Name: ai_security_event canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_security_event";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_security_event" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34069,6 +38651,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_security_event" T
 -- Name: ai_suggestion canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_suggestion";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_suggestion" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34080,6 +38663,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_suggestion" TO "a
 -- Name: ai_suggestion_batch canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_suggestion_batch";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_suggestion_batch" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34091,6 +38675,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_suggestion_batch"
 -- Name: ai_suggestion_event canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_suggestion_event";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_suggestion_event" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34102,6 +38687,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_suggestion_event"
 -- Name: ai_tool_call canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."ai_tool_call";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."ai_tool_call" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34113,6 +38699,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."ai_tool_call" TO "au
 -- Name: mdm_bom canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_bom";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_bom" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34124,6 +38711,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_bom" TO "authent
 -- Name: mdm_carrier canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_carrier";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_carrier" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34135,6 +38723,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_carrier" TO "aut
 -- Name: mdm_customer canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_customer";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_customer" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34146,6 +38735,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_customer" TO "au
 -- Name: mdm_customer_address canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_customer_address";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_customer_address" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34157,6 +38747,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_customer_address
 -- Name: mdm_document_type canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_document_type";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_document_type" TO "authenticated" USING ("app_private"."is_platform_super"()) WITH CHECK ("app_private"."is_platform_super"());
@@ -34168,6 +38759,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_document_type" T
 -- Name: mdm_employee canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_employee";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_employee" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34179,6 +38771,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_employee" TO "au
 -- Name: mdm_grade canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_grade";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_grade" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34190,6 +38783,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_grade" TO "authe
 -- Name: mdm_job_family canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_job_family";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_job_family" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34201,6 +38795,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_job_family" TO "
 -- Name: mdm_job_profile canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_job_profile";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_job_profile" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34212,6 +38807,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_job_profile" TO 
 -- Name: mdm_master_group canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_master_group" TO "authenticated" USING (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id"))) WITH CHECK (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -34223,6 +38819,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_master_group" TO
 -- Name: mdm_material canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_material";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34234,6 +38831,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material" TO "au
 -- Name: mdm_material_attribute_group canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_material_attribute_group";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material_attribute_group" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34245,6 +38843,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material_attribu
 -- Name: mdm_material_category canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_material_category";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material_category" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34256,6 +38855,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material_categor
 -- Name: mdm_material_code_rule canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_material_code_rule";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material_code_rule" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34267,6 +38867,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material_code_ru
 -- Name: mdm_material_type canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_material_type";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material_type" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34278,6 +38879,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_material_type" T
 -- Name: mdm_organization canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_organization";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_organization" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34289,6 +38891,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_organization" TO
 -- Name: mdm_position canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_position";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_position" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34300,6 +38903,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_position" TO "au
 -- Name: mdm_process_route canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_process_route";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_process_route" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34311,6 +38915,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_process_route" T
 -- Name: mdm_production_department canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_production_department";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_production_department" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34322,6 +38927,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_production_depar
 -- Name: mdm_project canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_project";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_project" TO "authenticated" USING ("app_private"."is_platform_super"()) WITH CHECK ("app_private"."is_platform_super"());
@@ -34333,6 +38939,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_project" TO "aut
 -- Name: mdm_project_construction canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_project_construction";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_project_construction" TO "authenticated" USING ("app_private"."is_platform_super"()) WITH CHECK ("app_private"."is_platform_super"());
@@ -34344,6 +38951,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_project_construc
 -- Name: mdm_site canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_site";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_site" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34355,6 +38963,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_site" TO "authen
 -- Name: mdm_storage_location canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_storage_location";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_storage_location" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34366,6 +38975,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_storage_location
 -- Name: mdm_supplier canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_supplier";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_supplier" TO "authenticated" USING (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id"))) WITH CHECK (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -34377,6 +38987,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_supplier" TO "au
 -- Name: mdm_unit_of_measure canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_unit_of_measure";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_unit_of_measure" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34388,6 +38999,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_unit_of_measure"
 -- Name: mdm_warehouse canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_warehouse";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_warehouse" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34399,6 +39011,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_warehouse" TO "a
 -- Name: mdm_warehouse_bin canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_warehouse_bin";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_warehouse_bin" TO "authenticated" USING ("app_private"."is_platform_super"()) WITH CHECK ("app_private"."is_platform_super"());
@@ -34410,6 +39023,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_warehouse_bin" T
 -- Name: mdm_warehouse_zone canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."mdm_warehouse_zone";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_warehouse_zone" TO "authenticated" USING ("app_private"."is_platform_super"()) WITH CHECK ("app_private"."is_platform_super"());
@@ -34421,6 +39035,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."mdm_warehouse_zone" 
 -- Name: scm_purchase_document canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."scm_purchase_document";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."scm_purchase_document" TO "authenticated" USING (("app_private"."is_platform_super"() AND (("app_private"."current_read_tenant_id"() IS NULL) OR ("tenant_id" = "app_private"."current_read_tenant_id"())))) WITH CHECK (("app_private"."is_platform_super"() AND (("app_private"."current_read_tenant_id"() IS NULL) OR ("tenant_id" = "app_private"."current_read_tenant_id"()))));
@@ -34432,6 +39047,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."scm_purchase_documen
 -- Name: sys_attachment canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_attachment";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_attachment" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34443,6 +39059,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_attachment" TO "
 -- Name: sys_audit_log canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_audit_log";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_audit_log" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34454,6 +39071,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_audit_log" TO "a
 -- Name: sys_document_number_counter canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_document_number_counter";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_document_number_counter" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34465,6 +39083,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_document_number_
 -- Name: sys_document_number_rule canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_document_number_rule";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_document_number_rule" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34476,6 +39095,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_document_number_
 -- Name: sys_notification canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_notification";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34487,6 +39107,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification" TO
 -- Name: sys_notification_channel_config canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_notification_channel_config";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_channel_config" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34498,6 +39119,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_cha
 -- Name: sys_notification_delivery canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_notification_delivery";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_delivery" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34509,6 +39131,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_del
 -- Name: sys_notification_event canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_notification_event";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_event" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34520,6 +39143,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_eve
 -- Name: sys_notification_rule canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_notification_rule";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_rule" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34531,6 +39155,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_rul
 -- Name: sys_notification_subject canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_notification_subject";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_subject" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34542,6 +39167,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_notification_sub
 -- Name: sys_param canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_param";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_param" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34553,6 +39179,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_param" TO "authe
 -- Name: sys_permission_audit_log canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_permission_audit_log";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_permission_audit_log" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34564,6 +39191,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_permission_audit
 -- Name: sys_permission_field canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_permission_field";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_permission_field" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34575,6 +39203,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_permission_field
 -- Name: sys_permission_resource canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_permission_resource";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_permission_resource" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34586,6 +39215,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_permission_resou
 -- Name: sys_role canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_role";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_role" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34597,6 +39227,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_role" TO "authen
 -- Name: sys_role_field_permission canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_role_field_permission";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_role_field_permission" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34608,6 +39239,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_role_field_permi
 -- Name: sys_role_menu canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_role_menu";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_role_menu" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34619,6 +39251,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_role_menu" TO "a
 -- Name: sys_user_field_permission canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_user_field_permission";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_user_field_permission" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34630,6 +39263,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_user_field_permi
 -- Name: sys_user_tenant canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."sys_user_tenant";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."sys_user_tenant" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34641,6 +39275,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."sys_user_tenant" TO 
 -- Name: tms_invoice canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."tms_invoice";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."tms_invoice" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34652,6 +39287,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."tms_invoice" TO "aut
 -- Name: wf_action canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."wf_action";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."wf_action" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34663,6 +39299,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."wf_action" TO "authe
 -- Name: wf_business_callback_outbox canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."wf_business_callback_outbox";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."wf_business_callback_outbox" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34674,6 +39311,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."wf_business_callback
 -- Name: wf_definition canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."wf_definition";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."wf_definition" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34685,6 +39323,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."wf_definition" TO "a
 -- Name: wf_delegation canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."wf_delegation";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."wf_delegation" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34696,6 +39335,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."wf_delegation" TO "a
 -- Name: wf_instance canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."wf_instance";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."wf_instance" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34707,6 +39347,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."wf_instance" TO "aut
 -- Name: wf_task canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."wf_task";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."wf_task" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34718,6 +39359,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."wf_task" TO "authent
 -- Name: wf_task_reminder_event canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."wf_task_reminder_event";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."wf_task_reminder_event" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34729,6 +39371,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."wf_task_reminder_eve
 -- Name: wf_version canonical_platform_super_write; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_platform_super_write" ON "public"."wf_version";
 --
 
 CREATE POLICY "canonical_platform_super_write" ON "public"."wf_version" TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -34740,6 +39383,7 @@ CREATE POLICY "canonical_platform_super_write" ON "public"."wf_version" TO "auth
 -- Name: ai_artifact_review canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_artifact_review";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_artifact_review" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_artifact_review"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34751,6 +39395,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_artifact_review" AS 
 -- Name: ai_conversation canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_conversation";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_conversation" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_conversation"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34762,6 +39407,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_conversation" AS RES
 -- Name: ai_feature_config canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_feature_config";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_feature_config" AS RESTRICTIVE FOR SELECT TO "authenticated" USING ((("tenant_id" = "app_private"."platform_tenant_id"()) OR "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -34773,6 +39419,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_feature_config" AS R
 -- Name: ai_feedback canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_feedback";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_feedback" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_feedback"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34784,6 +39431,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_feedback" AS RESTRIC
 -- Name: ai_feedback_resolution canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_feedback_resolution";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_feedback_resolution" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_feedback_resolution"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34795,6 +39443,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_feedback_resolution"
 -- Name: ai_message canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_message";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_message" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_message"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34806,6 +39455,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_message" AS RESTRICT
 -- Name: ai_ocr_quality_threshold canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_ocr_quality_threshold";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_ocr_quality_threshold" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_ocr_quality_threshold"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34817,6 +39467,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_ocr_quality_threshol
 -- Name: ai_project_snapshot canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_project_snapshot";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_project_snapshot" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_project_snapshot"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34828,6 +39479,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_project_snapshot" AS
 -- Name: ai_prompt_template canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_prompt_template";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_prompt_template" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_prompt_template"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34839,6 +39491,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_prompt_template" AS 
 -- Name: ai_run canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_run";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_run" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_run"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34850,6 +39503,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_run" AS RESTRICTIVE 
 -- Name: ai_security_event canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_security_event";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_security_event" FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_security_event"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34861,6 +39515,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_security_event" FOR 
 -- Name: ai_suggestion canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_suggestion";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_suggestion" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_suggestion"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34872,6 +39527,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_suggestion" AS RESTR
 -- Name: ai_suggestion_batch canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_suggestion_batch";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_suggestion_batch" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_suggestion_batch"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34883,6 +39539,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_suggestion_batch" AS
 -- Name: ai_suggestion_event canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_suggestion_event";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_suggestion_event" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_suggestion_event"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34894,6 +39551,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_suggestion_event" AS
 -- Name: ai_tool_call canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."ai_tool_call";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_tool_call" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("ai_tool_call"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34905,6 +39563,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."ai_tool_call" AS RESTRI
 -- Name: mdm_bom canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_bom";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_bom" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_bom"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34916,6 +39575,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_bom" AS RESTRICTIVE
 -- Name: mdm_carrier canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_carrier";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_carrier" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_carrier"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34927,6 +39587,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_carrier" AS RESTRIC
 -- Name: mdm_customer canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_customer";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_customer" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_customer"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34938,6 +39599,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_customer" AS RESTRI
 -- Name: mdm_customer_address canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_customer_address";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_customer_address" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_customer_address"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34949,6 +39611,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_customer_address" A
 -- Name: mdm_employee canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_employee";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_employee" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_employee"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34960,6 +39623,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_employee" AS RESTRI
 -- Name: mdm_grade canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_grade";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_grade" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_grade"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34971,6 +39635,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_grade" AS RESTRICTI
 -- Name: mdm_job_family canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_job_family";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_job_family" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_job_family"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34982,6 +39647,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_job_family" AS REST
 -- Name: mdm_job_profile canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_job_profile";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_job_profile" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_job_profile"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -34993,6 +39659,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_job_profile" AS RES
 -- Name: mdm_material canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_material";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_material"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35004,6 +39671,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material" AS RESTRI
 -- Name: mdm_material_attribute_group canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_material_attribute_group";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material_attribute_group" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_material_attribute_group"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35015,6 +39683,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material_attribute_
 -- Name: mdm_material_category canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_material_category";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material_category" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_material_category"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35026,6 +39695,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material_category" 
 -- Name: mdm_material_code_rule canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_material_code_rule";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material_code_rule" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_material_code_rule"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35037,6 +39707,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material_code_rule"
 -- Name: mdm_material_type canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_material_type";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material_type" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_material_type"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35048,6 +39719,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_material_type" AS R
 -- Name: mdm_organization canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_organization";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_organization" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_organization"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35059,6 +39731,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_organization" AS RE
 -- Name: mdm_position canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_position";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_position" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_position"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35070,6 +39743,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_position" AS RESTRI
 -- Name: mdm_production_department canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_production_department";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_production_department" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_production_department"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35081,6 +39755,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_production_departme
 -- Name: mdm_project_construction canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_project_construction";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_project_construction" FOR SELECT TO "authenticated" USING ("app_private"."tenant_in_current_read_scope"("tenant_id"));
@@ -35092,6 +39767,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_project_constructio
 -- Name: mdm_site canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_site";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_site" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_site"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35103,6 +39779,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_site" AS RESTRICTIV
 -- Name: mdm_storage_location canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_storage_location";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_storage_location" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_storage_location"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35114,6 +39791,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_storage_location" A
 -- Name: mdm_supplier canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_supplier";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_supplier" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_supplier"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35125,6 +39803,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_supplier" AS RESTRI
 -- Name: mdm_unit_of_measure canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_unit_of_measure";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_unit_of_measure" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_unit_of_measure"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35136,6 +39815,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_unit_of_measure" AS
 -- Name: mdm_warehouse canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_warehouse";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_warehouse" FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("mdm_warehouse"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35147,6 +39827,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_warehouse" FOR SELE
 -- Name: mdm_warehouse_bin canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_warehouse_bin";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_warehouse_bin" FOR SELECT TO "authenticated" USING ("app_private"."tenant_in_current_read_scope"("tenant_id"));
@@ -35158,6 +39839,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_warehouse_bin" FOR 
 -- Name: mdm_warehouse_zone canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."mdm_warehouse_zone";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_warehouse_zone" FOR SELECT TO "authenticated" USING ("app_private"."tenant_in_current_read_scope"("tenant_id"));
@@ -35169,6 +39851,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."mdm_warehouse_zone" FOR
 -- Name: sys_attachment canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_attachment";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_attachment" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_attachment"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35180,6 +39863,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_attachment" AS REST
 -- Name: sys_audit_log canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_audit_log";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_audit_log" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_audit_log"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35191,6 +39875,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_audit_log" AS RESTR
 -- Name: sys_document_number_counter canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_document_number_counter";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_document_number_counter" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_document_number_counter"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35202,6 +39887,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_document_number_cou
 -- Name: sys_document_number_rule canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_document_number_rule";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_document_number_rule" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_document_number_rule"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35213,6 +39899,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_document_number_rul
 -- Name: sys_notification canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_notification";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_notification"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35224,6 +39911,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification" AS RE
 -- Name: sys_notification_channel_config canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_notification_channel_config";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_channel_config" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_notification_channel_config"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35235,6 +39923,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_channe
 -- Name: sys_notification_delivery canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_notification_delivery";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_delivery" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_notification_delivery"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35246,6 +39935,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_delive
 -- Name: sys_notification_event canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_notification_event";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_event" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_notification_event"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35257,6 +39947,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_event"
 -- Name: sys_notification_rule canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_notification_rule";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_rule" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_notification_rule"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35268,6 +39959,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_rule" 
 -- Name: sys_notification_subject canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_notification_subject";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_subject" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_notification_subject"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35279,6 +39971,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_notification_subjec
 -- Name: sys_param canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_param";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_param" AS RESTRICTIVE FOR SELECT TO "authenticated" USING ((("tenant_id" = "app_private"."platform_tenant_id"()) OR "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -35290,6 +39983,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_param" AS RESTRICTI
 -- Name: sys_permission_audit_log canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_permission_audit_log";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_permission_audit_log" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_permission_audit_log"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35301,6 +39995,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_permission_audit_lo
 -- Name: sys_permission_field canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_permission_field";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_permission_field" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_permission_field"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35312,6 +40007,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_permission_field" A
 -- Name: sys_permission_resource canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_permission_resource";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_permission_resource" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_permission_resource"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35323,6 +40019,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_permission_resource
 -- Name: sys_role canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_role";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_role" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_role"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35334,6 +40031,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_role" AS RESTRICTIV
 -- Name: sys_role_field_permission canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_role_field_permission";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_role_field_permission" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_role_field_permission"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35345,6 +40043,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_role_field_permissi
 -- Name: sys_role_menu canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_role_menu";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_role_menu" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_role_menu"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35356,6 +40055,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_role_menu" AS RESTR
 -- Name: sys_user_field_permission canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_user_field_permission";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_user_field_permission" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_user_field_permission"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35367,6 +40067,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_user_field_permissi
 -- Name: sys_user_tenant canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."sys_user_tenant";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_user_tenant" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("sys_user_tenant"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35378,6 +40079,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."sys_user_tenant" AS RES
 -- Name: tms_invoice canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."tms_invoice";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."tms_invoice" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("tms_invoice"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35389,6 +40091,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."tms_invoice" AS RESTRIC
 -- Name: wf_action canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."wf_action";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_action" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("wf_action"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35400,6 +40103,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_action" AS RESTRICTI
 -- Name: wf_business_callback_outbox canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."wf_business_callback_outbox";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_business_callback_outbox" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("wf_business_callback_outbox"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35411,6 +40115,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_business_callback_ou
 -- Name: wf_definition canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."wf_definition";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_definition" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("wf_definition"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35422,6 +40127,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_definition" AS RESTR
 -- Name: wf_delegation canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."wf_delegation";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_delegation" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("wf_delegation"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35433,6 +40139,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_delegation" AS RESTR
 -- Name: wf_instance canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."wf_instance";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_instance" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("wf_instance"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35444,6 +40151,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_instance" AS RESTRIC
 -- Name: wf_task canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."wf_task";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_task" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("wf_task"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35455,6 +40163,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_task" AS RESTRICTIVE
 -- Name: wf_task_reminder_event canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."wf_task_reminder_event";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_task_reminder_event" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("wf_task_reminder_event"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35466,6 +40175,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_task_reminder_event"
 -- Name: wf_version canonical_tenant_read_scope; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "canonical_tenant_read_scope" ON "public"."wf_version";
 --
 
 CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_version" AS RESTRICTIVE FOR SELECT TO "authenticated" USING (( SELECT "app_private"."tenant_in_current_read_scope"("wf_version"."tenant_id") AS "tenant_in_current_read_scope"));
@@ -35477,6 +40187,7 @@ CREATE POLICY "canonical_tenant_read_scope" ON "public"."wf_version" AS RESTRICT
 -- Name: mdm_master_group component_type_group_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "component_type_group_delete" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "component_type_group_delete" ON "public"."mdm_master_group" FOR DELETE TO "authenticated" USING ((("domain" = 'component-type'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmComponentType:ManageGroup'::"text")));
@@ -35488,6 +40199,7 @@ CREATE POLICY "component_type_group_delete" ON "public"."mdm_master_group" FOR D
 -- Name: mdm_master_group component_type_group_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "component_type_group_insert" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "component_type_group_insert" ON "public"."mdm_master_group" FOR INSERT TO "authenticated" WITH CHECK ((("domain" = 'component-type'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmComponentType:ManageGroup'::"text")));
@@ -35499,6 +40211,7 @@ CREATE POLICY "component_type_group_insert" ON "public"."mdm_master_group" FOR I
 -- Name: mdm_master_group component_type_group_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "component_type_group_select" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "component_type_group_select" ON "public"."mdm_master_group" FOR SELECT TO "authenticated" USING ((("domain" = 'component-type'::"text") AND "app_private"."tenant_in_current_read_scope"("tenant_id") AND ("app_private"."is_platform_super"() OR "app_private"."has_permission"('MdmComponentType:View'::"text") OR "app_private"."has_permission"('MdmBomMaintenance:View'::"text") OR "app_private"."has_permission"('MesWorkOrder:View'::"text"))));
@@ -35510,6 +40223,7 @@ CREATE POLICY "component_type_group_select" ON "public"."mdm_master_group" FOR S
 -- Name: mdm_master_group component_type_group_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "component_type_group_update" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "component_type_group_update" ON "public"."mdm_master_group" FOR UPDATE TO "authenticated" USING ((("domain" = 'component-type'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmComponentType:ManageGroup'::"text"))) WITH CHECK ((("domain" = 'component-type'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmComponentType:ManageGroup'::"text")));
@@ -35521,6 +40235,7 @@ CREATE POLICY "component_type_group_update" ON "public"."mdm_master_group" FOR U
 -- Name: wf_delegation delegation_participant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "delegation_participant_select" ON "public"."wf_delegation";
 --
 
 CREATE POLICY "delegation_participant_select" ON "public"."wf_delegation" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (("delegator_user_id" = ( SELECT "app_private"."current_app_user_id"() AS "current_app_user_id")) OR ("delegate_user_id" = ( SELECT "app_private"."current_app_user_id"() AS "current_app_user_id"))))));
@@ -35532,6 +40247,7 @@ CREATE POLICY "delegation_participant_select" ON "public"."wf_delegation" FOR SE
 -- Name: sys_document_number_counter document_number_counter_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "document_number_counter_select" ON "public"."sys_document_number_counter";
 --
 
 CREATE POLICY "document_number_counter_select" ON "public"."sys_document_number_counter" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -35543,6 +40259,7 @@ CREATE POLICY "document_number_counter_select" ON "public"."sys_document_number_
 -- Name: sys_document_number_rule document_number_rule_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "document_number_rule_delete" ON "public"."sys_document_number_rule";
 --
 
 CREATE POLICY "document_number_rule_delete" ON "public"."sys_document_number_rule" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") AND (NOT "builtin")));
@@ -35554,6 +40271,7 @@ CREATE POLICY "document_number_rule_delete" ON "public"."sys_document_number_rul
 -- Name: sys_document_number_rule document_number_rule_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "document_number_rule_insert" ON "public"."sys_document_number_rule";
 --
 
 CREATE POLICY "document_number_rule_insert" ON "public"."sys_document_number_rule" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() OR ("app_private"."has_permission"('System:DocumentNumberRule:Add'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -35565,6 +40283,7 @@ CREATE POLICY "document_number_rule_insert" ON "public"."sys_document_number_rul
 -- Name: sys_document_number_rule document_number_rule_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "document_number_rule_select" ON "public"."sys_document_number_rule";
 --
 
 CREATE POLICY "document_number_rule_select" ON "public"."sys_document_number_rule" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -35576,6 +40295,7 @@ CREATE POLICY "document_number_rule_select" ON "public"."sys_document_number_rul
 -- Name: sys_document_number_rule document_number_rule_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "document_number_rule_update" ON "public"."sys_document_number_rule";
 --
 
 CREATE POLICY "document_number_rule_update" ON "public"."sys_document_number_rule" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("app_private"."has_permission"('System:DocumentNumberRule:Edit'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"())))) WITH CHECK (("app_private"."is_platform_super"() OR ("app_private"."has_permission"('System:DocumentNumberRule:Edit'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -35587,6 +40307,7 @@ CREATE POLICY "document_number_rule_update" ON "public"."sys_document_number_rul
 -- Name: sys_document_number_scene document_number_scene_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "document_number_scene_delete" ON "public"."sys_document_number_scene";
 --
 
 CREATE POLICY "document_number_scene_delete" ON "public"."sys_document_number_scene" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -35598,6 +40319,7 @@ CREATE POLICY "document_number_scene_delete" ON "public"."sys_document_number_sc
 -- Name: sys_document_number_scene document_number_scene_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "document_number_scene_insert" ON "public"."sys_document_number_scene";
 --
 
 CREATE POLICY "document_number_scene_insert" ON "public"."sys_document_number_scene" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -35609,6 +40331,7 @@ CREATE POLICY "document_number_scene_insert" ON "public"."sys_document_number_sc
 -- Name: sys_document_number_scene document_number_scene_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "document_number_scene_select" ON "public"."sys_document_number_scene";
 --
 
 CREATE POLICY "document_number_scene_select" ON "public"."sys_document_number_scene" FOR SELECT TO "authenticated" USING ((("tenant_id" = "app_private"."platform_tenant_id"()) AND ("enabled" OR "app_private"."is_platform_super"())));
@@ -35620,6 +40343,7 @@ CREATE POLICY "document_number_scene_select" ON "public"."sys_document_number_sc
 -- Name: sys_document_number_scene document_number_scene_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "document_number_scene_update" ON "public"."sys_document_number_scene";
 --
 
 CREATE POLICY "document_number_scene_update" ON "public"."sys_document_number_scene" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"()))) WITH CHECK (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -35631,6 +40355,7 @@ CREATE POLICY "document_number_scene_update" ON "public"."sys_document_number_sc
 -- Name: mdm_employee hr_employee_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_employee_tenant_delete" ON "public"."mdm_employee";
 --
 
 CREATE POLICY "hr_employee_tenant_delete" ON "public"."mdm_employee" FOR DELETE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND "public"."current_has_permission"('Hr:Employee:Delete'::"text")));
@@ -35642,6 +40367,7 @@ CREATE POLICY "hr_employee_tenant_delete" ON "public"."mdm_employee" FOR DELETE 
 -- Name: mdm_employee hr_employee_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_employee_tenant_insert" ON "public"."mdm_employee";
 --
 
 CREATE POLICY "hr_employee_tenant_insert" ON "public"."mdm_employee" FOR INSERT TO "authenticated" WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND "public"."current_has_permission"('Hr:Employee:Add'::"text")));
@@ -35653,6 +40379,7 @@ CREATE POLICY "hr_employee_tenant_insert" ON "public"."mdm_employee" FOR INSERT 
 -- Name: mdm_employee hr_employee_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_employee_tenant_select" ON "public"."mdm_employee";
 --
 
 CREATE POLICY "hr_employee_tenant_select" ON "public"."mdm_employee" FOR SELECT TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND "public"."current_has_permission"('Hr:Employee:View'::"text")));
@@ -35664,6 +40391,7 @@ CREATE POLICY "hr_employee_tenant_select" ON "public"."mdm_employee" FOR SELECT 
 -- Name: mdm_employee hr_employee_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_employee_tenant_update" ON "public"."mdm_employee";
 --
 
 CREATE POLICY "hr_employee_tenant_update" ON "public"."mdm_employee" FOR UPDATE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND "public"."current_has_permission"('Hr:Employee:Edit'::"text"))) WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND "public"."current_has_permission"('Hr:Employee:Edit'::"text")));
@@ -35675,6 +40403,7 @@ CREATE POLICY "hr_employee_tenant_update" ON "public"."mdm_employee" FOR UPDATE 
 -- Name: mdm_grade hr_grade_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_grade_tenant_delete" ON "public"."mdm_grade";
 --
 
 CREATE POLICY "hr_grade_tenant_delete" ON "public"."mdm_grade" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('Hr:Grade:Delete'::"text") AS "has_permission"))));
@@ -35686,6 +40415,7 @@ CREATE POLICY "hr_grade_tenant_delete" ON "public"."mdm_grade" FOR DELETE TO "au
 -- Name: mdm_grade hr_grade_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_grade_tenant_insert" ON "public"."mdm_grade";
 --
 
 CREATE POLICY "hr_grade_tenant_insert" ON "public"."mdm_grade" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('Hr:Grade:Add'::"text") AS "has_permission"))));
@@ -35697,6 +40427,7 @@ CREATE POLICY "hr_grade_tenant_insert" ON "public"."mdm_grade" FOR INSERT TO "au
 -- Name: mdm_grade hr_grade_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_grade_tenant_select" ON "public"."mdm_grade";
 --
 
 CREATE POLICY "hr_grade_tenant_select" ON "public"."mdm_grade" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."has_permission"('Hr:Grade:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:JobProfile:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:Position:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:PersonnelChange:View'::"text") AS "has_permission")))));
@@ -35708,6 +40439,7 @@ CREATE POLICY "hr_grade_tenant_select" ON "public"."mdm_grade" FOR SELECT TO "au
 -- Name: mdm_grade hr_grade_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_grade_tenant_update" ON "public"."mdm_grade";
 --
 
 CREATE POLICY "hr_grade_tenant_update" ON "public"."mdm_grade" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('Hr:Grade:Edit'::"text") AS "has_permission")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -35719,6 +40451,7 @@ CREATE POLICY "hr_grade_tenant_update" ON "public"."mdm_grade" FOR UPDATE TO "au
 -- Name: mdm_job_family hr_job_family_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_job_family_tenant_delete" ON "public"."mdm_job_family";
 --
 
 CREATE POLICY "hr_job_family_tenant_delete" ON "public"."mdm_job_family" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('Hr:JobFamily:Delete'::"text") AS "has_permission"))));
@@ -35730,6 +40463,7 @@ CREATE POLICY "hr_job_family_tenant_delete" ON "public"."mdm_job_family" FOR DEL
 -- Name: mdm_job_family hr_job_family_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_job_family_tenant_insert" ON "public"."mdm_job_family";
 --
 
 CREATE POLICY "hr_job_family_tenant_insert" ON "public"."mdm_job_family" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('Hr:JobFamily:Add'::"text") AS "has_permission"))));
@@ -35741,6 +40475,7 @@ CREATE POLICY "hr_job_family_tenant_insert" ON "public"."mdm_job_family" FOR INS
 -- Name: mdm_job_family hr_job_family_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_job_family_tenant_select" ON "public"."mdm_job_family";
 --
 
 CREATE POLICY "hr_job_family_tenant_select" ON "public"."mdm_job_family" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."has_permission"('Hr:JobFamily:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:JobProfile:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:Position:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:PersonnelChange:View'::"text") AS "has_permission")))));
@@ -35752,6 +40487,7 @@ CREATE POLICY "hr_job_family_tenant_select" ON "public"."mdm_job_family" FOR SEL
 -- Name: mdm_job_family hr_job_family_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_job_family_tenant_update" ON "public"."mdm_job_family";
 --
 
 CREATE POLICY "hr_job_family_tenant_update" ON "public"."mdm_job_family" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('Hr:JobFamily:Edit'::"text") AS "has_permission")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -35763,6 +40499,7 @@ CREATE POLICY "hr_job_family_tenant_update" ON "public"."mdm_job_family" FOR UPD
 -- Name: mdm_job_profile hr_job_profile_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_job_profile_tenant_delete" ON "public"."mdm_job_profile";
 --
 
 CREATE POLICY "hr_job_profile_tenant_delete" ON "public"."mdm_job_profile" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('Hr:JobProfile:Delete'::"text") AS "has_permission"))));
@@ -35774,6 +40511,7 @@ CREATE POLICY "hr_job_profile_tenant_delete" ON "public"."mdm_job_profile" FOR D
 -- Name: mdm_job_profile hr_job_profile_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_job_profile_tenant_insert" ON "public"."mdm_job_profile";
 --
 
 CREATE POLICY "hr_job_profile_tenant_insert" ON "public"."mdm_job_profile" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('Hr:JobProfile:Add'::"text") AS "has_permission"))));
@@ -35785,6 +40523,7 @@ CREATE POLICY "hr_job_profile_tenant_insert" ON "public"."mdm_job_profile" FOR I
 -- Name: mdm_job_profile hr_job_profile_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_job_profile_tenant_select" ON "public"."mdm_job_profile";
 --
 
 CREATE POLICY "hr_job_profile_tenant_select" ON "public"."mdm_job_profile" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."has_permission"('Hr:JobProfile:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:Position:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:PersonnelChange:View'::"text") AS "has_permission")))));
@@ -35796,6 +40535,7 @@ CREATE POLICY "hr_job_profile_tenant_select" ON "public"."mdm_job_profile" FOR S
 -- Name: mdm_job_profile hr_job_profile_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_job_profile_tenant_update" ON "public"."mdm_job_profile";
 --
 
 CREATE POLICY "hr_job_profile_tenant_update" ON "public"."mdm_job_profile" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('Hr:JobProfile:Edit'::"text") AS "has_permission")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -35807,6 +40547,7 @@ CREATE POLICY "hr_job_profile_tenant_update" ON "public"."mdm_job_profile" FOR U
 -- Name: mdm_position hr_position_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "hr_position_tenant_select" ON "public"."mdm_position";
 --
 
 CREATE POLICY "hr_position_tenant_select" ON "public"."mdm_position" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."has_permission"('Hr:Position:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:PersonnelChange:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:Headcount:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:Talent:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Hr:Recruitment:View'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('SmisDualControlRiskEvaluationControl:View'::"text") AS "has_permission")))));
@@ -35848,6 +40589,7 @@ ALTER TABLE "public"."mdm_bom" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_bom mdm_bom_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_bom_tenant_delete" ON "public"."mdm_bom";
 --
 
 CREATE POLICY "mdm_bom_tenant_delete" ON "public"."mdm_bom" FOR DELETE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmBomMaintenance:Delete'::"text")));
@@ -35859,6 +40601,7 @@ CREATE POLICY "mdm_bom_tenant_delete" ON "public"."mdm_bom" FOR DELETE TO "authe
 -- Name: mdm_bom mdm_bom_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_bom_tenant_insert" ON "public"."mdm_bom";
 --
 
 CREATE POLICY "mdm_bom_tenant_insert" ON "public"."mdm_bom" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmBomMaintenance:Add'::"text")));
@@ -35870,6 +40613,7 @@ CREATE POLICY "mdm_bom_tenant_insert" ON "public"."mdm_bom" FOR INSERT TO "authe
 -- Name: mdm_bom mdm_bom_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_bom_tenant_select" ON "public"."mdm_bom";
 --
 
 CREATE POLICY "mdm_bom_tenant_select" ON "public"."mdm_bom" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."auth_user_tenant_id"()) AND ("app_private"."has_permission"('MdmBomMaintenance:View'::"text") OR "app_private"."has_permission"('MdmBomStructure:View'::"text")))));
@@ -35881,6 +40625,7 @@ CREATE POLICY "mdm_bom_tenant_select" ON "public"."mdm_bom" FOR SELECT TO "authe
 -- Name: mdm_bom mdm_bom_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_bom_tenant_update" ON "public"."mdm_bom";
 --
 
 CREATE POLICY "mdm_bom_tenant_update" ON "public"."mdm_bom" FOR UPDATE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmBomMaintenance:Edit'::"text"))) WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmBomMaintenance:Edit'::"text")));
@@ -36002,6 +40747,7 @@ ALTER TABLE "public"."mdm_material_attribute_group" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_material_attribute_group mdm_material_attribute_group_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_attribute_group_tenant_delete" ON "public"."mdm_material_attribute_group";
 --
 
 CREATE POLICY "mdm_material_attribute_group_tenant_delete" ON "public"."mdm_material_attribute_group" FOR DELETE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmMaterialAttributeGroup:Delete'::"text")));
@@ -36013,6 +40759,7 @@ CREATE POLICY "mdm_material_attribute_group_tenant_delete" ON "public"."mdm_mate
 -- Name: mdm_material_attribute_group mdm_material_attribute_group_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_attribute_group_tenant_insert" ON "public"."mdm_material_attribute_group";
 --
 
 CREATE POLICY "mdm_material_attribute_group_tenant_insert" ON "public"."mdm_material_attribute_group" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmMaterialAttributeGroup:Add'::"text")));
@@ -36024,6 +40771,7 @@ CREATE POLICY "mdm_material_attribute_group_tenant_insert" ON "public"."mdm_mate
 -- Name: mdm_material_attribute_group mdm_material_attribute_group_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_attribute_group_tenant_select" ON "public"."mdm_material_attribute_group";
 --
 
 CREATE POLICY "mdm_material_attribute_group_tenant_select" ON "public"."mdm_material_attribute_group" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmMaterialAttributeGroup:View'::"text"))));
@@ -36035,6 +40783,7 @@ CREATE POLICY "mdm_material_attribute_group_tenant_select" ON "public"."mdm_mate
 -- Name: mdm_material_attribute_group mdm_material_attribute_group_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_attribute_group_tenant_update" ON "public"."mdm_material_attribute_group";
 --
 
 CREATE POLICY "mdm_material_attribute_group_tenant_update" ON "public"."mdm_material_attribute_group" FOR UPDATE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmMaterialAttributeGroup:Edit'::"text"))) WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmMaterialAttributeGroup:Edit'::"text")));
@@ -36056,6 +40805,7 @@ ALTER TABLE "public"."mdm_material_category" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_material_category mdm_material_category_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_category_tenant_delete" ON "public"."mdm_material_category";
 --
 
 CREATE POLICY "mdm_material_category_tenant_delete" ON "public"."mdm_material_category" FOR DELETE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND ("app_private"."has_permission"('MdmMaterialCategory:Delete'::"text") OR "app_private"."has_permission"('SmisMaterialCategory:Delete'::"text"))));
@@ -36067,6 +40817,7 @@ CREATE POLICY "mdm_material_category_tenant_delete" ON "public"."mdm_material_ca
 -- Name: mdm_material_category mdm_material_category_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_category_tenant_insert" ON "public"."mdm_material_category";
 --
 
 CREATE POLICY "mdm_material_category_tenant_insert" ON "public"."mdm_material_category" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND ("app_private"."has_permission"('MdmMaterialCategory:Add'::"text") OR "app_private"."has_permission"('SmisMaterialCategory:Add'::"text"))));
@@ -36078,6 +40829,7 @@ CREATE POLICY "mdm_material_category_tenant_insert" ON "public"."mdm_material_ca
 -- Name: mdm_material_category mdm_material_category_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_category_tenant_select" ON "public"."mdm_material_category";
 --
 
 CREATE POLICY "mdm_material_category_tenant_select" ON "public"."mdm_material_category" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."auth_user_tenant_id"()) AND ("app_private"."has_permission"('MdmMaterialCategory:View'::"text") OR "app_private"."has_permission"('SmisMaterialCategory:View'::"text"))) OR ("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmAccessoryProcessing:View'::"text"))));
@@ -36089,6 +40841,7 @@ CREATE POLICY "mdm_material_category_tenant_select" ON "public"."mdm_material_ca
 -- Name: mdm_material_category mdm_material_category_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_category_tenant_update" ON "public"."mdm_material_category";
 --
 
 CREATE POLICY "mdm_material_category_tenant_update" ON "public"."mdm_material_category" FOR UPDATE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND ("app_private"."has_permission"('MdmMaterialCategory:Edit'::"text") OR "app_private"."has_permission"('SmisMaterialCategory:Edit'::"text")))) WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND ("app_private"."has_permission"('MdmMaterialCategory:Edit'::"text") OR "app_private"."has_permission"('SmisMaterialCategory:Edit'::"text"))));
@@ -36110,6 +40863,7 @@ ALTER TABLE "public"."mdm_material_code_rule" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_material_code_rule mdm_material_code_rule_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_code_rule_tenant_delete" ON "public"."mdm_material_code_rule";
 --
 
 CREATE POLICY "mdm_material_code_rule_tenant_delete" ON "public"."mdm_material_code_rule" FOR DELETE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmMaterialCodeRule:Delete'::"text")));
@@ -36121,6 +40875,7 @@ CREATE POLICY "mdm_material_code_rule_tenant_delete" ON "public"."mdm_material_c
 -- Name: mdm_material_code_rule mdm_material_code_rule_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_code_rule_tenant_insert" ON "public"."mdm_material_code_rule";
 --
 
 CREATE POLICY "mdm_material_code_rule_tenant_insert" ON "public"."mdm_material_code_rule" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmMaterialCodeRule:Add'::"text")));
@@ -36132,6 +40887,7 @@ CREATE POLICY "mdm_material_code_rule_tenant_insert" ON "public"."mdm_material_c
 -- Name: mdm_material_code_rule mdm_material_code_rule_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_code_rule_tenant_select" ON "public"."mdm_material_code_rule";
 --
 
 CREATE POLICY "mdm_material_code_rule_tenant_select" ON "public"."mdm_material_code_rule" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmMaterialCodeRule:View'::"text")) OR ("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmAccessoryProcessing:View'::"text"))));
@@ -36143,6 +40899,7 @@ CREATE POLICY "mdm_material_code_rule_tenant_select" ON "public"."mdm_material_c
 -- Name: mdm_material_code_rule mdm_material_code_rule_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_code_rule_tenant_update" ON "public"."mdm_material_code_rule";
 --
 
 CREATE POLICY "mdm_material_code_rule_tenant_update" ON "public"."mdm_material_code_rule" FOR UPDATE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmMaterialCodeRule:Edit'::"text"))) WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmMaterialCodeRule:Edit'::"text")));
@@ -36154,6 +40911,7 @@ CREATE POLICY "mdm_material_code_rule_tenant_update" ON "public"."mdm_material_c
 -- Name: mdm_material mdm_material_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_tenant_delete" ON "public"."mdm_material";
 --
 
 CREATE POLICY "mdm_material_tenant_delete" ON "public"."mdm_material" FOR DELETE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND ("app_private"."has_permission"('MdmMaterialArchive:Delete'::"text") OR "app_private"."has_permission"('SmisMaterialInformation:Delete'::"text"))));
@@ -36165,6 +40923,7 @@ CREATE POLICY "mdm_material_tenant_delete" ON "public"."mdm_material" FOR DELETE
 -- Name: mdm_material mdm_material_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_tenant_insert" ON "public"."mdm_material";
 --
 
 CREATE POLICY "mdm_material_tenant_insert" ON "public"."mdm_material" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND ("app_private"."has_permission"('MdmMaterialArchive:Add'::"text") OR "app_private"."has_permission"('SmisMaterialInformation:Add'::"text"))));
@@ -36176,6 +40935,7 @@ CREATE POLICY "mdm_material_tenant_insert" ON "public"."mdm_material" FOR INSERT
 -- Name: mdm_material mdm_material_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_tenant_select" ON "public"."mdm_material";
 --
 
 CREATE POLICY "mdm_material_tenant_select" ON "public"."mdm_material" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."auth_user_tenant_id"()) AND ("app_private"."has_permission"('MdmMaterialArchive:View'::"text") OR "app_private"."has_permission"('SmisMaterialInformation:View'::"text"))) OR ("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmAccessoryProcessing:View'::"text") AND (EXISTS ( SELECT 1
@@ -36189,6 +40949,7 @@ CREATE POLICY "mdm_material_tenant_select" ON "public"."mdm_material" FOR SELECT
 -- Name: mdm_material mdm_material_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_tenant_update" ON "public"."mdm_material";
 --
 
 CREATE POLICY "mdm_material_tenant_update" ON "public"."mdm_material" FOR UPDATE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND ("app_private"."has_permission"('MdmMaterialArchive:Edit'::"text") OR "app_private"."has_permission"('SmisMaterialInformation:Edit'::"text")))) WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND ("app_private"."has_permission"('MdmMaterialArchive:Edit'::"text") OR "app_private"."has_permission"('SmisMaterialInformation:Edit'::"text"))));
@@ -36210,6 +40971,7 @@ ALTER TABLE "public"."mdm_material_type" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_material_type mdm_material_type_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_type_tenant_delete" ON "public"."mdm_material_type";
 --
 
 CREATE POLICY "mdm_material_type_tenant_delete" ON "public"."mdm_material_type" FOR DELETE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmMaterialType:Delete'::"text")));
@@ -36221,6 +40983,7 @@ CREATE POLICY "mdm_material_type_tenant_delete" ON "public"."mdm_material_type" 
 -- Name: mdm_material_type mdm_material_type_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_type_tenant_insert" ON "public"."mdm_material_type";
 --
 
 CREATE POLICY "mdm_material_type_tenant_insert" ON "public"."mdm_material_type" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmMaterialType:Add'::"text")));
@@ -36232,6 +40995,7 @@ CREATE POLICY "mdm_material_type_tenant_insert" ON "public"."mdm_material_type" 
 -- Name: mdm_material_type mdm_material_type_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_type_tenant_select" ON "public"."mdm_material_type";
 --
 
 CREATE POLICY "mdm_material_type_tenant_select" ON "public"."mdm_material_type" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmMaterialType:View'::"text")) OR ("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmAccessoryProcessing:View'::"text"))));
@@ -36243,6 +41007,7 @@ CREATE POLICY "mdm_material_type_tenant_select" ON "public"."mdm_material_type" 
 -- Name: mdm_material_type mdm_material_type_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_material_type_tenant_update" ON "public"."mdm_material_type";
 --
 
 CREATE POLICY "mdm_material_type_tenant_update" ON "public"."mdm_material_type" FOR UPDATE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmMaterialType:Edit'::"text"))) WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmMaterialType:Edit'::"text")));
@@ -36274,6 +41039,7 @@ ALTER TABLE "public"."mdm_outbound_rule" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_outbound_rule mdm_outbound_rule_tenant_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_outbound_rule_tenant_read" ON "public"."mdm_outbound_rule";
 --
 
 CREATE POLICY "mdm_outbound_rule_tenant_read" ON "public"."mdm_outbound_rule" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."tenant_in_current_read_scope"("mdm_outbound_rule"."tenant_id") AS "tenant_in_current_read_scope") AND ( SELECT "app_private"."has_permission"('MdmOutboundRule:View'::"text") AS "has_permission")));
@@ -36335,6 +41101,7 @@ ALTER TABLE "public"."mdm_project_construction" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_customer mdm_sales_customer_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_sales_customer_delete" ON "public"."mdm_customer";
 --
 
 CREATE POLICY "mdm_sales_customer_delete" ON "public"."mdm_customer" FOR DELETE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmSalesCustomer:Delete'::"text")));
@@ -36346,6 +41113,7 @@ CREATE POLICY "mdm_sales_customer_delete" ON "public"."mdm_customer" FOR DELETE 
 -- Name: mdm_customer mdm_sales_customer_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_sales_customer_insert" ON "public"."mdm_customer";
 --
 
 CREATE POLICY "mdm_sales_customer_insert" ON "public"."mdm_customer" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmSalesCustomer:Add'::"text")));
@@ -36357,6 +41125,7 @@ CREATE POLICY "mdm_sales_customer_insert" ON "public"."mdm_customer" FOR INSERT 
 -- Name: mdm_customer mdm_sales_customer_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_sales_customer_select" ON "public"."mdm_customer";
 --
 
 CREATE POLICY "mdm_sales_customer_select" ON "public"."mdm_customer" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmSalesCustomer:View'::"text")));
@@ -36368,6 +41137,7 @@ CREATE POLICY "mdm_sales_customer_select" ON "public"."mdm_customer" FOR SELECT 
 -- Name: mdm_customer mdm_sales_customer_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_sales_customer_update" ON "public"."mdm_customer";
 --
 
 CREATE POLICY "mdm_sales_customer_update" ON "public"."mdm_customer" FOR UPDATE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmSalesCustomer:Edit'::"text"))) WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmSalesCustomer:Edit'::"text")));
@@ -36419,6 +41189,7 @@ ALTER TABLE "public"."mdm_supply_chain_code_rule" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_supply_chain_code_rule mdm_supply_chain_code_rule_tenant_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_supply_chain_code_rule_tenant_read" ON "public"."mdm_supply_chain_code_rule";
 --
 
 CREATE POLICY "mdm_supply_chain_code_rule_tenant_read" ON "public"."mdm_supply_chain_code_rule" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."tenant_in_current_read_scope"("mdm_supply_chain_code_rule"."tenant_id") AS "tenant_in_current_read_scope") AND ( SELECT "app_private"."has_permission"('MdmSupplyChainCodeRule:View'::"text") AS "has_permission")));
@@ -36440,6 +41211,7 @@ ALTER TABLE "public"."mdm_unit_of_measure" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_unit_of_measure mdm_unit_of_measure_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_unit_of_measure_tenant_delete" ON "public"."mdm_unit_of_measure";
 --
 
 CREATE POLICY "mdm_unit_of_measure_tenant_delete" ON "public"."mdm_unit_of_measure" FOR DELETE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmUnitOfMeasure:Delete'::"text")));
@@ -36451,6 +41223,7 @@ CREATE POLICY "mdm_unit_of_measure_tenant_delete" ON "public"."mdm_unit_of_measu
 -- Name: mdm_unit_of_measure mdm_unit_of_measure_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_unit_of_measure_tenant_insert" ON "public"."mdm_unit_of_measure";
 --
 
 CREATE POLICY "mdm_unit_of_measure_tenant_insert" ON "public"."mdm_unit_of_measure" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmUnitOfMeasure:Add'::"text")));
@@ -36462,6 +41235,7 @@ CREATE POLICY "mdm_unit_of_measure_tenant_insert" ON "public"."mdm_unit_of_measu
 -- Name: mdm_unit_of_measure mdm_unit_of_measure_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_unit_of_measure_tenant_select" ON "public"."mdm_unit_of_measure";
 --
 
 CREATE POLICY "mdm_unit_of_measure_tenant_select" ON "public"."mdm_unit_of_measure" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmUnitOfMeasure:View'::"text")) OR ("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmAccessoryProcessing:View'::"text"))));
@@ -36473,6 +41247,7 @@ CREATE POLICY "mdm_unit_of_measure_tenant_select" ON "public"."mdm_unit_of_measu
 -- Name: mdm_unit_of_measure mdm_unit_of_measure_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_unit_of_measure_tenant_update" ON "public"."mdm_unit_of_measure";
 --
 
 CREATE POLICY "mdm_unit_of_measure_tenant_update" ON "public"."mdm_unit_of_measure" FOR UPDATE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmUnitOfMeasure:Edit'::"text"))) WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."auth_user_tenant_id"())) AND "app_private"."has_permission"('MdmUnitOfMeasure:Edit'::"text")));
@@ -36504,6 +41279,7 @@ ALTER TABLE "public"."mdm_warehouse_bin" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_bin_tenant_delete" ON "public"."mdm_warehouse_bin";
 --
 
 CREATE POLICY "mdm_warehouse_bin_tenant_delete" ON "public"."mdm_warehouse_bin" FOR DELETE TO "authenticated" USING ((("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmWarehouseBin:Delete'::"text")));
@@ -36515,6 +41291,7 @@ CREATE POLICY "mdm_warehouse_bin_tenant_delete" ON "public"."mdm_warehouse_bin" 
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_bin_tenant_insert" ON "public"."mdm_warehouse_bin";
 --
 
 CREATE POLICY "mdm_warehouse_bin_tenant_insert" ON "public"."mdm_warehouse_bin" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmWarehouseBin:Add'::"text")));
@@ -36526,6 +41303,7 @@ CREATE POLICY "mdm_warehouse_bin_tenant_insert" ON "public"."mdm_warehouse_bin" 
 -- Name: mdm_warehouse_bin mdm_warehouse_bin_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_bin_tenant_update" ON "public"."mdm_warehouse_bin";
 --
 
 CREATE POLICY "mdm_warehouse_bin_tenant_update" ON "public"."mdm_warehouse_bin" FOR UPDATE TO "authenticated" USING ((("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmWarehouseBin:Edit'::"text"))) WITH CHECK ((("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmWarehouseBin:Edit'::"text")));
@@ -36537,6 +41315,7 @@ CREATE POLICY "mdm_warehouse_bin_tenant_update" ON "public"."mdm_warehouse_bin" 
 -- Name: mdm_warehouse mdm_warehouse_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_tenant_delete" ON "public"."mdm_warehouse";
 --
 
 CREATE POLICY "mdm_warehouse_tenant_delete" ON "public"."mdm_warehouse" FOR DELETE TO "authenticated" USING (((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."auth_user_tenant_id"() AS "auth_user_tenant_id"))) AND ( SELECT "app_private"."has_permission"('MdmWarehouseDefinition:Delete'::"text") AS "has_permission")));
@@ -36548,6 +41327,7 @@ CREATE POLICY "mdm_warehouse_tenant_delete" ON "public"."mdm_warehouse" FOR DELE
 -- Name: mdm_warehouse mdm_warehouse_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_tenant_insert" ON "public"."mdm_warehouse";
 --
 
 CREATE POLICY "mdm_warehouse_tenant_insert" ON "public"."mdm_warehouse" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmWarehouseDefinition:Add'::"text") AS "has_permission")));
@@ -36559,6 +41339,7 @@ CREATE POLICY "mdm_warehouse_tenant_insert" ON "public"."mdm_warehouse" FOR INSE
 -- Name: mdm_warehouse mdm_warehouse_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_tenant_select" ON "public"."mdm_warehouse";
 --
 
 CREATE POLICY "mdm_warehouse_tenant_select" ON "public"."mdm_warehouse" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."auth_user_tenant_id"() AS "auth_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmWarehouseDefinition:View'::"text") AS "has_permission"))));
@@ -36570,6 +41351,7 @@ CREATE POLICY "mdm_warehouse_tenant_select" ON "public"."mdm_warehouse" FOR SELE
 -- Name: mdm_warehouse mdm_warehouse_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_tenant_update" ON "public"."mdm_warehouse";
 --
 
 CREATE POLICY "mdm_warehouse_tenant_update" ON "public"."mdm_warehouse" FOR UPDATE TO "authenticated" USING (((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."auth_user_tenant_id"() AS "auth_user_tenant_id"))) AND ( SELECT "app_private"."has_permission"('MdmWarehouseDefinition:Edit'::"text") AS "has_permission"))) WITH CHECK (((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."auth_user_tenant_id"() AS "auth_user_tenant_id"))) AND ( SELECT "app_private"."has_permission"('MdmWarehouseDefinition:Edit'::"text") AS "has_permission")));
@@ -36591,6 +41373,7 @@ ALTER TABLE "public"."mdm_warehouse_zone" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_warehouse_zone mdm_warehouse_zone_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_zone_tenant_delete" ON "public"."mdm_warehouse_zone";
 --
 
 CREATE POLICY "mdm_warehouse_zone_tenant_delete" ON "public"."mdm_warehouse_zone" FOR DELETE TO "authenticated" USING ((("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmWarehouseZone:Delete'::"text")));
@@ -36602,6 +41385,7 @@ CREATE POLICY "mdm_warehouse_zone_tenant_delete" ON "public"."mdm_warehouse_zone
 -- Name: mdm_warehouse_zone mdm_warehouse_zone_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_zone_tenant_insert" ON "public"."mdm_warehouse_zone";
 --
 
 CREATE POLICY "mdm_warehouse_zone_tenant_insert" ON "public"."mdm_warehouse_zone" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmWarehouseZone:Add'::"text")));
@@ -36613,6 +41397,7 @@ CREATE POLICY "mdm_warehouse_zone_tenant_insert" ON "public"."mdm_warehouse_zone
 -- Name: mdm_warehouse_zone mdm_warehouse_zone_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mdm_warehouse_zone_tenant_update" ON "public"."mdm_warehouse_zone";
 --
 
 CREATE POLICY "mdm_warehouse_zone_tenant_update" ON "public"."mdm_warehouse_zone" FOR UPDATE TO "authenticated" USING ((("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmWarehouseZone:Edit'::"text"))) WITH CHECK ((("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmWarehouseZone:Edit'::"text")));
@@ -36624,6 +41409,7 @@ CREATE POLICY "mdm_warehouse_zone_tenant_update" ON "public"."mdm_warehouse_zone
 -- Name: mdm_bom mes_work_order_bom_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mes_work_order_bom_read" ON "public"."mdm_bom";
 --
 
 CREATE POLICY "mes_work_order_bom_read" ON "public"."mdm_bom" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MesWorkOrder:View'::"text")));
@@ -36635,6 +41421,7 @@ CREATE POLICY "mes_work_order_bom_read" ON "public"."mdm_bom" FOR SELECT TO "aut
 -- Name: mdm_material mes_work_order_material_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mes_work_order_material_read" ON "public"."mdm_material";
 --
 
 CREATE POLICY "mes_work_order_material_read" ON "public"."mdm_material" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MesWorkOrder:View'::"text")));
@@ -36646,6 +41433,7 @@ CREATE POLICY "mes_work_order_material_read" ON "public"."mdm_material" FOR SELE
 -- Name: mdm_document_type mes_work_order_type_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "mes_work_order_type_read" ON "public"."mdm_document_type";
 --
 
 CREATE POLICY "mes_work_order_type_read" ON "public"."mdm_document_type" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MesWorkOrder:View'::"text")));
@@ -36657,6 +41445,7 @@ CREATE POLICY "mes_work_order_type_read" ON "public"."mdm_document_type" FOR SEL
 -- Name: sys_notification own_notification_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "own_notification_select" ON "public"."sys_notification";
 --
 
 CREATE POLICY "own_notification_select" ON "public"."sys_notification" FOR SELECT TO "authenticated" USING (((( SELECT "auth"."uid"() AS "uid") IS NOT NULL) AND "app_private"."tenant_in_current_read_scope"("tenant_id") AND ("recipient_user_id" = ( SELECT "app_private"."current_app_user_id"() AS "current_app_user_id"))));
@@ -36668,6 +41457,7 @@ CREATE POLICY "own_notification_select" ON "public"."sys_notification" FOR SELEC
 -- Name: mdm_accessory_processing_item platform_super_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "platform_super_delete" ON "public"."mdm_accessory_processing_item";
 --
 
 CREATE POLICY "platform_super_delete" ON "public"."mdm_accessory_processing_item" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -36679,6 +41469,7 @@ CREATE POLICY "platform_super_delete" ON "public"."mdm_accessory_processing_item
 -- Name: mdm_accessory_processing_list platform_super_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "platform_super_delete" ON "public"."mdm_accessory_processing_list";
 --
 
 CREATE POLICY "platform_super_delete" ON "public"."mdm_accessory_processing_list" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -36690,6 +41481,7 @@ CREATE POLICY "platform_super_delete" ON "public"."mdm_accessory_processing_list
 -- Name: mdm_accessory_processing_item platform_super_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "platform_super_insert" ON "public"."mdm_accessory_processing_item";
 --
 
 CREATE POLICY "platform_super_insert" ON "public"."mdm_accessory_processing_item" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -36701,6 +41493,7 @@ CREATE POLICY "platform_super_insert" ON "public"."mdm_accessory_processing_item
 -- Name: mdm_accessory_processing_list platform_super_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "platform_super_insert" ON "public"."mdm_accessory_processing_list";
 --
 
 CREATE POLICY "platform_super_insert" ON "public"."mdm_accessory_processing_list" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -36712,6 +41505,7 @@ CREATE POLICY "platform_super_insert" ON "public"."mdm_accessory_processing_list
 -- Name: mdm_accessory_processing_item platform_super_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "platform_super_update" ON "public"."mdm_accessory_processing_item";
 --
 
 CREATE POLICY "platform_super_update" ON "public"."mdm_accessory_processing_item" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id"))) WITH CHECK (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -36723,6 +41517,7 @@ CREATE POLICY "platform_super_update" ON "public"."mdm_accessory_processing_item
 -- Name: mdm_accessory_processing_list platform_super_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "platform_super_update" ON "public"."mdm_accessory_processing_list";
 --
 
 CREATE POLICY "platform_super_update" ON "public"."mdm_accessory_processing_list" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id"))) WITH CHECK (("app_private"."is_platform_super"() AND "app_private"."tenant_in_current_read_scope"("tenant_id")));
@@ -36744,6 +41539,7 @@ ALTER TABLE "public"."scm_purchase_document" ENABLE ROW LEVEL SECURITY;
 -- Name: scm_purchase_document scm_purchase_document_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_purchase_document_delete" ON "public"."scm_purchase_document";
 --
 
 CREATE POLICY "scm_purchase_document_delete" ON "public"."scm_purchase_document" FOR DELETE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Delete'::"text"))));
@@ -36755,6 +41551,7 @@ CREATE POLICY "scm_purchase_document_delete" ON "public"."scm_purchase_document"
 -- Name: scm_purchase_document scm_purchase_document_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_purchase_document_insert" ON "public"."scm_purchase_document";
 --
 
 CREATE POLICY "scm_purchase_document_insert" ON "public"."scm_purchase_document" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND ("app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Add'::"text")) OR "app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Copy'::"text")))));
@@ -36766,6 +41563,7 @@ CREATE POLICY "scm_purchase_document_insert" ON "public"."scm_purchase_document"
 -- Name: scm_purchase_document scm_purchase_document_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_purchase_document_select" ON "public"."scm_purchase_document";
 --
 
 CREATE POLICY "scm_purchase_document_select" ON "public"."scm_purchase_document" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':View'::"text"))));
@@ -36777,6 +41575,7 @@ CREATE POLICY "scm_purchase_document_select" ON "public"."scm_purchase_document"
 -- Name: scm_purchase_document scm_purchase_document_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_purchase_document_update" ON "public"."scm_purchase_document";
 --
 
 CREATE POLICY "scm_purchase_document_update" ON "public"."scm_purchase_document" FOR UPDATE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND ("app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Edit'::"text")) OR "app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Submit'::"text")) OR "app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Withdraw'::"text")) OR "app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Approve'::"text")) OR "app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Activate'::"text")) OR "app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Expire'::"text")) OR "app_private"."has_permission"(("app_private"."scm_purchase_permission_prefix"("kind") || ':Complete'::"text"))))) WITH CHECK (("tenant_id" = "app_private"."current_user_tenant_id"()));
@@ -36798,6 +41597,7 @@ ALTER TABLE "public"."scm_receipt_target_document" ENABLE ROW LEVEL SECURITY;
 -- Name: scm_receipt_target_document scm_receipt_target_document_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_receipt_target_document_select" ON "public"."scm_receipt_target_document";
 --
 
 CREATE POLICY "scm_receipt_target_document_select" ON "public"."scm_receipt_target_document" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"(
@@ -36823,6 +41623,7 @@ ALTER TABLE "public"."scm_receipt_target_line" ENABLE ROW LEVEL SECURITY;
 -- Name: scm_receipt_target_line scm_receipt_target_line_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_receipt_target_line_select" ON "public"."scm_receipt_target_line";
 --
 
 CREATE POLICY "scm_receipt_target_line_select" ON "public"."scm_receipt_target_line" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"(
@@ -36848,6 +41649,7 @@ ALTER TABLE "public"."scm_sales_document" ENABLE ROW LEVEL SECURITY;
 -- Name: scm_sales_document scm_sales_document_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_sales_document_delete" ON "public"."scm_sales_document";
 --
 
 CREATE POLICY "scm_sales_document_delete" ON "public"."scm_sales_document" FOR DELETE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND
@@ -36868,6 +41670,7 @@ END));
 -- Name: scm_sales_document scm_sales_document_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_sales_document_insert" ON "public"."scm_sales_document";
 --
 
 CREATE POLICY "scm_sales_document_insert" ON "public"."scm_sales_document" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND
@@ -36888,6 +41691,7 @@ END));
 -- Name: scm_sales_document scm_sales_document_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_sales_document_select" ON "public"."scm_sales_document";
 --
 
 CREATE POLICY "scm_sales_document_select" ON "public"."scm_sales_document" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND
@@ -36908,6 +41712,7 @@ END));
 -- Name: scm_sales_document scm_sales_document_super_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_sales_document_super_delete" ON "public"."scm_sales_document";
 --
 
 CREATE POLICY "scm_sales_document_super_delete" ON "public"."scm_sales_document" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() AND (("app_private"."current_read_tenant_id"() IS NULL) OR ("tenant_id" = "app_private"."current_read_tenant_id"()))));
@@ -36919,6 +41724,7 @@ CREATE POLICY "scm_sales_document_super_delete" ON "public"."scm_sales_document"
 -- Name: scm_sales_document scm_sales_document_super_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_sales_document_super_insert" ON "public"."scm_sales_document";
 --
 
 CREATE POLICY "scm_sales_document_super_insert" ON "public"."scm_sales_document" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() AND (("app_private"."current_read_tenant_id"() IS NULL) OR ("tenant_id" = "app_private"."current_read_tenant_id"()))));
@@ -36930,6 +41736,7 @@ CREATE POLICY "scm_sales_document_super_insert" ON "public"."scm_sales_document"
 -- Name: scm_sales_document scm_sales_document_super_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_sales_document_super_update" ON "public"."scm_sales_document";
 --
 
 CREATE POLICY "scm_sales_document_super_update" ON "public"."scm_sales_document" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() AND (("app_private"."current_read_tenant_id"() IS NULL) OR ("tenant_id" = "app_private"."current_read_tenant_id"())))) WITH CHECK (("app_private"."is_platform_super"() AND (("app_private"."current_read_tenant_id"() IS NULL) OR ("tenant_id" = "app_private"."current_read_tenant_id"()))));
@@ -36941,6 +41748,7 @@ CREATE POLICY "scm_sales_document_super_update" ON "public"."scm_sales_document"
 -- Name: scm_sales_document scm_sales_document_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "scm_sales_document_update" ON "public"."scm_sales_document";
 --
 
 CREATE POLICY "scm_sales_document_update" ON "public"."scm_sales_document" FOR UPDATE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND
@@ -36970,6 +41778,7 @@ END));
 -- Name: mdm_site smis_site_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "smis_site_delete" ON "public"."mdm_site";
 --
 
 CREATE POLICY "smis_site_delete" ON "public"."mdm_site" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('SmisSite:Delete'::"text") AS "has_permission"))));
@@ -36981,6 +41790,7 @@ CREATE POLICY "smis_site_delete" ON "public"."mdm_site" FOR DELETE TO "authentic
 -- Name: mdm_site smis_site_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "smis_site_insert" ON "public"."mdm_site";
 --
 
 CREATE POLICY "smis_site_insert" ON "public"."mdm_site" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('SmisSite:Add'::"text") AS "has_permission"))));
@@ -36992,6 +41802,7 @@ CREATE POLICY "smis_site_insert" ON "public"."mdm_site" FOR INSERT TO "authentic
 -- Name: mdm_site smis_site_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "smis_site_select" ON "public"."mdm_site";
 --
 
 CREATE POLICY "smis_site_select" ON "public"."mdm_site" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('SmisSite:View'::"text") AS "has_permission"))));
@@ -37003,6 +41814,7 @@ CREATE POLICY "smis_site_select" ON "public"."mdm_site" FOR SELECT TO "authentic
 -- Name: mdm_site smis_site_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "smis_site_update" ON "public"."mdm_site";
 --
 
 CREATE POLICY "smis_site_update" ON "public"."mdm_site" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('SmisSite:Edit'::"text") AS "has_permission")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -37014,6 +41826,7 @@ CREATE POLICY "smis_site_update" ON "public"."mdm_site" FOR UPDATE TO "authentic
 -- Name: mdm_storage_location smis_storage_location_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "smis_storage_location_tenant_delete" ON "public"."mdm_storage_location";
 --
 
 CREATE POLICY "smis_storage_location_tenant_delete" ON "public"."mdm_storage_location" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('SmisStorageLocation:Delete'::"text") AS "has_permission"))));
@@ -37025,6 +41838,7 @@ CREATE POLICY "smis_storage_location_tenant_delete" ON "public"."mdm_storage_loc
 -- Name: mdm_storage_location smis_storage_location_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "smis_storage_location_tenant_insert" ON "public"."mdm_storage_location";
 --
 
 CREATE POLICY "smis_storage_location_tenant_insert" ON "public"."mdm_storage_location" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('SmisStorageLocation:Add'::"text") AS "has_permission"))));
@@ -37036,6 +41850,7 @@ CREATE POLICY "smis_storage_location_tenant_insert" ON "public"."mdm_storage_loc
 -- Name: mdm_storage_location smis_storage_location_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "smis_storage_location_tenant_select" ON "public"."mdm_storage_location";
 --
 
 CREATE POLICY "smis_storage_location_tenant_select" ON "public"."mdm_storage_location" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."auth_user_tenant_id"()) AND ("app_private"."has_permission"('SmisStorageLocation:View'::"text") OR "app_private"."has_permission"('MdmMaterialArchive:View'::"text")))));
@@ -37047,6 +41862,7 @@ CREATE POLICY "smis_storage_location_tenant_select" ON "public"."mdm_storage_loc
 -- Name: mdm_storage_location smis_storage_location_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "smis_storage_location_tenant_update" ON "public"."mdm_storage_location";
 --
 
 CREATE POLICY "smis_storage_location_tenant_update" ON "public"."mdm_storage_location" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('SmisStorageLocation:Edit'::"text") AS "has_permission")))) WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('SmisStorageLocation:Edit'::"text") AS "has_permission"))));
@@ -37058,6 +41874,7 @@ CREATE POLICY "smis_storage_location_tenant_update" ON "public"."mdm_storage_loc
 -- Name: mdm_supplier supplier_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "supplier_delete" ON "public"."mdm_supplier";
 --
 
 CREATE POLICY "supplier_delete" ON "public"."mdm_supplier" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."has_permission"('SmisSupplier:Delete'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Supplier:Delete'::"text") AS "has_permission")))));
@@ -37069,6 +41886,7 @@ CREATE POLICY "supplier_delete" ON "public"."mdm_supplier" FOR DELETE TO "authen
 -- Name: mdm_master_group supplier_group_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "supplier_group_delete" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "supplier_group_delete" ON "public"."mdm_master_group" FOR DELETE TO "authenticated" USING ((("domain" = 'supplier'::"text") AND ("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmPurchaseSupplier:ManageGroup'::"text")));
@@ -37080,6 +41898,7 @@ CREATE POLICY "supplier_group_delete" ON "public"."mdm_master_group" FOR DELETE 
 -- Name: mdm_master_group supplier_group_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "supplier_group_insert" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "supplier_group_insert" ON "public"."mdm_master_group" FOR INSERT TO "authenticated" WITH CHECK ((("domain" = 'supplier'::"text") AND ("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmPurchaseSupplier:ManageGroup'::"text")));
@@ -37091,6 +41910,7 @@ CREATE POLICY "supplier_group_insert" ON "public"."mdm_master_group" FOR INSERT 
 -- Name: mdm_master_group supplier_group_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "supplier_group_read" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "supplier_group_read" ON "public"."mdm_master_group" FOR SELECT TO "authenticated" USING ((("domain" = 'supplier'::"text") AND "app_private"."tenant_in_current_read_scope"("tenant_id") AND ("app_private"."is_platform_super"() OR "app_private"."has_permission"('MdmPurchaseSupplier:View'::"text"))));
@@ -37102,6 +41922,7 @@ CREATE POLICY "supplier_group_read" ON "public"."mdm_master_group" FOR SELECT TO
 -- Name: mdm_master_group supplier_group_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "supplier_group_update" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "supplier_group_update" ON "public"."mdm_master_group" FOR UPDATE TO "authenticated" USING ((("domain" = 'supplier'::"text") AND ("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmPurchaseSupplier:ManageGroup'::"text"))) WITH CHECK ((("domain" = 'supplier'::"text") AND ("tenant_id" = "app_private"."auth_user_tenant_id"()) AND "app_private"."has_permission"('MdmPurchaseSupplier:ManageGroup'::"text")));
@@ -37113,6 +41934,7 @@ CREATE POLICY "supplier_group_update" ON "public"."mdm_master_group" FOR UPDATE 
 -- Name: mdm_supplier supplier_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "supplier_insert" ON "public"."mdm_supplier";
 --
 
 CREATE POLICY "supplier_insert" ON "public"."mdm_supplier" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."has_permission"('SmisSupplier:Add'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Supplier:Add'::"text") AS "has_permission")))));
@@ -37124,6 +41946,7 @@ CREATE POLICY "supplier_insert" ON "public"."mdm_supplier" FOR INSERT TO "authen
 -- Name: mdm_supplier supplier_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "supplier_update" ON "public"."mdm_supplier";
 --
 
 CREATE POLICY "supplier_update" ON "public"."mdm_supplier" FOR UPDATE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."has_permission"('SmisSupplier:Edit'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Supplier:Edit'::"text") AS "has_permission"))))) WITH CHECK ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."has_permission"('SmisSupplier:Edit'::"text") AS "has_permission") OR ( SELECT "app_private"."has_permission"('Supplier:Edit'::"text") AS "has_permission"))));
@@ -37145,6 +41968,7 @@ ALTER TABLE "public"."sys_application" ENABLE ROW LEVEL SECURITY;
 -- Name: sys_application sys_application_platform_manage; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_application_platform_manage" ON "public"."sys_application";
 --
 
 CREATE POLICY "sys_application_platform_manage" ON "public"."sys_application" TO "authenticated" USING ("app_private"."is_platform_super"()) WITH CHECK ("app_private"."is_platform_super"());
@@ -37186,6 +42010,7 @@ ALTER TABLE "public"."sys_dict_type" ENABLE ROW LEVEL SECURITY;
 -- Name: sys_dict_type sys_dict_type_delete_platform_super; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_dict_type_delete_platform_super" ON "public"."sys_dict_type";
 --
 
 CREATE POLICY "sys_dict_type_delete_platform_super" ON "public"."sys_dict_type" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -37197,6 +42022,7 @@ CREATE POLICY "sys_dict_type_delete_platform_super" ON "public"."sys_dict_type" 
 -- Name: sys_dict_type sys_dict_type_insert_platform_super; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_dict_type_insert_platform_super" ON "public"."sys_dict_type";
 --
 
 CREATE POLICY "sys_dict_type_insert_platform_super" ON "public"."sys_dict_type" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -37208,6 +42034,7 @@ CREATE POLICY "sys_dict_type_insert_platform_super" ON "public"."sys_dict_type" 
 -- Name: sys_dict_type sys_dict_type_select_global; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_dict_type_select_global" ON "public"."sys_dict_type";
 --
 
 CREATE POLICY "sys_dict_type_select_global" ON "public"."sys_dict_type" FOR SELECT TO "authenticated" USING (true);
@@ -37219,6 +42046,7 @@ CREATE POLICY "sys_dict_type_select_global" ON "public"."sys_dict_type" FOR SELE
 -- Name: sys_dict_type sys_dict_type_update_platform_super; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_dict_type_update_platform_super" ON "public"."sys_dict_type";
 --
 
 CREATE POLICY "sys_dict_type_update_platform_super" ON "public"."sys_dict_type" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"()))) WITH CHECK (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -37240,6 +42068,7 @@ ALTER TABLE "public"."sys_dictionary" ENABLE ROW LEVEL SECURITY;
 -- Name: sys_dictionary sys_dictionary_delete_platform_super; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_dictionary_delete_platform_super" ON "public"."sys_dictionary";
 --
 
 CREATE POLICY "sys_dictionary_delete_platform_super" ON "public"."sys_dictionary" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -37251,6 +42080,7 @@ CREATE POLICY "sys_dictionary_delete_platform_super" ON "public"."sys_dictionary
 -- Name: sys_dictionary sys_dictionary_insert_platform_super; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_dictionary_insert_platform_super" ON "public"."sys_dictionary";
 --
 
 CREATE POLICY "sys_dictionary_insert_platform_super" ON "public"."sys_dictionary" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -37262,6 +42092,7 @@ CREATE POLICY "sys_dictionary_insert_platform_super" ON "public"."sys_dictionary
 -- Name: sys_dictionary sys_dictionary_select_global; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_dictionary_select_global" ON "public"."sys_dictionary";
 --
 
 CREATE POLICY "sys_dictionary_select_global" ON "public"."sys_dictionary" FOR SELECT TO "authenticated" USING (true);
@@ -37273,6 +42104,7 @@ CREATE POLICY "sys_dictionary_select_global" ON "public"."sys_dictionary" FOR SE
 -- Name: sys_dictionary sys_dictionary_update_platform_super; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_dictionary_update_platform_super" ON "public"."sys_dictionary";
 --
 
 CREATE POLICY "sys_dictionary_update_platform_super" ON "public"."sys_dictionary" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"()))) WITH CHECK (("app_private"."is_platform_super"() AND ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -37324,6 +42156,7 @@ ALTER TABLE "public"."sys_menu" ENABLE ROW LEVEL SECURITY;
 -- Name: sys_menu sys_menu_delete_authorized; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_menu_delete_authorized" ON "public"."sys_menu";
 --
 
 CREATE POLICY "sys_menu_delete_authorized" ON "public"."sys_menu" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() AND "app_private"."has_permission"('System:Menu:Delete'::"text")));
@@ -37335,6 +42168,7 @@ CREATE POLICY "sys_menu_delete_authorized" ON "public"."sys_menu" FOR DELETE TO 
 -- Name: sys_menu sys_menu_insert_authorized; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_menu_insert_authorized" ON "public"."sys_menu";
 --
 
 CREATE POLICY "sys_menu_insert_authorized" ON "public"."sys_menu" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() AND "app_private"."has_permission"('System:Menu:Add'::"text")));
@@ -37346,6 +42180,7 @@ CREATE POLICY "sys_menu_insert_authorized" ON "public"."sys_menu" FOR INSERT TO 
 -- Name: sys_menu sys_menu_select_global; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_menu_select_global" ON "public"."sys_menu";
 --
 
 CREATE POLICY "sys_menu_select_global" ON "public"."sys_menu" FOR SELECT TO "authenticated" USING (true);
@@ -37357,6 +42192,7 @@ CREATE POLICY "sys_menu_select_global" ON "public"."sys_menu" FOR SELECT TO "aut
 -- Name: sys_menu sys_menu_update_authorized; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_menu_update_authorized" ON "public"."sys_menu";
 --
 
 CREATE POLICY "sys_menu_update_authorized" ON "public"."sys_menu" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() AND "app_private"."has_permission"('System:Menu:Edit'::"text"))) WITH CHECK (("app_private"."is_platform_super"() AND "app_private"."has_permission"('System:Menu:Edit'::"text")));
@@ -37428,6 +42264,7 @@ ALTER TABLE "public"."sys_notification_scenario" ENABLE ROW LEVEL SECURITY;
 -- Name: sys_notification_scenario sys_notification_scenario_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_notification_scenario_select" ON "public"."sys_notification_scenario";
 --
 
 CREATE POLICY "sys_notification_scenario_select" ON "public"."sys_notification_scenario" FOR SELECT TO "authenticated" USING (("enabled" IS TRUE));
@@ -37459,6 +42296,7 @@ ALTER TABLE "public"."sys_param" ENABLE ROW LEVEL SECURITY;
 -- Name: sys_param sys_param_authenticated_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_param_authenticated_read" ON "public"."sys_param";
 --
 
 CREATE POLICY "sys_param_authenticated_read" ON "public"."sys_param" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()) OR ("tenant_id" = "app_private"."platform_tenant_id"())));
@@ -37470,6 +42308,7 @@ CREATE POLICY "sys_param_authenticated_read" ON "public"."sys_param" FOR SELECT 
 -- Name: sys_param sys_param_authorized_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_param_authorized_delete" ON "public"."sys_param";
 --
 
 CREATE POLICY "sys_param_authorized_delete" ON "public"."sys_param" FOR DELETE TO "authenticated" USING (((NOT "builtin") AND ("app_private"."is_platform_super"() OR ("app_private"."has_permission"('System:SystemParam:Delete'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()) AND ("param_key" <> ALL (ARRAY['website.config'::"text", 'tms.geofence.config'::"text"]))))));
@@ -37481,6 +42320,7 @@ CREATE POLICY "sys_param_authorized_delete" ON "public"."sys_param" FOR DELETE T
 -- Name: sys_param sys_param_authorized_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_param_authorized_insert" ON "public"."sys_param";
 --
 
 CREATE POLICY "sys_param_authorized_insert" ON "public"."sys_param" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() OR ("app_private"."has_permission"('System:SystemParam:Add'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()) AND ("param_key" <> ALL (ARRAY['website.config'::"text", 'tms.geofence.config'::"text"])))));
@@ -37492,6 +42332,7 @@ CREATE POLICY "sys_param_authorized_insert" ON "public"."sys_param" FOR INSERT T
 -- Name: sys_param sys_param_authorized_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "sys_param_authorized_update" ON "public"."sys_param";
 --
 
 CREATE POLICY "sys_param_authorized_update" ON "public"."sys_param" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("app_private"."has_permission"('System:SystemParam:Edit'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()) AND ("param_key" <> ALL (ARRAY['website.config'::"text", 'tms.geofence.config'::"text"]))))) WITH CHECK (("app_private"."is_platform_super"() OR ("app_private"."has_permission"('System:SystemParam:Edit'::"text") AND ("tenant_id" = "app_private"."current_user_tenant_id"()) AND ("param_key" <> ALL (ARRAY['website.config'::"text", 'tms.geofence.config'::"text"])))));
@@ -37603,6 +42444,7 @@ ALTER TABLE "public"."sys_user_tenant" ENABLE ROW LEVEL SECURITY;
 -- Name: ai_conversation tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."ai_conversation";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."ai_conversation" FOR DELETE TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")))));
@@ -37614,6 +42456,7 @@ CREATE POLICY "tenant_delete" ON "public"."ai_conversation" FOR DELETE TO "authe
 -- Name: ai_feedback tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."ai_feedback";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."ai_feedback" FOR DELETE TO "authenticated" USING ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -37625,6 +42468,7 @@ CREATE POLICY "tenant_delete" ON "public"."ai_feedback" FOR DELETE TO "authentic
 -- Name: ai_prompt_template tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."ai_prompt_template";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."ai_prompt_template" FOR DELETE TO "authenticated" USING ((("status" = 'draft'::"text") AND ( SELECT "app_private"."is_platform_super"() AS "is_platform_super")));
@@ -37636,6 +42480,7 @@ CREATE POLICY "tenant_delete" ON "public"."ai_prompt_template" FOR DELETE TO "au
 -- Name: mdm_carrier tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."mdm_carrier";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."mdm_carrier" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -37647,6 +42492,7 @@ CREATE POLICY "tenant_delete" ON "public"."mdm_carrier" FOR DELETE TO "authentic
 -- Name: mdm_customer_address tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."mdm_customer_address";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."mdm_customer_address" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -37658,6 +42504,7 @@ CREATE POLICY "tenant_delete" ON "public"."mdm_customer_address" FOR DELETE TO "
 -- Name: mdm_document_type tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."mdm_document_type";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."mdm_document_type" FOR DELETE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmDocumentType:Delete'::"text")));
@@ -37669,6 +42516,7 @@ CREATE POLICY "tenant_delete" ON "public"."mdm_document_type" FOR DELETE TO "aut
 -- Name: mdm_master_group tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."mdm_master_group" FOR DELETE TO "authenticated" USING ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND
@@ -37688,6 +42536,7 @@ END));
 -- Name: mdm_organization tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."mdm_organization";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."mdm_organization" FOR DELETE TO "authenticated" USING (("app_private"."has_permission"('System:Organization:Delete'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -37699,6 +42548,7 @@ CREATE POLICY "tenant_delete" ON "public"."mdm_organization" FOR DELETE TO "auth
 -- Name: mdm_process_route tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."mdm_process_route";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."mdm_process_route" FOR DELETE TO "authenticated" USING ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmProcessRoute:Delete'::"text") AS "has_permission")));
@@ -37710,6 +42560,7 @@ CREATE POLICY "tenant_delete" ON "public"."mdm_process_route" FOR DELETE TO "aut
 -- Name: mdm_production_department tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."mdm_production_department";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."mdm_production_department" FOR DELETE TO "authenticated" USING ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND "app_private"."has_permission"('MdmProductionDepartment:Delete'::"text")));
@@ -37721,6 +42572,7 @@ CREATE POLICY "tenant_delete" ON "public"."mdm_production_department" FOR DELETE
 -- Name: mdm_project tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."mdm_project";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."mdm_project" FOR DELETE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmSalesProject:Delete'::"text")));
@@ -37732,6 +42584,7 @@ CREATE POLICY "tenant_delete" ON "public"."mdm_project" FOR DELETE TO "authentic
 -- Name: sys_attachment tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."sys_attachment";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."sys_attachment" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -37743,6 +42596,7 @@ CREATE POLICY "tenant_delete" ON "public"."sys_attachment" FOR DELETE TO "authen
 -- Name: sys_audit_log tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."sys_audit_log";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."sys_audit_log" FOR DELETE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -37754,6 +42608,7 @@ CREATE POLICY "tenant_delete" ON "public"."sys_audit_log" FOR DELETE TO "authent
 -- Name: sys_role tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."sys_role";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."sys_role" FOR DELETE TO "authenticated" USING (("app_private"."has_permission"('System:Role:Delete'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -37765,6 +42620,7 @@ CREATE POLICY "tenant_delete" ON "public"."sys_role" FOR DELETE TO "authenticate
 -- Name: sys_role_menu tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."sys_role_menu";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."sys_role_menu" FOR DELETE TO "authenticated" USING (("app_private"."has_permission"('System:Role:AssignPermission'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -37776,6 +42632,7 @@ CREATE POLICY "tenant_delete" ON "public"."sys_role_menu" FOR DELETE TO "authent
 -- Name: sys_tenant tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."sys_tenant";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."sys_tenant" FOR DELETE TO "authenticated" USING (("app_private"."has_permission"('System:Tenant:Delete'::"text") AND (EXISTS ( SELECT 1
@@ -37789,6 +42646,7 @@ CREATE POLICY "tenant_delete" ON "public"."sys_tenant" FOR DELETE TO "authentica
 -- Name: sys_user tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."sys_user";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."sys_user" FOR DELETE TO "authenticated" USING (("app_private"."has_permission"('System:User:Delete'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -37800,6 +42658,7 @@ CREATE POLICY "tenant_delete" ON "public"."sys_user" FOR DELETE TO "authenticate
 -- Name: sys_user_tenant tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_delete" ON "public"."sys_user_tenant";
 --
 
 CREATE POLICY "tenant_delete" ON "public"."sys_user_tenant" FOR DELETE USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."is_tenant_admin"())));
@@ -37811,6 +42670,7 @@ CREATE POLICY "tenant_delete" ON "public"."sys_user_tenant" FOR DELETE USING (("
 -- Name: ai_feature_config tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."ai_feature_config";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."ai_feature_config" FOR INSERT TO "authenticated" WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -37822,6 +42682,7 @@ CREATE POLICY "tenant_insert" ON "public"."ai_feature_config" FOR INSERT TO "aut
 -- Name: ai_feedback tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."ai_feedback";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."ai_feedback" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")) AND (EXISTS ( SELECT 1
@@ -37835,6 +42696,7 @@ CREATE POLICY "tenant_insert" ON "public"."ai_feedback" FOR INSERT TO "authentic
 -- Name: ai_prompt_template tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."ai_prompt_template";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."ai_prompt_template" FOR INSERT TO "authenticated" WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -37846,6 +42708,7 @@ CREATE POLICY "tenant_insert" ON "public"."ai_prompt_template" FOR INSERT TO "au
 -- Name: mdm_carrier tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."mdm_carrier";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."mdm_carrier" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -37857,6 +42720,7 @@ CREATE POLICY "tenant_insert" ON "public"."mdm_carrier" FOR INSERT TO "authentic
 -- Name: mdm_customer_address tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."mdm_customer_address";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."mdm_customer_address" FOR INSERT TO "authenticated" WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND (("customer_id" IS NULL) OR (EXISTS ( SELECT 1
@@ -37870,6 +42734,7 @@ CREATE POLICY "tenant_insert" ON "public"."mdm_customer_address" FOR INSERT TO "
 -- Name: mdm_document_type tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."mdm_document_type";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."mdm_document_type" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmDocumentType:Add'::"text")));
@@ -37881,6 +42746,7 @@ CREATE POLICY "tenant_insert" ON "public"."mdm_document_type" FOR INSERT TO "aut
 -- Name: mdm_master_group tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."mdm_master_group" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND
@@ -37900,6 +42766,7 @@ END));
 -- Name: mdm_organization tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."mdm_organization";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."mdm_organization" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."has_permission"('System:Organization:Add'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -37911,6 +42778,7 @@ CREATE POLICY "tenant_insert" ON "public"."mdm_organization" FOR INSERT TO "auth
 -- Name: mdm_process_route tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."mdm_process_route";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."mdm_process_route" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmProcessRoute:Add'::"text") AS "has_permission")));
@@ -37922,6 +42790,7 @@ CREATE POLICY "tenant_insert" ON "public"."mdm_process_route" FOR INSERT TO "aut
 -- Name: mdm_production_department tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."mdm_production_department";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."mdm_production_department" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("app_private"."has_permission"('MdmProductionDepartment:Add'::"text") OR "app_private"."has_permission"('MdmProductionDepartment:Import'::"text"))));
@@ -37933,6 +42802,7 @@ CREATE POLICY "tenant_insert" ON "public"."mdm_production_department" FOR INSERT
 -- Name: mdm_project tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."mdm_project";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."mdm_project" FOR INSERT TO "authenticated" WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmSalesProject:Add'::"text")));
@@ -37944,6 +42814,7 @@ CREATE POLICY "tenant_insert" ON "public"."mdm_project" FOR INSERT TO "authentic
 -- Name: sys_attachment tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."sys_attachment";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."sys_attachment" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -37955,6 +42826,7 @@ CREATE POLICY "tenant_insert" ON "public"."sys_attachment" FOR INSERT TO "authen
 -- Name: sys_audit_log tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."sys_audit_log";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."sys_audit_log" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -37966,6 +42838,7 @@ CREATE POLICY "tenant_insert" ON "public"."sys_audit_log" FOR INSERT TO "authent
 -- Name: sys_role tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."sys_role";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."sys_role" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."has_permission"('System:Role:Add'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -37977,6 +42850,7 @@ CREATE POLICY "tenant_insert" ON "public"."sys_role" FOR INSERT TO "authenticate
 -- Name: sys_role_menu tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."sys_role_menu";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."sys_role_menu" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."has_permission"('System:Role:AssignPermission'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -37988,6 +42862,7 @@ CREATE POLICY "tenant_insert" ON "public"."sys_role_menu" FOR INSERT TO "authent
 -- Name: sys_tenant tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."sys_tenant";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."sys_tenant" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."has_permission"('System:Tenant:Add'::"text") AND (EXISTS ( SELECT 1
@@ -38001,6 +42876,7 @@ CREATE POLICY "tenant_insert" ON "public"."sys_tenant" FOR INSERT TO "authentica
 -- Name: sys_user tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."sys_user";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."sys_user" FOR INSERT TO "authenticated" WITH CHECK (("app_private"."has_permission"('System:User:Add'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -38012,6 +42888,7 @@ CREATE POLICY "tenant_insert" ON "public"."sys_user" FOR INSERT TO "authenticate
 -- Name: sys_user_tenant tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_insert" ON "public"."sys_user_tenant";
 --
 
 CREATE POLICY "tenant_insert" ON "public"."sys_user_tenant" FOR INSERT WITH CHECK (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."is_tenant_admin"())));
@@ -38023,6 +42900,7 @@ CREATE POLICY "tenant_insert" ON "public"."sys_user_tenant" FOR INSERT WITH CHEC
 -- Name: wf_action tenant_readonly_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_readonly_select" ON "public"."wf_action";
 --
 
 CREATE POLICY "tenant_readonly_select" ON "public"."wf_action" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38034,6 +42912,7 @@ CREATE POLICY "tenant_readonly_select" ON "public"."wf_action" FOR SELECT TO "au
 -- Name: wf_business_callback_attempt tenant_readonly_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_readonly_select" ON "public"."wf_business_callback_attempt";
 --
 
 CREATE POLICY "tenant_readonly_select" ON "public"."wf_business_callback_attempt" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
@@ -38047,6 +42926,7 @@ CREATE POLICY "tenant_readonly_select" ON "public"."wf_business_callback_attempt
 -- Name: wf_business_callback_outbox tenant_readonly_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_readonly_select" ON "public"."wf_business_callback_outbox";
 --
 
 CREATE POLICY "tenant_readonly_select" ON "public"."wf_business_callback_outbox" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38058,6 +42938,7 @@ CREATE POLICY "tenant_readonly_select" ON "public"."wf_business_callback_outbox"
 -- Name: wf_instance tenant_readonly_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_readonly_select" ON "public"."wf_instance";
 --
 
 CREATE POLICY "tenant_readonly_select" ON "public"."wf_instance" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38069,6 +42950,7 @@ CREATE POLICY "tenant_readonly_select" ON "public"."wf_instance" FOR SELECT TO "
 -- Name: wf_task tenant_readonly_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_readonly_select" ON "public"."wf_task";
 --
 
 CREATE POLICY "tenant_readonly_select" ON "public"."wf_task" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38080,6 +42962,7 @@ CREATE POLICY "tenant_readonly_select" ON "public"."wf_task" FOR SELECT TO "auth
 -- Name: ai_conversation tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."ai_conversation";
 --
 
 CREATE POLICY "tenant_select" ON "public"."ai_conversation" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")))));
@@ -38091,6 +42974,7 @@ CREATE POLICY "tenant_select" ON "public"."ai_conversation" FOR SELECT TO "authe
 -- Name: ai_feature_config tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."ai_feature_config";
 --
 
 CREATE POLICY "tenant_select" ON "public"."ai_feature_config" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) OR ("tenant_id" = ( SELECT "app_private"."platform_tenant_id"() AS "platform_tenant_id"))));
@@ -38102,6 +42986,7 @@ CREATE POLICY "tenant_select" ON "public"."ai_feature_config" FOR SELECT TO "aut
 -- Name: ai_feedback tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."ai_feedback";
 --
 
 CREATE POLICY "tenant_select" ON "public"."ai_feedback" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."is_tenant_admin"() AS "is_tenant_admin") OR ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
@@ -38113,6 +42998,7 @@ CREATE POLICY "tenant_select" ON "public"."ai_feedback" FOR SELECT TO "authentic
 -- Name: ai_message tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."ai_message";
 --
 
 CREATE POLICY "tenant_select" ON "public"."ai_message" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")))));
@@ -38124,6 +43010,7 @@ CREATE POLICY "tenant_select" ON "public"."ai_message" FOR SELECT TO "authentica
 -- Name: ai_prompt_template tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."ai_prompt_template";
 --
 
 CREATE POLICY "tenant_select" ON "public"."ai_prompt_template" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38135,6 +43022,7 @@ CREATE POLICY "tenant_select" ON "public"."ai_prompt_template" FOR SELECT TO "au
 -- Name: ai_run tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."ai_run";
 --
 
 CREATE POLICY "tenant_select" ON "public"."ai_run" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND (( SELECT "app_private"."is_tenant_admin"() AS "is_tenant_admin") OR ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))))));
@@ -38146,6 +43034,7 @@ CREATE POLICY "tenant_select" ON "public"."ai_run" FOR SELECT TO "authenticated"
 -- Name: ai_tool_call tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."ai_tool_call";
 --
 
 CREATE POLICY "tenant_select" ON "public"."ai_tool_call" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")))));
@@ -38157,6 +43046,7 @@ CREATE POLICY "tenant_select" ON "public"."ai_tool_call" FOR SELECT TO "authenti
 -- Name: mdm_accessory_processing_item tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_accessory_processing_item";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_accessory_processing_item" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmAccessoryProcessing:View'::"text")));
@@ -38168,6 +43058,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_accessory_processing_item" FOR SE
 -- Name: mdm_accessory_processing_list tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_accessory_processing_list";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_accessory_processing_list" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmAccessoryProcessing:View'::"text")));
@@ -38179,6 +43070,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_accessory_processing_list" FOR SE
 -- Name: mdm_carrier tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_carrier";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_carrier" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38190,6 +43082,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_carrier" FOR SELECT TO "authentic
 -- Name: mdm_customer_address tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_customer_address";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_customer_address" FOR SELECT TO "authenticated" USING ("app_private"."tenant_in_current_read_scope"("tenant_id"));
@@ -38201,6 +43094,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_customer_address" FOR SELECT TO "
 -- Name: mdm_document_type tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_document_type";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_document_type" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmDocumentType:View'::"text")));
@@ -38212,6 +43106,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_document_type" FOR SELECT TO "aut
 -- Name: mdm_master_group tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_master_group" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."tenant_in_current_read_scope"("mdm_master_group"."tenant_id") AS "tenant_in_current_read_scope") AND
@@ -38231,6 +43126,7 @@ END));
 -- Name: mdm_organization tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_organization";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_organization" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38242,6 +43138,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_organization" FOR SELECT TO "auth
 -- Name: mdm_process_route tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_process_route";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_process_route" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."mdm_production_read_allowed"()));
@@ -38253,6 +43150,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_process_route" FOR SELECT TO "aut
 -- Name: mdm_production_department tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_production_department";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_production_department" FOR SELECT TO "authenticated" USING (((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) OR ( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) AND ( SELECT "app_private"."mdm_production_read_allowed"() AS "mdm_production_read_allowed")));
@@ -38264,6 +43162,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_production_department" FOR SELECT
 -- Name: mdm_project tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_project";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_project" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('MdmSalesProject:View'::"text")));
@@ -38275,6 +43174,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_project" FOR SELECT TO "authentic
 -- Name: mdm_supplier tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."mdm_supplier";
 --
 
 CREATE POLICY "tenant_select" ON "public"."mdm_supplier" FOR SELECT TO "authenticated" USING ("app_private"."tenant_in_current_read_scope"("tenant_id"));
@@ -38286,6 +43186,7 @@ CREATE POLICY "tenant_select" ON "public"."mdm_supplier" FOR SELECT TO "authenti
 -- Name: sys_attachment tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_attachment";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_attachment" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38297,6 +43198,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_attachment" FOR SELECT TO "authen
 -- Name: sys_audit_log tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_audit_log";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_audit_log" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38308,6 +43210,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_audit_log" FOR SELECT TO "authent
 -- Name: sys_notification_channel_config tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_notification_channel_config";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_notification_channel_config" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38319,6 +43222,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_notification_channel_config" FOR 
 -- Name: sys_notification_delivery tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_notification_delivery";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_notification_delivery" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38330,6 +43234,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_notification_delivery" FOR SELECT
 -- Name: sys_notification_event tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_notification_event";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_notification_event" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38341,6 +43246,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_notification_event" FOR SELECT TO
 -- Name: sys_notification_rule tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_notification_rule";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_notification_rule" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38352,6 +43258,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_notification_rule" FOR SELECT TO 
 -- Name: sys_notification_subject tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_notification_subject";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_notification_subject" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38363,6 +43270,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_notification_subject" FOR SELECT 
 -- Name: sys_permission_audit_log tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_permission_audit_log";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_permission_audit_log" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38374,6 +43282,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_permission_audit_log" FOR SELECT 
 -- Name: sys_permission_field tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_permission_field";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_permission_field" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38385,6 +43294,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_permission_field" FOR SELECT TO "
 -- Name: sys_permission_resource tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_permission_resource";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_permission_resource" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38396,6 +43306,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_permission_resource" FOR SELECT T
 -- Name: sys_role tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_role";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_role" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38407,6 +43318,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_role" FOR SELECT TO "authenticate
 -- Name: sys_role_field_permission tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_role_field_permission";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_role_field_permission" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38418,6 +43330,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_role_field_permission" FOR SELECT
 -- Name: sys_role_menu tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_role_menu";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_role_menu" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38429,6 +43342,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_role_menu" FOR SELECT TO "authent
 -- Name: sys_tenant tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_tenant";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_tenant" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("id" = "app_private"."current_user_tenant_id"())));
@@ -38440,6 +43354,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_tenant" FOR SELECT TO "authentica
 -- Name: sys_user tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_user";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_user" FOR SELECT TO "authenticated" USING (
@@ -38455,6 +43370,7 @@ END);
 -- Name: sys_user_field_permission tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_user_field_permission";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_user_field_permission" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38466,6 +43382,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_user_field_permission" FOR SELECT
 -- Name: sys_user_tenant tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."sys_user_tenant";
 --
 
 CREATE POLICY "tenant_select" ON "public"."sys_user_tenant" FOR SELECT USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()) OR ("user_id" = "app_private"."current_app_user_id"())));
@@ -38477,6 +43394,7 @@ CREATE POLICY "tenant_select" ON "public"."sys_user_tenant" FOR SELECT USING (("
 -- Name: wf_definition tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."wf_definition";
 --
 
 CREATE POLICY "tenant_select" ON "public"."wf_definition" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38488,6 +43406,7 @@ CREATE POLICY "tenant_select" ON "public"."wf_definition" FOR SELECT TO "authent
 -- Name: wf_version tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_select" ON "public"."wf_version";
 --
 
 CREATE POLICY "tenant_select" ON "public"."wf_version" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id"))));
@@ -38499,6 +43418,7 @@ CREATE POLICY "tenant_select" ON "public"."wf_version" FOR SELECT TO "authentica
 -- Name: ai_feature_config tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."ai_feature_config";
 --
 
 CREATE POLICY "tenant_update" ON "public"."ai_feature_config" FOR UPDATE TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -38510,6 +43430,7 @@ CREATE POLICY "tenant_update" ON "public"."ai_feature_config" FOR UPDATE TO "aut
 -- Name: ai_feedback tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."ai_feedback";
 --
 
 CREATE POLICY "tenant_update" ON "public"."ai_feedback" FOR UPDATE TO "authenticated" USING ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")))) WITH CHECK ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("auth_user_id" = ( SELECT "auth"."uid"() AS "uid"))));
@@ -38521,6 +43442,7 @@ CREATE POLICY "tenant_update" ON "public"."ai_feedback" FOR UPDATE TO "authentic
 -- Name: ai_prompt_template tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."ai_prompt_template";
 --
 
 CREATE POLICY "tenant_update" ON "public"."ai_prompt_template" FOR UPDATE TO "authenticated" USING (( SELECT "app_private"."is_platform_super"() AS "is_platform_super")) WITH CHECK (( SELECT "app_private"."is_platform_super"() AS "is_platform_super"));
@@ -38532,6 +43454,7 @@ CREATE POLICY "tenant_update" ON "public"."ai_prompt_template" FOR UPDATE TO "au
 -- Name: mdm_carrier tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."mdm_carrier";
 --
 
 CREATE POLICY "tenant_update" ON "public"."mdm_carrier" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))) WITH CHECK (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38543,6 +43466,7 @@ CREATE POLICY "tenant_update" ON "public"."mdm_carrier" FOR UPDATE TO "authentic
 -- Name: mdm_customer_address tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."mdm_customer_address";
 --
 
 CREATE POLICY "tenant_update" ON "public"."mdm_customer_address" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))) WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND (("customer_id" IS NULL) OR (EXISTS ( SELECT 1
@@ -38556,6 +43480,7 @@ CREATE POLICY "tenant_update" ON "public"."mdm_customer_address" FOR UPDATE TO "
 -- Name: mdm_document_type tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."mdm_document_type";
 --
 
 CREATE POLICY "tenant_update" ON "public"."mdm_document_type" FOR UPDATE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmDocumentType:Edit'::"text"))) WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmDocumentType:Edit'::"text")));
@@ -38567,6 +43492,7 @@ CREATE POLICY "tenant_update" ON "public"."mdm_document_type" FOR UPDATE TO "aut
 -- Name: mdm_master_group tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "tenant_update" ON "public"."mdm_master_group" FOR UPDATE TO "authenticated" USING ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND
@@ -38586,6 +43512,7 @@ END)) WITH CHECK (("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"
 -- Name: mdm_organization tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."mdm_organization";
 --
 
 CREATE POLICY "tenant_update" ON "public"."mdm_organization" FOR UPDATE TO "authenticated" USING (("app_private"."has_permission"('System:Organization:Edit'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())))) WITH CHECK (("app_private"."has_permission"('System:Organization:Edit'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -38597,6 +43524,7 @@ CREATE POLICY "tenant_update" ON "public"."mdm_organization" FOR UPDATE TO "auth
 -- Name: mdm_process_route tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."mdm_process_route";
 --
 
 CREATE POLICY "tenant_update" ON "public"."mdm_process_route" FOR UPDATE TO "authenticated" USING ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmProcessRoute:Edit'::"text") AS "has_permission"))) WITH CHECK ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ( SELECT "app_private"."has_permission"('MdmProcessRoute:Edit'::"text") AS "has_permission")));
@@ -38608,6 +43536,7 @@ CREATE POLICY "tenant_update" ON "public"."mdm_process_route" FOR UPDATE TO "aut
 -- Name: mdm_production_department tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."mdm_production_department";
 --
 
 CREATE POLICY "tenant_update" ON "public"."mdm_production_department" FOR UPDATE TO "authenticated" USING ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("app_private"."has_permission"('MdmProductionDepartment:Edit'::"text") OR "app_private"."has_permission"('MdmProductionDepartment:Enable'::"text") OR "app_private"."has_permission"('MdmProductionDepartment:Disable'::"text")))) WITH CHECK ((("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")) AND ("app_private"."has_permission"('MdmProductionDepartment:Edit'::"text") OR "app_private"."has_permission"('MdmProductionDepartment:Enable'::"text") OR "app_private"."has_permission"('MdmProductionDepartment:Disable'::"text"))));
@@ -38619,6 +43548,7 @@ CREATE POLICY "tenant_update" ON "public"."mdm_production_department" FOR UPDATE
 -- Name: mdm_project tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."mdm_project";
 --
 
 CREATE POLICY "tenant_update" ON "public"."mdm_project" FOR UPDATE TO "authenticated" USING ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmSalesProject:Edit'::"text"))) WITH CHECK ((("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."has_permission"('MdmSalesProject:Edit'::"text")));
@@ -38630,6 +43560,7 @@ CREATE POLICY "tenant_update" ON "public"."mdm_project" FOR UPDATE TO "authentic
 -- Name: sys_attachment tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."sys_attachment";
 --
 
 CREATE POLICY "tenant_update" ON "public"."sys_attachment" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))) WITH CHECK (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38641,6 +43572,7 @@ CREATE POLICY "tenant_update" ON "public"."sys_attachment" FOR UPDATE TO "authen
 -- Name: sys_audit_log tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."sys_audit_log";
 --
 
 CREATE POLICY "tenant_update" ON "public"."sys_audit_log" FOR UPDATE TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))) WITH CHECK (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38652,6 +43584,7 @@ CREATE POLICY "tenant_update" ON "public"."sys_audit_log" FOR UPDATE TO "authent
 -- Name: sys_role tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."sys_role";
 --
 
 CREATE POLICY "tenant_update" ON "public"."sys_role" FOR UPDATE TO "authenticated" USING (("app_private"."has_permission"('System:Role:Edit'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())))) WITH CHECK (("app_private"."has_permission"('System:Role:Edit'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -38663,6 +43596,7 @@ CREATE POLICY "tenant_update" ON "public"."sys_role" FOR UPDATE TO "authenticate
 -- Name: sys_role_menu tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."sys_role_menu";
 --
 
 CREATE POLICY "tenant_update" ON "public"."sys_role_menu" FOR UPDATE TO "authenticated" USING (("app_private"."has_permission"('System:Role:AssignPermission'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())))) WITH CHECK (("app_private"."has_permission"('System:Role:AssignPermission'::"text") AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))));
@@ -38674,6 +43608,7 @@ CREATE POLICY "tenant_update" ON "public"."sys_role_menu" FOR UPDATE TO "authent
 -- Name: sys_tenant tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."sys_tenant";
 --
 
 CREATE POLICY "tenant_update" ON "public"."sys_tenant" FOR UPDATE TO "authenticated" USING (("app_private"."has_permission"('System:Tenant:Edit'::"text") AND (EXISTS ( SELECT 1
@@ -38689,6 +43624,7 @@ CREATE POLICY "tenant_update" ON "public"."sys_tenant" FOR UPDATE TO "authentica
 -- Name: sys_user tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."sys_user";
 --
 
 CREATE POLICY "tenant_update" ON "public"."sys_user" FOR UPDATE TO "authenticated" USING ((("auth_user_id" = ( SELECT "auth"."uid"() AS "uid")) OR (("app_private"."has_permission"('System:User:Edit'::"text") OR "app_private"."has_permission"('System:User:AssignRole'::"text")) AND ("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"()))))) WITH CHECK (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38700,6 +43636,7 @@ CREATE POLICY "tenant_update" ON "public"."sys_user" FOR UPDATE TO "authenticate
 -- Name: sys_user_tenant tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tenant_update" ON "public"."sys_user_tenant";
 --
 
 CREATE POLICY "tenant_update" ON "public"."sys_user_tenant" FOR UPDATE USING (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."is_tenant_admin"()))) WITH CHECK (("app_private"."is_platform_super"() OR (("tenant_id" = "app_private"."current_user_tenant_id"()) AND "app_private"."is_tenant_admin"())));
@@ -38711,6 +43648,7 @@ CREATE POLICY "tenant_update" ON "public"."sys_user_tenant" FOR UPDATE USING (("
 -- Name: mdm_master_group tms_cargo_material_group_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tms_cargo_material_group_select" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "tms_cargo_material_group_select" ON "public"."mdm_master_group" FOR SELECT TO "authenticated" USING ((("domain" = 'material'::"text") AND "app_private"."tenant_in_current_read_scope"("tenant_id") AND ("app_private"."is_platform_super"() OR "app_private"."has_permission"('TmsCargo:View'::"text") OR "app_private"."has_permission"('MdmMaterialArchive:View'::"text"))));
@@ -38722,6 +43660,7 @@ CREATE POLICY "tms_cargo_material_group_select" ON "public"."mdm_master_group" F
 -- Name: mdm_master_group tms_customer_group_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tms_customer_group_select" ON "public"."mdm_master_group";
 --
 
 CREATE POLICY "tms_customer_group_select" ON "public"."mdm_master_group" FOR SELECT TO "authenticated" USING ((("domain" = 'customer'::"text") AND "app_private"."tenant_in_current_read_scope"("tenant_id") AND "app_private"."has_permission"('TmsCustomer:View'::"text")));
@@ -38743,6 +43682,7 @@ ALTER TABLE "public"."tms_invoice" ENABLE ROW LEVEL SECURITY;
 -- Name: tms_invoice tms_invoice_tenant_delete; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tms_invoice_tenant_delete" ON "public"."tms_invoice";
 --
 
 CREATE POLICY "tms_invoice_tenant_delete" ON "public"."tms_invoice" FOR DELETE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND ("status" = 'draft'::"text")));
@@ -38754,6 +43694,7 @@ CREATE POLICY "tms_invoice_tenant_delete" ON "public"."tms_invoice" FOR DELETE T
 -- Name: tms_invoice tms_invoice_tenant_insert; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tms_invoice_tenant_insert" ON "public"."tms_invoice";
 --
 
 CREATE POLICY "tms_invoice_tenant_insert" ON "public"."tms_invoice" FOR INSERT TO "authenticated" WITH CHECK ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND ("status" = 'draft'::"text")));
@@ -38765,6 +43706,7 @@ CREATE POLICY "tms_invoice_tenant_insert" ON "public"."tms_invoice" FOR INSERT T
 -- Name: tms_invoice tms_invoice_tenant_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tms_invoice_tenant_select" ON "public"."tms_invoice";
 --
 
 CREATE POLICY "tms_invoice_tenant_select" ON "public"."tms_invoice" FOR SELECT TO "authenticated" USING (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38776,6 +43718,7 @@ CREATE POLICY "tms_invoice_tenant_select" ON "public"."tms_invoice" FOR SELECT T
 -- Name: tms_invoice tms_invoice_tenant_update; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "tms_invoice_tenant_update" ON "public"."tms_invoice";
 --
 
 CREATE POLICY "tms_invoice_tenant_update" ON "public"."tms_invoice" FOR UPDATE TO "authenticated" USING ((("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())) AND ("status" <> 'voided'::"text"))) WITH CHECK (("app_private"."is_platform_super"() OR ("tenant_id" = "app_private"."current_user_tenant_id"())));
@@ -38787,6 +43730,7 @@ CREATE POLICY "tms_invoice_tenant_update" ON "public"."tms_invoice" FOR UPDATE T
 -- Name: mdm_supplier vehicle_supplier_service_all; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "vehicle_supplier_service_all" ON "public"."mdm_supplier";
 --
 
 CREATE POLICY "vehicle_supplier_service_all" ON "public"."mdm_supplier" TO "service_role" USING (true) WITH CHECK (true);
@@ -38888,6 +43832,7 @@ ALTER TABLE "public"."wf_version" ENABLE ROW LEVEL SECURITY;
 -- Name: mdm_document_type wms_finished_document_type_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "wms_finished_document_type_read" ON "public"."mdm_document_type";
 --
 
 CREATE POLICY "wms_finished_document_type_read" ON "public"."mdm_document_type" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND ("app_private"."has_permission"('WmsFinishedInbound:View'::"text") OR "app_private"."has_permission"('WmsFinishedReturn:View'::"text"))));
@@ -38899,6 +43844,7 @@ CREATE POLICY "wms_finished_document_type_read" ON "public"."mdm_document_type" 
 -- Name: mdm_project wms_finished_project_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "wms_finished_project_read" ON "public"."mdm_project";
 --
 
 CREATE POLICY "wms_finished_project_read" ON "public"."mdm_project" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND ("app_private"."has_permission"('WmsFinishedInbound:View'::"text") OR "app_private"."has_permission"('WmsFinishedReturn:View'::"text"))));
@@ -38910,6 +43856,7 @@ CREATE POLICY "wms_finished_project_read" ON "public"."mdm_project" FOR SELECT T
 -- Name: mdm_document_type wms_production_material_document_type_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "wms_production_material_document_type_read" ON "public"."mdm_document_type";
 --
 
 CREATE POLICY "wms_production_material_document_type_read" ON "public"."mdm_document_type" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND ("app_private"."has_permission"('WmsProductionIssue:View'::"text") OR "app_private"."has_permission"('WmsProductionReturn:View'::"text"))));
@@ -38921,6 +43868,7 @@ CREATE POLICY "wms_production_material_document_type_read" ON "public"."mdm_docu
 -- Name: mdm_project wms_production_material_project_read; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "wms_production_material_project_read" ON "public"."mdm_project";
 --
 
 CREATE POLICY "wms_production_material_project_read" ON "public"."mdm_project" FOR SELECT TO "authenticated" USING (("app_private"."tenant_in_current_read_scope"("tenant_id") AND ("app_private"."has_permission"('WmsProductionIssue:View'::"text") OR "app_private"."has_permission"('WmsProductionReturn:View'::"text"))));
@@ -38932,6 +43880,7 @@ CREATE POLICY "wms_production_material_project_read" ON "public"."mdm_project" F
 -- Name: wf_task_reminder_event workflow_manager_reminder_select; Type: POLICY; Schema: public
 --
 
+DROP POLICY IF EXISTS "workflow_manager_reminder_select" ON "public"."wf_task_reminder_event";
 --
 
 CREATE POLICY "workflow_manager_reminder_select" ON "public"."wf_task_reminder_event" FOR SELECT TO "authenticated" USING ((( SELECT "app_private"."can_manage_workflow"() AS "can_manage_workflow") AND (( SELECT "app_private"."is_platform_super"() AS "is_platform_super") OR ("tenant_id" = ( SELECT "app_private"."current_user_tenant_id"() AS "current_user_tenant_id")))));
@@ -41154,6 +46103,20 @@ GRANT ALL ON FUNCTION "public"."get_workflow_operational_analytics"("p_days" int
 --
 
 --
+-- Name: FUNCTION "hr_list_employee_selector_secure"("p_from" integer, "p_to" integer, "p_tenant_id" "uuid", "p_keyword" "text"); Type: ACL; Schema: public
+--
+
+--
+
+REVOKE ALL ON FUNCTION "public"."hr_list_employee_selector_secure"("p_from" integer, "p_to" integer, "p_tenant_id" "uuid", "p_keyword" "text") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."hr_list_employee_selector_secure"("p_from" integer, "p_to" integer, "p_tenant_id" "uuid", "p_keyword" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."hr_list_employee_selector_secure"("p_from" integer, "p_to" integer, "p_tenant_id" "uuid", "p_keyword" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."hr_list_employee_selector_secure"("p_from" integer, "p_to" integer, "p_tenant_id" "uuid", "p_keyword" "text") TO "service_role";
+
+
+--
+
+--
 -- Name: FUNCTION "list_menu_management_nodes"("p_parent_id" "uuid", "p_name" "text", "p_path" "text", "p_record_id" "uuid", "p_root_only" boolean, "p_include_child_state" boolean); Type: ACL; Schema: public
 --
 
@@ -41496,6 +46459,20 @@ REVOKE ALL ON FUNCTION "public"."start_workflow"("p_business_type" "text", "p_bu
 GRANT ALL ON FUNCTION "public"."start_workflow"("p_business_type" "text", "p_business_id" "uuid", "p_business_title" "text", "p_context" "jsonb", "p_idempotency_key" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."start_workflow"("p_business_type" "text", "p_business_id" "uuid", "p_business_title" "text", "p_context" "jsonb", "p_idempotency_key" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."start_workflow"("p_business_type" "text", "p_business_id" "uuid", "p_business_title" "text", "p_context" "jsonb", "p_idempotency_key" "text") TO "service_role";
+
+
+--
+
+--
+-- Name: FUNCTION "system_list_user_employee_references_secure"("p_user_ids" "uuid"[]); Type: ACL; Schema: public
+--
+
+--
+
+REVOKE ALL ON FUNCTION "public"."system_list_user_employee_references_secure"("p_user_ids" "uuid"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."system_list_user_employee_references_secure"("p_user_ids" "uuid"[]) TO "anon";
+GRANT ALL ON FUNCTION "public"."system_list_user_employee_references_secure"("p_user_ids" "uuid"[]) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."system_list_user_employee_references_secure"("p_user_ids" "uuid"[]) TO "service_role";
 
 
 --

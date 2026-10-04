@@ -162,8 +162,9 @@ supabase db query --linked --file supabase/modules/hr/hr-data.sql
 ```
 
 幂等性约定：索引补 `IF NOT EXISTS`、策略先 `DROP POLICY IF EXISTS`、约束用
-`DO $$ ... IF NOT EXISTS (pg_constraint)` 包裹、数据行用 `on conflict do nothing`，
-因此模块交付物可以反复重放，也可以建在平台基线之上。新增模块时按同样方式扩一份 profile
+`DO $$ ... IF NOT EXISTS (pg_constraint)` 包裹、身份列的 `ALTER TABLE ... ADD GENERATED`
+用 `pg_attribute.attidentity` 判断包裹、数据行用 `on conflict do nothing`，
+因此平台基线与模块交付物都可以在已建库的项目上反复重放。新增模块时按同样方式扩一份 profile
 （见 `scripts/build-platform-baseline.ts` 顶部的 `PROFILES`）。
 
 ## 已知取舍
@@ -175,6 +176,9 @@ supabase db query --linked --file supabase/modules/hr/hr-data.sql
   接入对应模块时应由模块自己的 SQL 提供。
 - **字段权限目录、通知渠道配置、AI 运行数据不随基线导出**：它们在「字段权限」「通知提醒」
   「AI 配置中心」页面或模块 SQL 里按需创建。
+- **真实个人邮箱已被脱敏**：函数体、注释、默认值里的邮箱字面量统一写为
+  `platform-owner@example.com`，派生项目接手后要换成自己的平台超管账号邮箱；
+  种子行的 `create_by` / `update_by` / 负责人字段同样被清洗或置空。
 - **编号场景是业务场景**：平台内所有编号规则都挂在业务单据上，因此基线只保留被保留 SQL 用到的那
   41 条场景；派生项目新增业务单据时按 `sys_document_number_scene` 的既有格式登记。
 - **`tms_*` / `smis_*` 等历史命名**：平台页面与 Edge Function 仍在调用这些名字的 RPC

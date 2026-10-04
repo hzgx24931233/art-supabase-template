@@ -3,7 +3,7 @@
   "passes": 9,
   "codeDependencyCounts": {
     "tables": 45,
-    "rpcs": 82
+    "rpcs": 84
   },
   "codeTablesMissingFromDump": [
     "attachments",
@@ -13,8 +13,8 @@
   "keptBlockCounts": {
     "POLICY": 419,
     "INDEX": 372,
-    "ACL": 318,
-    "FUNCTION": 278,
+    "ACL": 320,
+    "FUNCTION": 280,
     "TRIGGER": 243,
     "FK CONSTRAINT": 239,
     "CONSTRAINT": 188,
@@ -369,6 +369,7 @@
     "public.get_workflow_callback_outbox(text, integer)",
     "public.get_workflow_monitor_summary()",
     "public.get_workflow_operational_analytics(integer)",
+    "public.hr_list_employee_selector_secure(integer, integer, uuid, text)",
     "public.list_menu_management_nodes(uuid, text, text, uuid, boolean, boolean)",
     "public.mark_header_notifications_read(text, uuid[])",
     "public.normalize_login_phone(text)",
@@ -392,6 +393,7 @@
     "public.set_role_menus(uuid, uuid[])",
     "public.set_workflow_definition_enabled(uuid, boolean)",
     "public.start_workflow(text, uuid, text, jsonb, text)",
+    "public.system_list_user_employee_references_secure(uuid[])",
     "public.test_notification_channel(uuid, text)",
     "public.tms_get_invoice_compliance_audit_secure(uuid)",
     "public.tms_get_waybill_cost_ai_evidence_secure(uuid)",
