@@ -13,7 +13,7 @@
 | 业务子应用 | 仅保留 FMS 财务模块（`modules/art-supabase-fms`，Git submodule）作为机制示例 |
 | Edge Functions | 24 个：通用平台 9 + AI 基座 6 + FMS 相关 9 |
 | 数据库 | 仓库内不含 schema/迁移；通过 `supabase/backup-*.ps1` / `restore-*.ps1` 交付 |
-| 品牌与密钥 | 全部为占位值（`.env`、`your-project-ref`、`管理平台`） |
+| 品牌与密钥 | 品牌为中性占位（`管理平台`）；Supabase 已绑定当前项目 xmgl（`.env` 与 `.mcp.json` 为真实值） |
 
 ---
 
@@ -42,7 +42,7 @@
 ## 3. 绑定 Supabase 项目
 
 1. 在 Supabase 控制台新建空项目，记下 project ref。
-2. 替换 `.mcp.json` 中的 `your-project-ref`（AI 编码会话的 MCP 作用域），并同步更新
+2. 替换 `.mcp.json` 中的 `trthbpyqubyjtkzmcewy`（AI 编码会话的 MCP 作用域），并同步更新
    `AGENTS.md` 中同名占位与 `supabase/README*.md`。
 3. 建库，二选一：
    - **平台基线（推荐）**：在空项目上依次执行 `supabase/baseline/platform-baseline.sql` 与
@@ -57,7 +57,7 @@
 4. 部署 Edge Functions：
 
 ```powershell
-supabase functions deploy <name> --project-ref <your-project-ref> --use-api
+supabase functions deploy <name> --project-ref trthbpyqubyjtkzmcewy --use-api
 ```
 
    `supabase/config.toml` 的 `[functions.*]` 段已经按保留清单写好，`verify_jwt` 默认 `true`；
@@ -140,7 +140,7 @@ pnpm test:e2e
 ```
 
 容器部署见 `DOCKER.md`（`docker compose up -d --build`），记得把
-`docker-compose.yml` / `Dockerfile` / `nginx.conf` 中的 `your-project-ref` 换成本项目值。
+`docker-compose.yml` / `Dockerfile` / `nginx.conf` 中已经是本项目（xmgl）的值，派生项目记得替换。
 
 ---
 

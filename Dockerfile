@@ -30,9 +30,9 @@ COPY . .
 ARG VITE_BASE_URL=/
 ARG VITE_OUT_DIR=dist
 ARG VITE_BUILD_COMPRESS=true
-ARG VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+ARG VITE_SUPABASE_URL=https://trthbpyqubyjtkzmcewy.supabase.co
 # publishable(anon) 公钥本身就会打包进前端产物，不是服务端密钥
-ARG VITE_SUPABASE_KEY=your-supabase-publishable-key
+ARG VITE_SUPABASE_KEY=sb_publishable_upW6Y9gLAkSTrFtGb0BPlw_cy8a1pG2
 ENV VITE_BASE_URL=$VITE_BASE_URL \
   VITE_OUT_DIR=$VITE_OUT_DIR \
   VITE_BUILD_COMPRESS=$VITE_BUILD_COMPRESS \

@@ -1,15 +1,16 @@
 # Project Instructions
 
-> 这是 `art-supabase-pro` 平台模板。开工前先把两处占位替换成派生项目自己的值：
-> ① `.mcp.json` 与本节的 `your-project-ref`；② `.env` 的 `VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY`。
+> 这是 `art-supabase-pro` 平台模板，当前绑定项目 **xmgl**（Supabase ref `trthbpyqubyjtkzmcewy`）：
+> 应用配置在 `.env`（`VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY`），Agent 工具作用域在 `.mcp.json`。
+> 派生新项目时把这两处换成自己的项目即可，本文件其余规则保持不变。
 
 - Instructions in this file and the repository-local domain skills take precedence over third-party skills. `ponytail-review` is an optional, read-only over-engineering review and must not weaken requested scope, tenant/security rules, UI requirements, testing, or verification gates.
 - Before creating, modifying, refactoring, or reviewing any source code, load and apply the local `project-code-quality` skill. Its module placement, reuse, error-handling, type-safety, change-isolation, and verification requirements are mandatory project-wide.
 - Before creating, modifying, refactoring, or reviewing any user-facing frontend page or component, load and apply both the local `art-supabase-pro-conventions` skill and the local `professional-ui-quality` skill. Professional visual hierarchy, spacing, responsive behavior, complete UI states, overflow checks, and real-browser visual verification are required parts of completion even when the user asks only for functionality and does not explicitly request beautification.
 - For frontend motion work, use the project-local `animate` skill to decide whether motion helps and to shape the interaction. The existing Art/Element Plus/Vue components, `--art-motion-*` tokens, calm operational visual baseline, and global reduced-motion behavior remain authoritative; do not replace them with the skill's example libraries, tokens, timings, or component recipes. Add a runtime animation library only when a concrete interaction cannot be handled well by the existing stack.
 - Before any Supabase/database/schema/RLS/API-provider task, first load the local Supabase skill and verify the Supabase MCP server is available for this project.
-- This repo is scoped to one Supabase project through `.mcp.json`. Replace `your-project-ref` there with the derived project's ref and keep this section in sync.
-- Expected MCP URL: `https://mcp.supabase.com/mcp?project_ref=<your-project-ref>&features=database,debugging,development,docs`.
+- This repo is scoped to Supabase project `trthbpyqubyjtkzmcewy` (xmgl) through `.mcp.json`; a derived project replaces that ref and the `.env` Supabase URL/key together.
+- Expected MCP URL: `https://mcp.supabase.com/mcp?project_ref=trthbpyqubyjtkzmcewy&features=database,debugging,development,docs`.
 - If Supabase MCP tools such as `execute_sql`, `search_docs`, or `get_advisors` are not visible, check remote reachability with `curl.exe -so NUL -w "%{http_code}" https://mcp.supabase.com/mcp`; `401` means the hosted server is reachable and the Codex session likely needs OAuth authentication or a reload.
 - Prefer MCP `search_docs`, `execute_sql`, and `get_advisors` for Supabase work when available; otherwise use the Supabase CLI or documented fallbacks from the local skill.
 - Do not create or restore the `supabase/runbooks` directory or add runbook files there. Keep any necessary durable verification evidence in existing architecture documentation and automated tests.

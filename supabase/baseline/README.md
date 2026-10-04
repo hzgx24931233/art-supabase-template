@@ -45,6 +45,8 @@ verify-baseline.ps1            在一次性 Postgres 容器里应用并断言基
 
 ## 应用步骤
 
+> 当前绑定项目 xmgl（ref `trthbpyqubyjtkzmcewy`）已应用本基线并逐项核对；下面是在新项目上复现的步骤。
+
 在**全新的空项目**上依次执行：
 
 ```powershell

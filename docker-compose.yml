@@ -6,7 +6,7 @@
 #   docker compose restart web       重启
 #   docker compose down              停止并删除容器与网络（镜像保留）
 #
-# 上线前把 VITE_SUPABASE_URL / VITE_SUPABASE_KEY 换成本项目的真实值（或改用 --build-arg 覆盖）。
+# 这里是本项目（xmgl）的 Supabase 配置；派生项目改用 --build-arg 覆盖为自己的值。
 services:
   web:
     build:
@@ -17,8 +17,8 @@ services:
         VITE_BASE_URL: /
         VITE_OUT_DIR: dist
         VITE_BUILD_COMPRESS: 'true'
-        VITE_SUPABASE_URL: https://your-project-ref.supabase.co
-        VITE_SUPABASE_KEY: your-supabase-publishable-key
+        VITE_SUPABASE_URL: https://trthbpyqubyjtkzmcewy.supabase.co
+        VITE_SUPABASE_KEY: sb_publishable_upW6Y9gLAkSTrFtGb0BPlw_cy8a1pG2
     image: art-supabase-pro:latest
     container_name: art-supabase-pro
     restart: unless-stopped

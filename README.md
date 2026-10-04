@@ -30,14 +30,18 @@
 pnpm install        # 安装依赖
 ```
 
-编辑随仓库提供的 `.env`（已是占位值）：
+`.env` 已指向当前项目 **xmgl**（`https://trthbpyqubyjtkzmcewy.supabase.co`），数据库已应用平台基线。
+派生新项目时替换下面这些值：
 
 | 变量 | 说明 |
 | --- | --- |
-| `VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` | Supabase 项目地址与 publishable（anon）密钥 |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` | Supabase 项目地址与 publishable（客户端）密钥 |
 | `VITE_LOCK_ENCRYPT_KEY` | 锁屏加密密钥，换成自己的随机串 |
 | `VITE_APP_CODE` | 运行的应用：`platform`（平台宿主）或 `fms` |
 | `VITE_AMAP_KEY` / `VITE_AMAP_SECURITY_JS_CODE` | 高德地图 Key，仅地址选择等能力需要 |
+
+同步替换 `.mcp.json` 的 project ref（Agent 工具作用域）与 `docker-compose.yml` / `Dockerfile` /
+`nginx.conf` 里的 Supabase 地址。
 
 ```bash
 pnpm dev            # 启动开发服务器

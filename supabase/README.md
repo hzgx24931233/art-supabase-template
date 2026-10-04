@@ -3,10 +3,10 @@
 中文的远端备份、只读分发、本地恢复与跨项目恢复操作说明见 [README.zh-CN.md](README.zh-CN.md)。
 
 这是本仓库唯一的 Supabase 目录，业务子仓（`modules/*`）不各自保存 Supabase 资产。
-请把下文与脚本中的 `<your-project-ref>` 替换成派生项目的 Supabase 项目 ref。
+下文与脚本中的 `<your-project-ref>` 是派生项目要替换的位置；本仓库当前绑定项目 xmgl（ref `trthbpyqubyjtkzmcewy`）。
 
 - `functions/` 保存经过评审、可直接部署的 Edge Function 源码。部署示例：
-  `supabase functions deploy <name> --project-ref <your-project-ref> --use-api`。
+  `supabase functions deploy <name> --project-ref trthbpyqubyjtkzmcewy --use-api`。
 - `migrations/` 不保存迁移 SQL。经过评审的生产 SQL 在完成备份与校验后，通过项目级 Supabase MCP 直接执行。
 - `baseline/` 保存平台基线：`platform-baseline.sql` + `platform-seed.sql`，用于在空项目上快速得到
   平台内核结构。生成与校验方式见 [baseline/README.md](baseline/README.md)。
@@ -50,7 +50,7 @@ Provider。在 Edge Function Secrets 中配置 `AI_API_KEY`、`AI_BASE_URL`、`A
 
 ```powershell
 pnpm snapshot:ai
-supabase functions deploy ai-project-planner --project-ref <your-project-ref> --use-api
+supabase functions deploy ai-project-planner --project-ref trthbpyqubyjtkzmcewy --use-api
 ```
 
 ## 导出与导入 Supabase 项目
@@ -58,7 +58,7 @@ supabase functions deploy ai-project-planner --project-ref <your-project-ref> --
 安装并登录 Supabase CLI，启动 Docker Desktop，然后在仓库根目录导出源项目：
 
 ```powershell
-.\supabase\backup-supabase.ps1 -ProjectRef '<your-project-ref>'
+.\supabase\backup-supabase.ps1 -ProjectRef 'trthbpyqubyjtkzmcewy'
 ```
 
 脚本会提示输入源数据库密码。产出是 `supabase/backups/<timestamp>/manifest.json`，以及数据库
