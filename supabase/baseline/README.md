@@ -10,6 +10,20 @@ platform-baseline-report.json  生成报告：保留/丢弃清单、裁剪原因
 verify-baseline.ps1            在一次性 Postgres 容器里应用并断言基线
 ```
 
+## 权限保真度
+
+基线的 ACL 是从快照里逐对象复制的，并且针对 Supabase 托管默认权限做了两处对齐（都写在文件头）：
+
+- **函数**：Supabase 会把新建函数开放给 `anon`，源库不存在这种授权 —— 文件在建任何对象之前用
+  `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS FROM anon, PUBLIC` 收回，
+  再由各函数的 ACL 块精确授予应有权访问的角色。结果是 `anon` 恰好拿到源库显式授予的那 101 个函数。
+- **序列**：身份列序列在源库里仅 owner 可用，同样通过默认权限收回业务角色授权。
+
+一个 PostgreSQL 固有细节：函数上的 `PUBLIC` 执行权限是**内建默认**，`ALTER DEFAULT PRIVILEGES`
+收不回，只有带 ACL 块（含 `REVOKE … FROM PUBLIC`）的函数才会被收回。因此源库中「没有 ACL 块」
+的函数在基线与目标库里同样保留 `PUBLIC` 执行权限 —— 这是与源库一致的状态，报告里的
+`expectedPublicExecutableFunctions` 记录了预期数量，校验脚本会据此断言。
+
 ## 它包含什么
 
 - **平台内核**：`sys_*`（租户、用户、角色、菜单、字典、参数、编号、通知、附件、审计）、
@@ -87,7 +101,8 @@ powershell -File supabase/baseline/verify-baseline.ps1 -KeepContainer   # 保留
 - 平台助手：`platform_tenant_id()`、`default_register_tenant_id()`、`current_is_super()` 行为正确；
 - 安全模型：`sys_tenant` / `sys_user` 有策略，`anon`/`public` 没有多余的函数执行授权；
 - 中文写入：字典标签的中文能正确落库（防编码回归）；
-- 无业务表残留（文档化的契约表除外）。
+- 无业务表残留（文档化的契约表除外）；
+- 权限保真度：anon 的函数授权恰好 101 个、PUBLIC 可执行函数数等于报告里的预期值、序列不授予业务角色。
 
 **已验证**：基线在 `public.ecr.aws/supabase/postgres:17.11.0.002` 上可完整应用并自洽。
 端到端（登录、菜单装配、RPC 调用）仍需在真实 Supabase 项目上验证。

@@ -2,7 +2,7 @@
 -- 平台基线 schema（由 scripts/build-platform-baseline.ts 生成，请勿手工编辑）
 --
 -- 来源快照：D:\art-supabase-pro\supabase\backups\20261004-111116
--- 生成时间：2026-10-04T07:23:52.420Z
+-- 生成时间：2026-10-04T07:51:16.284Z
 -- 保留：平台内核（sys_* / wf_* / ai_* / app_private 助手层）+ 保留代码依赖的跨域契约对象
 -- 丢弃：业务域表、视图、策略、函数与历史备份表
 --
@@ -17,6 +17,21 @@ SET standard_conforming_strings = on;
 SET check_function_bodies = false;
 SET client_min_messages = warning;
 SET row_security = off;
+
+-- 先建好 app_private，随后的默认权限加固要作用在它上面
+CREATE SCHEMA IF NOT EXISTS "app_private";
+
+-- 与源库的加固策略一致（harden_public_function_default_execution）：
+-- Supabase 的托管默认权限会把新建函数开放给 anon，这里在创建任何对象之前收回，
+-- 之后由各对象的 ACL 精确授予应有权访问的角色（app 调用走 authenticated）。
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA app_private
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, PUBLIC;
+
+-- 身份列序列只在数据库内部使用，源库里它们不对业务角色开放
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE ALL ON SEQUENCES FROM anon, authenticated, service_role, PUBLIC;
 
 --
 -- Name: app_private; Type: SCHEMA; Schema: -

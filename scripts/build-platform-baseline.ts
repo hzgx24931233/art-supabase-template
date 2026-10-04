@@ -872,6 +872,42 @@ const report = {
   prunedTriggers,
   prunedAclBlocks,
   prunedBusinessFunctions,
+  // 函数上的 PUBLIC 执行权限是 PostgreSQL 内建默认，无法通过 ALTER DEFAULT PRIVILEGES 收回：
+  // 只有带 ACL 块（含 REVOKE … FROM PUBLIC）的函数才会被收回。这里给出预期数量，
+  // 供 verify-baseline.ps1 断言目标库的 public_function_grants 一致。
+  expectedPublicExecutableFunctions: (() => {
+    // pg_dump 里 FUNCTION 块的 name 只有参数类型（"text", "uuid"），
+    // ACL 块的 name 带参数名（"p_x" "text"）——统一归一化成「函数名 + 类型列表」再比对。
+    const normalizeSignature = (name: string): string => {
+      const withoutPrefix = name.replace(/^FUNCTION\s+/i, '')
+      const openIndex = withoutPrefix.indexOf('(')
+      const base = (openIndex >= 0 ? withoutPrefix.slice(0, openIndex) : withoutPrefix)
+        .replace(/"/g, '')
+        .trim()
+      const argsText =
+        openIndex >= 0 ? withoutPrefix.slice(openIndex + 1).replace(/\)\s*$/, '') : ''
+      const types = argsText
+        .split(',')
+        .map((argument) => argument.trim())
+        .filter(Boolean)
+        .map((argument) => {
+          const tokens = argument.replace(/"/g, '').split(/\s+/).filter(Boolean)
+          return tokens[tokens.length - 1]
+        })
+      return `${base}(${types.join(',')})`
+    }
+    const aclBySignature = new Map(
+      [...keptBlocks]
+        .filter((block) => block.type === 'ACL' && /^FUNCTION\b/i.test(block.name))
+        .map((block) => [`${block.schema}.${normalizeSignature(block.name)}`, block.sql])
+    )
+    return [...keptBlocks]
+      .filter((block) => block.type === 'FUNCTION')
+      .filter((block) => {
+        const aclSql = aclBySignature.get(`${block.schema}.${normalizeSignature(block.name)}`)
+        return !aclSql || !/REVOKE ALL ON [A-Z ]*FUNCTION[\s\S]*?FROM PUBLIC/i.test(aclSql)
+      }).length
+  })(),
   keptTableReasons: Object.fromEntries(
     keptTables.map((key) => [key, keepReasons.get(`TABLE ${key}`) ?? ''])
   ),
@@ -951,6 +987,21 @@ SET standard_conforming_strings = on;
 SET check_function_bodies = false;
 SET client_min_messages = warning;
 SET row_security = off;
+
+-- 先建好 app_private，随后的默认权限加固要作用在它上面
+CREATE SCHEMA IF NOT EXISTS "app_private";
+
+-- 与源库的加固策略一致（harden_public_function_default_execution）：
+-- Supabase 的托管默认权限会把新建函数开放给 anon，这里在创建任何对象之前收回，
+-- 之后由各对象的 ACL 精确授予应有权访问的角色（app 调用走 authenticated）。
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA app_private
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, PUBLIC;
+
+-- 身份列序列只在数据库内部使用，源库里它们不对业务角色开放
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE ALL ON SEQUENCES FROM anon, authenticated, service_role, PUBLIC;
 `
 
 const baselineSql = [

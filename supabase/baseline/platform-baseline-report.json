@@ -613,6 +613,7 @@
     "app_private.prepare_scm_sales_document()": "触发器函数已无触发器引用（业务初始化逻辑随业务域移除）",
     "app_private.guard_scm_shipping_wms_outbound()": "触发器函数已无触发器引用（业务初始化逻辑随业务域移除）"
   },
+  "expectedPublicExecutableFunctions": 64,
   "keptTableReasons": {
     "public.ai_artifact_review": "core-prefix",
     "public.ai_conversation": "core-prefix",

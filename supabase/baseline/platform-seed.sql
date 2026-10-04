@@ -2,7 +2,7 @@
 -- 平台基线数据（由 scripts/build-platform-baseline.ts 生成，请勿手工编辑）
 --
 -- 来源快照：D:\art-supabase-pro\supabase\backups\20261004-111116
--- 生成时间：2026-10-04T07:23:52.458Z
+-- 生成时间：2026-10-04T07:51:16.324Z
 --
 -- 不含任何真实用户、审计日志、通知记录、AI 会话与业务数据。
 -- 首个超级管理员需要通过 Supabase Auth 注册后按 README 的引导步骤提升。
