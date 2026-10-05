@@ -31,7 +31,7 @@ export const APPLICATION_PROFILES: Record<ApplicationCode, ApplicationProfile> =
   platform: {
     code: 'platform',
     name: '平台管理',
-    description: '系统、租户、菜单、权限与数据中心基座',
+    description: '系统、菜单、权限与数据中心基座',
     defaultPath: '/dashboard',
     deploymentPath: '/',
     developmentPort: 3006

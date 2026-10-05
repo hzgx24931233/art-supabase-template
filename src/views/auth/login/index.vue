@@ -538,6 +538,7 @@
         captchaToken
       }
       const { data } = await login(params)
+
       const responseSession = data?.session
       const tokens = responseSession?.accessToken
         ? {

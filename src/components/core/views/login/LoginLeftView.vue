@@ -1,6 +1,6 @@
 <!-- 登录、注册与密码找回页的品牌视觉区 -->
 <template>
-  <aside class="login-vision" aria-label="运输运营平台介绍">
+  <aside class="login-vision" aria-label="平台介绍">
     <div class="login-vision__aurora login-vision__aurora--cyan" />
     <div class="login-vision__aurora login-vision__aurora--violet" />
     <div class="login-vision__grid" />
@@ -11,13 +11,13 @@
       </span>
       <div>
         <strong :title="siteName">{{ siteName }}</strong>
-        <span>TRANSPORT OPERATIONS CLOUD</span>
+        <span>Project Management Cloud</span>
       </div>
     </header>
 
     <main class="login-vision__content">
       <div class="login-vision__copy">
-        <p class="login-vision__eyebrow"><i /> 智慧运输 · 实时协同</p>
+        <p class="login-vision__eyebrow"><i /> 智慧工程 · 实时协同</p>
         <h1>{{ $t('login.leftView.title') }}</h1>
         <p class="login-vision__description">{{ $t('login.leftView.subTitle') }}</p>
         <div class="login-vision__features" aria-label="平台能力">
@@ -27,7 +27,7 @@
         </div>
       </div>
 
-      <section class="capability-map" aria-label="运输业务协同能力概览">
+      <section class="capability-map" aria-label="工程业务协同能力概览">
         <header class="capability-map__header">
           <div class="capability-map__heading">
             <span class="capability-map__heading-icon">
@@ -35,7 +35,7 @@
             </span>
             <div>
               <span>PLATFORM WORKFLOW</span>
-              <strong>运输业务协同链路</strong>
+              <strong>工程业务协同链路</strong>
             </div>
           </div>
           <span class="capability-map__badge">能力概览</span>
@@ -45,7 +45,7 @@
           <article>
             <span class="capability-map__step">01</span>
             <span class="capability-map__icon"><ArtSvgIcon icon="ri:file-list-3-line" /></span>
-            <div><strong>订单协同</strong><span>统一承接业务需求</span></div>
+            <div><strong>履约协同</strong><span>统一承接业务需求</span></div>
           </article>
           <article>
             <span class="capability-map__step">02</span>
@@ -55,7 +55,7 @@
           <article>
             <span class="capability-map__step">03</span>
             <span class="capability-map__icon"><ArtSvgIcon icon="ri:map-pin-time-line" /></span>
-            <div><strong>在途可视</strong><span>持续掌握运输进程</span></div>
+            <div><strong>项目进度</strong><span>持续掌握运输进程</span></div>
           </article>
           <article>
             <span class="capability-map__step">04</span>
@@ -73,7 +73,7 @@
     </main>
 
     <footer class="login-vision__footer">
-      <span>可信赖的企业级运输协同平台</span>
+      <span>可信赖的企业级工程协同平台</span>
       <span>SECURE · CONNECTED · INTELLIGENT</span>
     </footer>
   </aside>

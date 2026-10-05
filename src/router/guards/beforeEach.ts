@@ -340,6 +340,7 @@ async function handleDynamicRoutes(
       'user-profile',
       userStore.ensureUserInfo
     )
+    
     if (!hasUserProfile) {
       throw new RouteInitializationAccessError('当前账号缺少有效的业务用户资料')
     }

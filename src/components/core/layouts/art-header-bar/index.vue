@@ -38,35 +38,6 @@
           class="ml-3 max-sm:ml-[7px]"
           @click="visibleMenu"
         />
-
-        <!-- 刷新按钮 -->
-        <ArtIconButton
-          v-if="shouldShowRefreshButton && !isHeaderLeftMenu"
-          icon="ri:refresh-line"
-          label="刷新当前页面"
-          class="!ml-3 refresh-btn max-sm:!hidden"
-          :style="{ marginLeft: !isLeftMenu ? '10px' : '0' }"
-          @click="() => reload()"
-        />
-
-        <!-- 当前路由设计参考（仅平台超级管理员） -->
-        <PageDesignReference
-          v-if="isPlatformSuper && shouldShowRefreshButton && !isHeaderLeftMenu"
-        />
-
-        <!-- 快速入口 -->
-        <ArtFastEnter
-          v-if="shouldShowFastEnter && !isHeaderLeftMenu && width >= headerBarFastEnterMinWidth"
-          v-slot="{ onTriggerClick }"
-        >
-          <ArtIconButton
-            icon="ri:function-line"
-            label="打开快捷入口"
-            class="ml-3"
-            @click="onTriggerClick"
-          />
-        </ArtFastEnter>
-
         <!-- 面包屑 -->
         <ArtBreadcrumb
           v-if="(shouldShowBreadcrumb && isLeftMenu) || (shouldShowBreadcrumb && isDualMenu)"
@@ -80,9 +51,8 @@
       </div>
 
       <div class="art-header-bar__actions flex-c">
-        <PlatformTenantScopeSwitcher />
+        <!-- <PlatformTenantScopeSwitcher /> -->
         <ArtApplicationSwitcher />
-
         <!-- 搜索 -->
         <button
           v-if="shouldShowGlobalSearch"
@@ -101,6 +71,36 @@
             <span class="ml-0.5 text-xs">k</span>
           </div>
         </button>
+
+       <!-- 刷新按钮 -->
+        <ArtIconButton
+          v-if="shouldShowRefreshButton && !isHeaderLeftMenu"
+          icon="ri:refresh-line"
+          label="刷新当前页面"
+          class="!ml-3 refresh-btn max-sm:!hidden"
+          :style="{ marginLeft: !isLeftMenu ? '10px' : '0' }"
+          @click="() => reload()"
+        />  
+        
+
+        <!-- 当前路由设计参考（仅平台超级管理员） -->
+        <PageDesignReference
+          v-if="isPlatformSuper && shouldShowRefreshButton && !isHeaderLeftMenu"
+        />
+
+        <!-- 快速入口 -->
+        <ArtFastEnter
+          v-if="shouldShowFastEnter && !isHeaderLeftMenu && width >= headerBarFastEnterMinWidth"
+          v-slot="{ onTriggerClick }"
+        >
+          <ArtIconButton
+            icon="ri:function-line"
+            label="打开快捷入口"
+            class="ml-3"
+            @click="onTriggerClick"
+          />
+        </ArtFastEnter>        
+
 
         <!-- 全屏按钮 -->
         <ArtIconButton
@@ -150,7 +150,7 @@
           />
         </ElBadge>
 
-        <!-- 聊天按钮 -->
+        <!-- 聊天按钮 
         <ArtIconButton
           v-if="shouldShowChat"
           icon="ri:message-3-line"
@@ -160,6 +160,8 @@
         >
           <div class="breathing-dot absolute top-2 right-2 size-1.5 !bg-success rounded-full"></div>
         </ArtIconButton>
+       -->
+
 
         <!-- 设置按钮 -->
         <div v-if="shouldShowSettings">

@@ -37,7 +37,7 @@ import { headerBarConfig } from './modules/headerBar'
 const appConfig: SystemConfig = {
   // 系统信息
   systemInfo: {
-    name: '管理平台' // 系统名称
+    name: '程 管 家' // 系统名称
   },
   // 系统主题
   systemThemeStyles: {
