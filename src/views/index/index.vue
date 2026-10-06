@@ -10,17 +10,17 @@
     </aside>
 
     <main id="app-main">
+      <div v-if="!isHeaderLeftMenu" id="app-header">
+        <ArtHeaderBar />
+      </div>
+      <div v-else-if="showWorkTab" id="app-work-tab-header">
+        <ArtWorkTab />
+      </div>
       <ElScrollbar
         class="app-main__scrollbar"
         wrap-class="app-main__scroll-wrap"
         view-class="app-main__scroll-view"
       >
-        <div v-if="!isHeaderLeftMenu" id="app-header">
-          <ArtHeaderBar />
-        </div>
-        <div v-else-if="showWorkTab" id="app-work-tab-header">
-          <ArtWorkTab />
-        </div>
         <div id="app-content">
           <ArtPageContent />
         </div>

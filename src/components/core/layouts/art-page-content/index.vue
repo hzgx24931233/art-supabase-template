@@ -4,7 +4,6 @@
     <div id="app-content-header">
       <!-- 节日滚动 -->
       <ArtFestivalTextScroll v-if="!isFullPage" />
-
       <!-- 路由信息调试 -->
       <div
         v-if="isOpenRouteInfo === 'true'"
