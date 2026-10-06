@@ -653,6 +653,353 @@ export const businessButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] =
   {
     menuName: 'FinanceWaybillProfit',
     buttons: [button('AiProfitAnalysis', 'AI 利润诊断'), button('Export', '导出')]
+  },
+  // 主数据（MDM）四块：物料 / 工程 / 销售 / 生产，页面位于 src/views/mdm
+  {
+    menuName: 'MdmAccessoryProcessing',
+    buttons: [
+      button('View', '查看'),
+      button('Recognize', '识别清单'),
+      button('SaveDraft', '保存草稿'),
+      button('GenerateMaterial', '生成物料编码'),
+      button('GenerateBom', '生成项目 BOM'),
+      button('GenerateWorkOrder', '生成生产工单'),
+      button('Generate', '生成物料和加工单', 'MdmAccessoryProcessing:Generate'),
+      button('Add', '新增配件加工清单'),
+      button('Copy', '复制配件加工件'),
+      button('Edit', '编辑配件加工件'),
+      button('Delete', '删除配件加工件')
+    ]
+  },
+  {
+    menuName: 'MdmActivityFormula',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('ManageParameter', '管理公式参数'),
+      button('Export', '导出')
+    ]
+  },
+  {
+    menuName: 'MdmBomMaintenance',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出'),
+      button('Submit', '提交审核'),
+      button('Approve', '审核'),
+      button('Archive', '归档作废'),
+      button('ManageGroup', '管理分组')
+    ]
+  },
+  {
+    menuName: 'MdmBomStructure',
+    buttons: [button('View', '查看')]
+  },
+  {
+    menuName: 'MdmBusinessType',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出')
+    ]
+  },
+  {
+    menuName: 'MdmComponentType',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('ManageGroup', '管理行业分组')
+    ]
+  },
+  {
+    menuName: 'MdmDocumentType',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出')
+    ]
+  },
+  {
+    menuName: 'MdmEsop',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Import', '导入'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '停用')
+    ]
+  },
+  {
+    menuName: 'MdmFactoryCalendar',
+    buttons: [
+      button('View', '查看'),
+      button('Configure', '设置日历'),
+      button('AddPattern', '新增轮班模式'),
+      button('EditPattern', '编辑轮班模式'),
+      button('DeletePattern', '删除轮班模式'),
+      button('ReferencePattern', '参考轮班模式'),
+      button('Reminder', '设置日历提醒')
+    ]
+  },
+  {
+    menuName: 'MdmMaterialArchive',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '停用')
+    ]
+  },
+  {
+    menuName: 'MdmMaterialAttributeGroup',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '停用')
+    ]
+  },
+  {
+    menuName: 'MdmMaterialCategory',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '停用')
+    ]
+  },
+  {
+    menuName: 'MdmMaterialCodeRule',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '停用')
+    ]
+  },
+  {
+    menuName: 'MdmMaterialType',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '停用')
+    ]
+  },
+  {
+    menuName: 'MdmOperationControlCode',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出')
+    ]
+  },
+  {
+    menuName: 'MdmOperationSet',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Import', '导入'),
+      button('Export', '导出'),
+      button('ManageGroup', '管理分组')
+    ]
+  },
+  {
+    menuName: 'MdmOperationTemplate',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '禁用'),
+      button('Bind', '绑定'),
+      button('Unbind', '解绑')
+    ]
+  },
+  {
+    menuName: 'MdmPersonnelWorkCenter',
+    buttons: [
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出'),
+      button('View', '查看'),
+      button('Add', '新增')
+    ]
+  },
+  {
+    menuName: 'MdmProductionDepartment',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Import', '导入'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '禁用')
+    ]
+  },
+  {
+    menuName: 'MdmProductionEquipment',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Import', '导入'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '停用')
+    ]
+  },
+  {
+    menuName: 'MdmProductionPersonnel',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Import', '导入'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '禁用')
+    ]
+  },
+  {
+    menuName: 'MdmSalesCustomer',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Import', '导入'),
+      button('Export', '导出'),
+      button('ManageGroup', '管理分组')
+    ]
+  },
+  {
+    menuName: 'MdmSalesProject',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Import', '导入'),
+      button('Export', '导出'),
+      button('ManageGroup', '管理分组')
+    ]
+  },
+  {
+    menuName: 'MdmShiftScheduling',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Edit', '编辑'),
+      button('Delete', '删除')
+    ]
+  },
+  {
+    menuName: 'MdmStatutoryHoliday',
+    buttons: [
+      button('View', '查看法定节假日'),
+      button('Add', '新增法定节假日'),
+      button('Edit', '编辑法定节假日'),
+      button('Delete', '删除法定节假日'),
+      button('Import', '导入法定节假日'),
+      button('Export', '导出法定节假日')
+    ]
+  },
+  {
+    menuName: 'MdmUnitOfMeasure',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出'),
+      button('Enable', '启用'),
+      button('Disable', '停用')
+    ]
+  },
+  {
+    menuName: 'MdmWorkCenter',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Import', '导入'),
+      button('Export', '导出'),
+      button('ExportQr', '导出二维码'),
+      button('Configure', '设置'),
+      button('Personnel', '人员安排'),
+      button('Devices', '配置设备'),
+      button('UpdateProcess', '更新产品工艺')
+    ]
+  },
+  {
+    menuName: 'MdmWorkstation',
+    buttons: [
+      button('View', '查看'),
+      button('Add', '新增'),
+      button('Copy', '复制'),
+      button('Edit', '编辑'),
+      button('Delete', '删除'),
+      button('Export', '导出')
+    ]
   }
 ]
 export const systemButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] = [

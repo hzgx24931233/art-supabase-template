@@ -37,10 +37,11 @@ type ManagedModule =
 const managedViewRoots = new Map<ManagedModule, string>([
   ['hr', join(projectRoot, 'modules/art-supabase-hr/src/views')],
   ['fms', join(projectRoot, 'modules/art-supabase-fms/src/views')],
+  ['mdm', join(projectRoot, 'src/views/mdm')],
   ['system', join(projectRoot, 'src/views/system')],
   ['workflow', join(projectRoot, 'src/views/workflow')]
 ])
-const businessModules = new Set<ManagedModule>(['fms', 'hr'])
+const businessModules = new Set<ManagedModule>(['fms', 'hr', 'mdm'])
 const sourceExtensions = new Set(['.ts', '.tsx', '.vue'])
 const permissionPattern =
   /['"`]((?:System|Workflow|Tms|Finance|Hr|Mdm|Pmis|Smis|Scm|Wms|Ctm|Vehicle|Insurance|Parts|PartsCategory|Supplier)[A-Za-z0-9]*(?::[A-Za-z][A-Za-z0-9]*)+)['"`]/g
@@ -224,12 +225,32 @@ const platformSuperAllowlist = new Map<string, string>([
   [
     'modules/art-supabase-hr/src/views/talent/succession/modules/succession-dialog.vue',
     'cross-tenant succession assignment'
+  ],
+  [
+    'src/views/mdm/engineering/accessory-processing/index.vue',
+    'cross-tenant target selection and tenant labels; accessory actions use button permissions'
+  ],
+  [
+    'src/views/mdm/engineering/accessory-processing/modules/recognition-workspace.vue',
+    'cross-tenant selection and tenant-wide recognition history for platform administrators; saving uses button permissions'
+  ],
+  [
+    'src/views/mdm/production/personnel/index.vue',
+    'cross-tenant personnel and department import target selection; import actions use button permissions'
+  ],
+  [
+    'src/views/mdm/production/work-center/index.vue',
+    'cross-tenant work-center import and default-policy configuration target selection; import and configure actions use button permissions'
   ]
 ])
 
 const sourceReferenceExemptions = new Map<string, string>([
   // 资产应付页的按钮码由 SCM 采购单据工作区声明；SCM 未接入模板，这里登记为例外
   ['FinanceAssetPayable:Add', 'declared in the SCM module (not part of this template)'],
+  [
+    'MdmAccessoryProcessing:Generate',
+    'legacy one-click generation permission retained for role compatibility; the obsolete stage is rejected at the database boundary'
+  ],
   ['Hr:JobFamily:View', 'page-route or server-side authorization boundary'],
   ['Hr:Grade:View', 'page-route or server-side authorization boundary'],
   ['Hr:EmployeeRelations:Sensitive:View', 'page-route or server-side authorization boundary'],
@@ -276,6 +297,7 @@ function toProjectPath(filePath: string): string {
 function resolveBusinessCatalogOwner(menuName: string): ManagedModule {
   if (menuName.startsWith('Finance')) return 'fms'
   if (menuName.startsWith('Hr')) return 'hr'
+  if (menuName.startsWith('Mdm')) return 'mdm'
   // TMS 页面不在模板范围内，但 FMS 页面会引用它们的页面级查看权限
   if (menuName.startsWith('Tms')) return 'fms'
   throw new Error(`未登记的业务菜单归属：${menuName}`)
