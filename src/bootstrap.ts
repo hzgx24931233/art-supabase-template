@@ -9,6 +9,7 @@ import '@utils/sys/console'
 import { setupGlobDirectives } from './directives'
 import { setupErrorHandle } from './utils/sys/error-handle'
 import { setupSupabaseSessionLifecycle } from './plugins/supabase-session'
+import { setupContextMenuGuard } from './plugins/context-menu-guard'
 
 /**
  * 启动平台公共运行壳。
@@ -23,6 +24,7 @@ export function bootstrapPlatformApp(
   initStore(app)
   initRouter(app, options.loadHostedApplications)
   setupSupabaseSessionLifecycle()
+  setupContextMenuGuard()
   setupGlobDirectives(app)
   setupErrorHandle(app)
   app.use(language)
