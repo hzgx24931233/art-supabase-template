@@ -6,6 +6,8 @@
 ```
 platform-baseline.sql          平台内核 schema（约 90 张表 / 419 条策略 / 278 个函数）
 platform-seed.sql              基线数据（内置租户、角色、平台菜单、字典、参数、编号场景）
+mdm-master-data-menu.sql       增量补丁：已并入主平台的主数据四块菜单（物料 / 工程 / 销售 / 生产）
+mdm-data-model-patch.sql       增量补丁：主数据四块所需的 mdm_* 表与函数
 platform-baseline-report.json  生成报告：保留/丢弃清单、裁剪原因、种子行数
 verify-baseline.ps1            在一次性 Postgres 容器里应用并断言基线
 ```
@@ -59,6 +61,39 @@ psql "$env:DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/baseline/platform-seed.s
 
 也可以直接粘贴到 Supabase 控制台的 SQL 编辑器（两个文件都不依赖 `psql` 专有语法，
 `platform-seed.sql` 全为 `INSERT` 语句）。
+
+### 已有项目：补主数据四块菜单
+
+主数据（物料 / 工程 / 销售 / 生产）已作为**平台自身功能**并入 `src/views/mdm/**`，菜单在
+`platform-seed.sql` 里以 `app_code = platform` 出现，因此全新项目执行上面的两步即可。
+
+已经建好库的项目（例如当前绑定的 xmgl）需要单独补一次菜单与数据模型：
+
+```powershell
+# 菜单、按钮与角色授权
+supabase db query --linked --file supabase/baseline/mdm-master-data-menu.sql
+# 数据模型：mdm_* 表、外键、策略、触发器与 mdm_* 函数
+supabase db query --linked --file supabase/baseline/mdm-data-model-patch.sql
+```
+
+`mdm-data-model-patch.sql` 的说明：
+
+- 内容：签名中列出的 mdm_* 表（含序列、约束、外键、索引、RLS 策略、触发器、授权），以及迁移
+  代码与表定义依赖而目标库缺失的 mdm_* 函数；对象定义从 `platform-baseline.sql` 中原样抽取。
+- 原因：主数据已作为平台功能并入 `src/views/mdm/**`，生成器把 `mdm_` 前缀视为平台核心
+  （见 `PROFILES.platform.corePrefixes`），因此全新项目不再需要本文件。
+- 边界：引用未并入应用（如 VMS 的 `vehicle_type_profile`）的外键会跳过，并在文件末尾以注释列出，
+  不会把其它应用的模型一起带进来。
+- 幂等：整段包在事务里，块内均为 IF NOT EXISTS / DROP IF EXISTS / CREATE OR REPLACE，可重复执行。
+
+- 内容：根目录「主数据」+ 物料 / 工程 / 销售 / 生产四个分组、23 个页面菜单、178 个按钮，
+  复用旧库的菜单 id 与权限码（`Mdm*`），因此页面里的 `Mdm*` 权限判断无需改动。
+- 幂等：菜单按主键 `id` 去重并更新描述字段，授权按 `(role_id, menu_id)` 唯一键去重，可重复执行。
+- 授权：默认授予内置角色 `R_SUPER`（超级管理员）与 `R_ADMIN`（管理员）；其他角色请在
+  「系统管理 / 角色管理」里按需分配。
+- 执行身份：请以项目所有者身份执行（SQL 编辑器、`service_role` 或平台超级管理员）。
+  `sys_role_menu` 上的 `trg_apply_current_tenant_id` 触发器会用会话租户覆盖显式 `tenant_id`，
+  普通租户用户执行会把授权落到自己的租户里。
 
 首个超级管理员需要自己创建（基线不含任何账号）：
 

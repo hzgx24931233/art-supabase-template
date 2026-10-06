@@ -31,13 +31,19 @@ interface ProfileConfig {
   contractTables: readonly string[]
   /** 扫描数据库依赖的代码根目录。 */
   codeRoots: readonly string[]
-  /** 输出文件前缀。 */
-  filePrefix: string
+  /**
+   * 输出文件名。平台交付物沿用仓库既有命名（schema→baseline、data→seed），
+   * 与 supabase/baseline/verify-baseline.ps1 和 README 引用保持一致。
+   */
+  outputFiles: { schema: string; data: string; report: string }
 }
 
 const PROFILES: Record<'platform' | 'hr', ProfileConfig> = {
   platform: {
-    corePrefixes: ['sys_', 'wf_', 'ai_'],
+    // mdm_ 前缀属于平台自身：主数据（物料 / 工程 / 销售 / 生产）已作为主平台功能并入
+    // src/views/mdm/**，其数据模型由平台承担，不再依赖「只保留被前端直接引用的表」那条闭包，
+    // 否则仅在 RPC 函数体里出现的表（如 mdm_shift_schedule_member）会被裁掉。
+    corePrefixes: ['sys_', 'wf_', 'ai_', 'mdm_'],
     // 平台代码仍然依赖的跨域契约对象（读取型集成、识别工件、收发货目标）
     contractTables: [
       'sync_user_audit',
@@ -55,7 +61,11 @@ const PROFILES: Record<'platform' | 'hr', ProfileConfig> = {
       'tms_invoice'
     ],
     codeRoots: ['src', 'supabase/functions'],
-    filePrefix: 'platform'
+    outputFiles: {
+      schema: 'platform-baseline.sql',
+      data: 'platform-seed.sql',
+      report: 'platform-baseline-report.json'
+    }
   },
   hr: {
     corePrefixes: ['hr_'],
@@ -69,7 +79,7 @@ const PROFILES: Record<'platform' | 'hr', ProfileConfig> = {
       'mdm_grade'
     ],
     codeRoots: ['modules/art-supabase-hr/src'],
-    filePrefix: 'hr'
+    outputFiles: { schema: 'hr-schema.sql', data: 'hr-data.sql', report: 'hr-report.json' }
   }
 }
 
@@ -340,12 +350,28 @@ function scanCodeDependencies(codeRoots: string[]): {
     const source = readFileSync(file, 'utf8')
     for (const match of source.matchAll(/\.from\(\s*'([a-z_][a-z0-9_]*)'/g)) tables.add(match[1])
     for (const match of source.matchAll(/\.rpc\(\s*'([a-z_][a-z0-9_]*)'/g)) rpcs.add(match[1])
+    // 表名还会以其它形式出现，只认 .from() 会漏掉它们：
+    //   · 作为参数传给封装函数：fetchReference('mdm_work_center', …)
+    //   · PostgREST 嵌入查询字符串：select('…,mdm_material_attribute(id,name)')
+    // 因此再用快照里的表/视图名对源码标识符做一次匹配。
+    for (const match of source.matchAll(/\b([a-z][a-z0-9_]{4,})\b/g)) {
+      tables.add(match[1])
+    }
   }
   return { tables, rpcs }
 }
 
 const codeDependencies = scanCodeDependencies([...activeProfile.codeRoots])
-const codeTableNames = new Set([...codeDependencies.tables].map((name) => name.toLowerCase()))
+const snapshotRelationNames = new Set<string>(
+  [...tableByName.keys(), ...viewByName.keys()]
+    .map((key) => key.split('.').pop() ?? '')
+    .filter(Boolean)
+)
+const codeTableNames = new Set(
+  [...codeDependencies.tables]
+    .map((name) => name.toLowerCase())
+    .filter((name) => snapshotRelationNames.has(name))
+)
 const codeRpcNames = new Set([...codeDependencies.rpcs].map((name) => name.toLowerCase()))
 
 // 种子 1：平台内核表/视图 + 代码直接读写的表 + 代码调用的 RPC
@@ -1151,6 +1177,8 @@ const KEPT_TENANT_CODES = ['platform', 'public_register']
 interface SeedTablePlan {
   table: string
   where?: (row: string[], columns: string[], context: SeedContext) => boolean
+  /** 导出前的行级改写（按 COPY 原文，未做反转义） */
+  transform?: (row: string[], columns: string[]) => string[]
   note?: string
 }
 
@@ -1186,6 +1214,27 @@ if (tenantBlock) {
 
 // 菜单：只保留目标应用（platform / hr）下、且页面文件仍然存在的行（含其按钮与文件夹祖先）
 const targetAppCode = profile === 'platform' ? 'platform' : 'hr'
+
+/**
+ * 已并入主平台的主数据（MDM）菜单根节点。
+ *
+ * 物料 / 工程 / 销售 / 生产四块主数据的页面位于 `src/views/mdm/**`，但旧库里这些菜单行的
+ * app_code 仍是 mdm。这里按 id 把这四个分组子树视为平台菜单：既参与页面文件存在性判断，
+ * 也在导出时把 app_code 改写为 platform，避免平台出现一个没有独立前端的 mdm 应用。
+ * 这些 id 与 `supabase/baseline/mdm-master-data-menu.sql` 保持一致。
+ */
+const MDM_PLATFORM_MENU_ROOT_IDS =
+  profile === 'platform'
+    ? [
+        'd0000000-0000-4000-8000-000000000001', // 主数据（/mdm）
+        'db24361c-6182-4cc5-aa83-b64c59fb9b27', // 物料主数据
+        '5f544180-7372-4f27-aaa2-f3af6231cbcf', // 工程主数据
+        '2a0ed948-6308-4bf8-87f6-d768c6fc0cf8', // 销售主数据
+        '5ec8dbc4-c6ea-4fcc-acc0-d30cf11a0f0b' // 生产主数据
+      ]
+    : []
+const platformMdmMenuIds = new Set<string>()
+
 const menuBlock = rowsOf('sys_menu')
 const keptMenuIds = new Set<string>()
 const droppedMenuRows: string[] = []
@@ -1197,6 +1246,17 @@ if (menuBlock) {
   const typeIndex = columnIndex(menuBlock.columns, 'type')
   const nameIndex = columnIndex(menuBlock.columns, 'name')
   const rowsById = new Map(menuBlock.rows.map((row) => [row[idIndex], row]))
+
+  // 主数据四组子树：根节点 + 全部后代
+  const collectMdmSubtree = (id: string): void => {
+    const row = rowsById.get(id)
+    if (!row || platformMdmMenuIds.has(id)) return
+    platformMdmMenuIds.add(id)
+    for (const candidate of menuBlock.rows) {
+      if (candidate[parentIndex] === id) collectMdmSubtree(candidate[idIndex])
+    }
+  }
+  MDM_PLATFORM_MENU_ROOT_IDS.forEach(collectMdmSubtree)
 
   // 平台页面在 src/views，模块页面在各自子仓的 src/views
   const viewRoots =
@@ -1216,7 +1276,8 @@ if (menuBlock) {
       )
     )
   }
-  const isPlatformRow = (row: string[]): boolean => row[appCode] === targetAppCode
+  const isPlatformRow = (row: string[]): boolean =>
+    row[appCode] === targetAppCode || platformMdmMenuIds.has(row[idIndex])
   const parentOf = (row: string[]): string | null => {
     const parent = row[parentIndex]
     return parent && parent !== '\\N' && rowsById.has(parent) ? parent : null
@@ -1358,7 +1419,9 @@ if (menuBlock) {
       if (grantableMenuIds.has(row[parentIndex])) grantableMenuIds.add(row[idIndex])
       continue
     }
-    if (row[appCode] === targetAppCode) grantableMenuIds.add(row[idIndex])
+    if (row[appCode] === targetAppCode || platformMdmMenuIds.has(row[idIndex])) {
+      grantableMenuIds.add(row[idIndex])
+    }
   }
 }
 
@@ -1369,6 +1432,8 @@ if (menuBlock) {
   const idIndex = columnIndex(menuBlock.columns, 'id')
   for (const row of menuBlock.rows) {
     if (!keptMenuIds.has(row[idIndex])) continue
+    // 主数据四组的行会改写成 platform，不能再把 mdm 应用一起带进来
+    if (platformMdmMenuIds.has(row[idIndex])) continue
     if (row[appCode] && row[appCode] !== '\\N') referencedApplicationCodes.add(row[appCode])
   }
 }
@@ -1378,6 +1443,26 @@ const seedContext: SeedContext = {
   keptRoleIds,
   keptMenuIds,
   keptDictTypeIds
+}
+
+/**
+ * 主数据四组菜单在导出时的改写：app_code 变为 platform，根目录标题由「MDM主数据」改为「主数据」。
+ * 只作用于 `platformMdmMenuIds` 内的行，其他菜单不受影响。
+ */
+function rewritePlatformMdmMenuRow(row: string[], columns: string[]): string[] {
+  const id = row[columnIndex(columns, 'id')]
+  if (!platformMdmMenuIds.has(id)) return row
+
+  const next = [...row]
+  const appCodeIndex = columnIndex(columns, 'app_code')
+  next[appCodeIndex] = 'platform'
+
+  const metaIndex = columnIndex(columns, 'meta')
+  if (metaIndex >= 0 && next[metaIndex]?.includes('MDM主数据')) {
+    next[metaIndex] = next[metaIndex].replace('MDM主数据', '主数据')
+  }
+
+  return next
 }
 
 const PLATFORM_SEED_PLANS: SeedTablePlan[] = [
@@ -1400,7 +1485,8 @@ const PLATFORM_SEED_PLANS: SeedTablePlan[] = [
   {
     table: 'sys_menu',
     where: (row, columns, context) => context.keptMenuIds.has(row[columnIndex(columns, 'id')]),
-    note: 'app_code = platform 且对应页面文件仍存在的菜单、按钮与文件夹'
+    transform: rewritePlatformMdmMenuRow,
+    note: 'app_code = platform 且对应页面文件仍存在的菜单、按钮与文件夹（含并入主平台的物料 / 工程 / 销售 / 生产四块主数据）'
   },
   {
     table: 'sys_role_menu',
@@ -1582,10 +1668,13 @@ for (const plan of orderedSeedPlans) {
   const rows = plan.where
     ? block.rows.filter((row) => plan.where!(row, block.columns, seedContext))
     : block.rows
-  seedReport[plan.table] = { kept: rows.length, total: block.rows.length }
-  if (!rows.length) continue
+  const exportedRows = plan.transform
+    ? rows.map((row) => plan.transform!(row, block.columns))
+    : rows
+  seedReport[plan.table] = { kept: exportedRows.length, total: block.rows.length }
+  if (!exportedRows.length) continue
   const columnList = block.columns.map((column) => `"${column}"`).join(', ')
-  const values = rows
+  const values = exportedRows
     .map(
       (row) =>
         `  (${row
@@ -1677,8 +1766,8 @@ SET check_function_bodies = false;
 ].join('\n\n')
 
 mkdirSync(outputDirectory, { recursive: true })
-writeFileSync(join(outputDirectory, `${activeProfile.filePrefix}-schema.sql`), `${baselineSql}\n`)
-writeFileSync(join(outputDirectory, `${activeProfile.filePrefix}-data.sql`), `${seedSql}\n`)
+writeFileSync(join(outputDirectory, activeProfile.outputFiles.schema), `${baselineSql}\n`)
+writeFileSync(join(outputDirectory, activeProfile.outputFiles.data), `${seedSql}\n`)
 
 const seedSummary = Object.fromEntries(
   Object.entries(seedReport).map(([table, counts]) => [table, `${counts.kept}/${counts.total}`])
@@ -1690,7 +1779,7 @@ const finalReport = {
   seedNotes
 }
 writeFileSync(
-  join(outputDirectory, `${activeProfile.filePrefix}-report.json`),
+  join(outputDirectory, activeProfile.outputFiles.report),
   `${JSON.stringify(finalReport, null, 2)}\n`
 )
 
@@ -1700,5 +1789,5 @@ console.log(
 )
 console.log('种子行：', JSON.stringify(seedSummary))
 console.log(
-  `输出：${activeProfile.filePrefix}-schema.sql、${activeProfile.filePrefix}-data.sql、${activeProfile.filePrefix}-report.json → ${outputDirectory}`
+  `输出：${activeProfile.outputFiles.schema}、${activeProfile.outputFiles.data}、${activeProfile.outputFiles.report} → ${outputDirectory}`
 )
