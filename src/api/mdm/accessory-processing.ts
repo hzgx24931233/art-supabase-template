@@ -9,6 +9,51 @@ import {
 const { supabase, responseHandle } = useSupabase()
 const bucket = 'mdm-accessory-processing'
 
+/**
+ * MES 工单联查是否可用。
+ *
+ * 加工件的「是否已转工单」只能从 MES 的 mes_work_order 反查，而 MES 未必与平台同库部署。
+ * 首次联查失败且失败原因指向 mes_work_order 时降级为不带工单的查询，并记住结果，
+ * 后续请求不再重复发起必然失败的那一次；页面据此隐藏 MES 相关列与动作。
+ */
+let mesWorkOrderTrackingAvailable = true
+
+export const isMesWorkOrderTrackingAvailable = (): boolean => mesWorkOrderTrackingAvailable
+
+const MES_WORK_ORDER_EMBED =
+  'workOrders:mes_work_order!mes_work_order_accessory_item_tenant_fk(id,workOrderNo:work_order_no,deletedAt:deleted_at)'
+
+const ACCESSORY_ITEM_FIELDS =
+  'id,lineNo:line_no,rowNo:row_no,name,widthMm:width_mm,lengthM:length_m,quantity,materialColor:material_color,remark,sketch:sketch_bounds,sketchPath:sketch_path,imageUrls:image_urls,materialId:material_id,materialCode:material_code,specificationModel:specification_model,baseUnitId:base_unit_id,materialTypeId:material_type_id,materialSource:material_source,categoryId:category_id,codeRuleId:code_rule_id,baseUnit:mdm_unit_of_measure!accessory_item_unit_tenant_fk(unitName:unit_name),materialType:mdm_material_type!accessory_item_type_tenant_fk(typeName:type_name),category:mdm_material_category!accessory_item_category_tenant_fk(categoryName:category_name),codeRule:mdm_material_code_rule!accessory_item_code_rule_tenant_fk(ruleName:rule_name),material:mdm_material!mdm_accessory_processing_item_material_id_tenant_id_fkey(materialCode:material_code,description,imageUrls:image_urls,codeRuleId:code_rule_id)'
+
+const buildAccessoryListSelect = (includeMesWorkOrders: boolean): string =>
+  'id,tenantId:tenant_id,sourcePath:source_path,sourceName:source_name,drawingName:drawing_name,projectName:project_name,projectId:project_id,bomId:bom_id,customerId:customer_id,categoryId:category_id,status,confidence,warnings,createTime:create_time,project:mdm_project(projectName:project_name),items:mdm_accessory_processing_item(' +
+  ACCESSORY_ITEM_FIELDS +
+  (includeMesWorkOrders ? `,${MES_WORK_ORDER_EMBED}` : '') +
+  '))'
+
+/** 沿 cause 链收集错误文本，用于判断失败是否与 MES 工单联查有关 */
+const collectErrorText = (error: unknown): string => {
+  const parts: string[] = []
+  let current: unknown = error
+  for (let depth = 0; depth < 3 && current; depth += 1) {
+    if (current instanceof Error) {
+      parts.push(current.message)
+    } else if (typeof current === 'object') {
+      const record = current as Record<string, unknown>
+      for (const key of ['code', 'message', 'details', 'hint']) {
+        const value = record[key]
+        if (typeof value === 'string') parts.push(value)
+      }
+    }
+    current = (current as { cause?: unknown } | null)?.cause
+  }
+  return parts.join(' ')
+}
+
+const isMesWorkOrderUnavailable = (error: unknown): boolean =>
+  collectErrorText(error).includes('mes_work_order')
+
 export interface AccessorySketchBounds {
   page: number
   x: number
@@ -293,21 +338,32 @@ export async function fetchAccessoryLists(
   tenantId: string | null,
   listId?: string
 ): Promise<AccessoryProcessingList[]> {
-  let query = supabase
-    .from('mdm_accessory_processing_list')
-    .select(
-      'id,tenantId:tenant_id,sourcePath:source_path,sourceName:source_name,drawingName:drawing_name,projectName:project_name,projectId:project_id,bomId:bom_id,customerId:customer_id,categoryId:category_id,status,confidence,warnings,createTime:create_time,project:mdm_project(projectName:project_name),items:mdm_accessory_processing_item(id,lineNo:line_no,rowNo:row_no,name,widthMm:width_mm,lengthM:length_m,quantity,materialColor:material_color,remark,sketch:sketch_bounds,sketchPath:sketch_path,imageUrls:image_urls,materialId:material_id,materialCode:material_code,specificationModel:specification_model,baseUnitId:base_unit_id,materialTypeId:material_type_id,materialSource:material_source,categoryId:category_id,codeRuleId:code_rule_id,baseUnit:mdm_unit_of_measure!accessory_item_unit_tenant_fk(unitName:unit_name),materialType:mdm_material_type!accessory_item_type_tenant_fk(typeName:type_name),category:mdm_material_category!accessory_item_category_tenant_fk(categoryName:category_name),codeRule:mdm_material_code_rule!accessory_item_code_rule_tenant_fk(ruleName:rule_name),material:mdm_material!mdm_accessory_processing_item_material_id_tenant_id_fkey(materialCode:material_code,description,imageUrls:image_urls,codeRuleId:code_rule_id),workOrders:mes_work_order!mes_work_order_accessory_item_tenant_fk(id,workOrderNo:work_order_no,deletedAt:deleted_at)))'
-    )
-    .order('create_time', { ascending: false })
-    .limit(100)
-  if (listId) query = query.eq('id', listId)
-  if (tenantId) query = query.eq('tenant_id', tenantId)
-  const { data } = await responseHandle<AccessoryProcessingList[]>(() => query, {
-    breakReturn: true,
-    showErrorMessage: false,
-    errorMessage: '配件加工清单加载失败，请重试'
-  })
-  return (data ?? []).map((list) => ({
+  const runQuery = async (includeMesWorkOrders: boolean) => {
+    let query = supabase
+      .from('mdm_accessory_processing_list')
+      .select(buildAccessoryListSelect(includeMesWorkOrders))
+      .order('create_time', { ascending: false })
+      .limit(100)
+    if (listId) query = query.eq('id', listId)
+    if (tenantId) query = query.eq('tenant_id', tenantId)
+    return responseHandle<AccessoryProcessingList[]>(() => query, {
+      breakReturn: true,
+      showErrorMessage: false,
+      errorMessage: '配件加工清单加载失败，请重试'
+    })
+  }
+
+  let result
+  try {
+    result = await runQuery(mesWorkOrderTrackingAvailable)
+  } catch (cause) {
+    // 未接入 MES：降级为不带工单联查，其它失败照旧抛出由页面展示
+    if (!mesWorkOrderTrackingAvailable || !isMesWorkOrderUnavailable(cause)) throw cause
+    mesWorkOrderTrackingAvailable = false
+    result = await runQuery(false)
+  }
+
+  return (result.data ?? []).map((list) => ({
     ...list,
     items: [...(list.items ?? [])]
       .sort((a, b) => (a.lineNo ?? 0) - (b.lineNo ?? 0))

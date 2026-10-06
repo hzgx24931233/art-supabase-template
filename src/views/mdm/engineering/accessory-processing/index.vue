@@ -15,21 +15,7 @@
         title="配件加工清单"
         description="按项目核对加工件，分别生成物料编码、项目 BOM 和 PP40 生产工单。"
         icon="ri:shape-2-line"
-        :metrics="[
-          { label: '加工件', value: allRows.length, description: '已保存', icon: 'ri:stack-line' },
-          {
-            label: '待编码',
-            value: allRows.filter((row) => !row.materialId).length,
-            description: '未生成 MDM 物料',
-            icon: 'ri:barcode-line'
-          },
-          {
-            label: '待转工单',
-            value: allRows.filter((row) => !row.workOrders?.length).length,
-            description: '未生成 MES 工单',
-            icon: 'ri:clipboard-line'
-          }
-        ]"
+        :metrics="headerMetrics"
       >
         <template #actions>
           <BusinessWorkspaceFocusToggle v-model="focusMode" />
@@ -100,6 +86,7 @@
             <ArtSvgIcon icon="ri:git-branch-line" />转项目 BOM
           </ElButton>
           <ElButton
+            v-if="mesWorkOrderTracking"
             v-auth="'MdmAccessoryProcessing:GenerateWorkOrder'"
             :disabled="
               !selectedRows.length ||
@@ -613,11 +600,15 @@
             { key: 'source', label: '物料来源', value: sourceLabel(detailRow.materialSource) },
             { key: 'category', label: '物料分类', value: detailRow.category?.categoryName },
             { key: 'strategy', label: '编码策略', value: detailRow.codeRule?.ruleName },
-            {
-              key: 'order',
-              label: '生产工单',
-              value: detailRow.workOrders?.map((order) => order.workOrderNo).join('、')
-            }
+            ...(mesWorkOrderTracking
+              ? [
+                  {
+                    key: 'order',
+                    label: '生产工单',
+                    value: detailRow.workOrders?.map((order) => order.workOrderNo).join('、')
+                  }
+                ]
+              : [])
           ]"
         />
       </ArtDialog>
@@ -677,6 +668,7 @@
     fetchMaterialReferenceOptions,
     generateAccessoryMaterials,
     generateAccessoryStage,
+    isMesWorkOrderTrackingAvailable,
     saveAccessoryDraft,
     saveOperationalMaster,
     updateAccessoryItem,
@@ -746,6 +738,8 @@
   const lists = ref<AccessoryProcessingList[]>([])
   const loading = ref(false)
   const error = ref('')
+  // 工单状态来自 MES 联查；未接入 MES 时该整块 UI 隐藏
+  const mesWorkOrderTracking = ref(true)
   const keyword = ref('')
   const codeFilter = ref<'all' | 'pending' | 'coded'>('all')
   const projectKeyword = ref('')
@@ -864,6 +858,25 @@
       )
     )
   )
+  const headerMetrics = computed(() => [
+    { label: '加工件', value: allRows.value.length, description: '已保存', icon: 'ri:stack-line' },
+    {
+      label: '待编码',
+      value: allRows.value.filter((row) => !row.materialId).length,
+      description: '未生成 MDM 物料',
+      icon: 'ri:barcode-line'
+    },
+    ...(mesWorkOrderTracking.value
+      ? [
+          {
+            label: '待转工单',
+            value: allRows.value.filter((row) => !row.workOrders?.length).length,
+            description: '未生成 MES 工单',
+            icon: 'ri:clipboard-line'
+          }
+        ]
+      : [])
+  ])
   const projectTree = computed<ProjectNode[]>(() => {
     const projects = new Map<string, ProjectNode>()
     for (const list of lists.value) {
@@ -931,7 +944,13 @@
     (getDictMap.value.mdmMaterialSource || []).find((item) => item.value === value)?.label ||
     value ||
     '—'
-  const columns: ColumnOption<AccessoryRow>[] = [
+  const columns = computed<ColumnOption<AccessoryRow>[]>(() =>
+    columnDefinitions.filter(
+      (column) => mesWorkOrderTracking.value || !('prop' in column) || column.prop !== 'orderStatus'
+    )
+  )
+
+  const columnDefinitions: ColumnOption<AccessoryRow>[] = [
     { type: 'selection', width: 48, fixed: 'left' },
     { type: 'globalIndex', label: '序号', width: 72, fixed: 'left' },
     { prop: 'image', label: '图片', width: 104, useSlot: true, fixed: 'left' },
@@ -1150,6 +1169,8 @@
         effectiveTenantId.value,
         targetListId.value || undefined
       )
+      // MES 未同库部署时联查会自动降级，页面据此隐藏工单相关列与动作
+      mesWorkOrderTracking.value = isMesWorkOrderTrackingAvailable()
       clearSelectedRows()
     } catch (cause) {
       error.value = getFriendlySupabaseErrorMessage(cause, '配件加工清单加载失败，请重试')
