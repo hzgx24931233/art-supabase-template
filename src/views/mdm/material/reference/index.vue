@@ -383,7 +383,7 @@
           label: '属性数量',
           width: 110,
           align: 'center',
-          formatter: (row) => `${(row as MaterialAttributeGroup).attributes.length} 项`
+          formatter: (row) => `${(row as MaterialAttributeGroup).attributes?.length ?? 0} 项`
         },
         {
           prop: 'attributeSummary',
@@ -391,7 +391,7 @@
           minWidth: 260,
           showOverflowTooltip: true,
           formatter: (row) =>
-            (row as MaterialAttributeGroup).attributes.map((item) => item.name).join('、') ||
+            (row as MaterialAttributeGroup).attributes?.map((item) => item.name).join('、') ||
             '尚未配置属性'
         }
       )
