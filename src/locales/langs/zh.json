@@ -141,6 +141,13 @@
       "closeRight": "关闭右侧",
       "closeOther": "关闭其他",
       "closeAll": "关闭全部"
+    },
+    "nav": {
+      "more": "更多",
+      "locate": "快速定位已打开页面",
+      "searchPlaceholder": "搜索已打开页面",
+      "emptyTitle": "没有匹配的已打开页面",
+      "emptyDescription": "试试其他关键词，或清空搜索查看全部标签"
     }
   },
   "login": {

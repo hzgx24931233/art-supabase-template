@@ -66,7 +66,7 @@
           </span>
           <ArtIconButton
             v-if="list.length > 1 && !item.fixedTab"
-            class="relative ml-0.5 size-5! text-[10px]!"
+            class="art-work-tab__close relative ml-0.5 size-5! text-[10px]!"
             icon="ri:close-large-fill"
             :label="`关闭${item.customTitle || formatMenuTitle(item.title)}`"
             @click.stop="closeWorktab('current', item.path)"
@@ -91,19 +91,95 @@
     </button>
 
     <div class="flex">
-      <button
-        type="button"
-        aria-label="管理已打开页面"
-        title="管理已打开页面"
-        class="art-work-tab__menu-button flex-cc art-card-xs relative top-0 size-8 leading-8 text-center c-p tad-200 hover:!bg-hover-color"
-        :style="{
-          borderRadius: 'calc(var(--custom-radius) / 2.5 + 0px)',
-          marginTop: tabStyle === 'tab-google' ? '-2px' : ''
+      <ElPopover
+        ref="locatorPopoverRef"
+        v-model:visible="locatorVisible"
+        role="dialog"
+        placement="bottom-end"
+        :width="264"
+        :offset="6"
+        :show-arrow="false"
+        trigger="click"
+        popper-class="work-tab-locator-popover"
+        :popper-style="{
+          border: '1px solid var(--default-border)',
+          borderRadius: 'calc(var(--custom-radius) / 2 + 4px)',
+          padding: '6px'
         }"
-        @click="(e: MouseEvent) => showMenu(e, activeTab)"
+        :aria-label="t('worktab.nav.locate')"
+        @before-show="handleLocatorBeforeShow"
+        @hide="handleLocatorHide"
       >
-        <ArtSvgIcon icon="iconamoon:arrow-down-2-thin" class="text-2xl text-g-700" />
-      </button>
+        <template #reference>
+          <button
+            v-show="hasOverflow"
+            ref="locatorButtonRef"
+            type="button"
+            class="art-work-tab__more-button flex-cc art-card-xs relative top-0 size-8 leading-8 text-center c-p tad-200 hover:!bg-hover-color"
+            :style="{
+              borderRadius: 'calc(var(--custom-radius) / 2.5 + 0px)',
+              marginTop: tabStyle === 'tab-google' ? '-2px' : ''
+            }"
+            :aria-label="t('worktab.nav.locate')"
+            :title="t('worktab.nav.more')"
+            aria-haspopup="dialog"
+            :aria-expanded="locatorVisible"
+          >
+            <ArtSvgIcon icon="iconamoon:menu-kebab-horizontal-fill" class="text-2xl text-g-700" />
+          </button>
+        </template>
+
+        <div class="work-tab-locator" @keydown.esc.prevent.stop="closeLocator(true)">
+          <ElInput
+            ref="locatorInputRef"
+            v-model="locatorKeyword"
+            class="work-tab-locator__search"
+            size="small"
+            clearable
+            :prefix-icon="Search"
+            :placeholder="t('worktab.nav.searchPlaceholder')"
+            @keydown.down.prevent="focusFirstLocatorItem"
+            @keydown.up.prevent="focusLastLocatorItem"
+          />
+
+          <ElScrollbar v-if="locatorTabs.length" class="work-tab-locator__list" max-height="300px">
+            <ul class="m-0 list-none p-0">
+              <li v-for="(item, index) in locatorTabs" :key="item.path">
+                <button
+                  type="button"
+                  class="work-tab-locator__item"
+                  :class="{ 'is-current': item.path === activeTab }"
+                  :aria-current="item.path === activeTab ? 'page' : undefined"
+                  @click="locateTab(item)"
+                  @keydown="handleLocatorItemKeydown($event, index)"
+                >
+                  <ArtSvgIcon
+                    :icon="item.icon || DEFAULT_TAB_ICON"
+                    class="work-tab-locator__icon"
+                    aria-hidden="true"
+                  />
+                  <span class="work-tab-locator__label">{{ getTabTitle(item) }}</span>
+                  <ArtSvgIcon
+                    v-if="item.path === activeTab"
+                    icon="ri:check-line"
+                    class="work-tab-locator__mark"
+                    aria-hidden="true"
+                  />
+                </button>
+              </li>
+            </ul>
+          </ElScrollbar>
+
+          <div v-else class="work-tab-locator__empty">
+            <ArtEmptyState
+              :title="t('worktab.nav.emptyTitle')"
+              :description="t('worktab.nav.emptyDescription')"
+              size="compact"
+              :visual-size="72"
+            />
+          </div>
+        </div>
+      </ElPopover>
     </div>
 
     <ArtMenuRight
@@ -122,6 +198,8 @@
   import { useI18n } from 'vue-i18n'
   import { storeToRefs } from 'pinia'
   import { useResizeObserver } from '@vueuse/core'
+  import { Search } from '@element-plus/icons-vue'
+  import type { InputInstance, PopoverInstance } from 'element-plus'
 
   import { useWorktabStore } from '@/store/modules/worktab'
   import { useUserStore } from '@/store/modules/user'
@@ -133,6 +211,9 @@
   import ArtIconButton from '@/components/core/widget/art-icon-button/index.vue'
 
   defineOptions({ name: 'ArtWorkTab' })
+
+  /** 已打开页面定位列表中缺少图标时的兜底图标 */
+  const DEFAULT_TAB_ICON = 'ri:file-list-3-line'
 
   // 类型定义
   interface ScrollState {
@@ -161,6 +242,9 @@
   const scrollRef = ref<HTMLElement | null>(null)
   const tabsRef = ref<HTMLElement | null>(null)
   const menuRef = ref()
+  const locatorPopoverRef = ref<PopoverInstance | null>(null)
+  const locatorButtonRef = ref<HTMLButtonElement | null>(null)
+  const locatorInputRef = ref<InputInstance | null>(null)
 
   // 状态管理
   const scrollState = ref<ScrollState>({
@@ -177,6 +261,10 @@
   const hasOverflow = ref(false)
   const canScrollLeft = ref(false)
   const canScrollRight = ref(false)
+
+  // 已打开页面定位面板
+  const locatorVisible = ref(false)
+  const locatorKeyword = ref('')
 
   const updateScrollAffordances = (): void => {
     if (!scrollRef.value || !tabsRef.value) return
@@ -196,6 +284,16 @@
   const list = computed(() => store.opened)
   const activeTab = computed(() => currentRoute.value.path)
   const activeTabIndex = computed(() => list.value.findIndex((tab) => tab.path === activeTab.value))
+
+  const getTabTitle = (tab: WorkTab): string => tab.customTitle || formatMenuTitle(tab.title)
+
+  const locatorTabs = computed(() => {
+    const keyword = locatorKeyword.value.trim().toLowerCase()
+
+    if (!keyword) return list.value
+
+    return list.value.filter((tab) => getTabTitle(tab).toLowerCase().includes(keyword))
+  })
 
   // 右键菜单逻辑
   const useContextMenu = () => {
@@ -501,6 +599,76 @@
   const { clickTab, closeWorktab, showMenu, handleSelect } =
     useTabOperations(adjustPositionAfterClose)
 
+  // 已打开页面定位面板逻辑
+  const getLocatorItemElements = (): HTMLElement[] =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>('.work-tab-locator-popover .work-tab-locator__item')
+    )
+
+  const focusLocatorItem = (index: number): void => {
+    const items = getLocatorItemElements()
+
+    if (!items.length) return
+
+    items[Math.min(Math.max(index, 0), items.length - 1)]?.focus()
+  }
+
+  const focusFirstLocatorItem = (): void => focusLocatorItem(0)
+
+  const focusLastLocatorItem = (): void => focusLocatorItem(getLocatorItemElements().length - 1)
+
+  const handleLocatorItemKeydown = (event: KeyboardEvent, index: number): void => {
+    const lastIndex = getLocatorItemElements().length - 1
+    const targetIndexByKey: Partial<Record<string, number | 'search'>> = {
+      ArrowDown: index >= lastIndex ? 0 : index + 1,
+      ArrowUp: index === 0 ? 'search' : index - 1,
+      Home: 0,
+      End: lastIndex
+    }
+    const targetIndex = targetIndexByKey[event.key]
+
+    if (targetIndex === undefined) return
+
+    event.preventDefault()
+
+    if (targetIndex === 'search') {
+      locatorInputRef.value?.focus()
+      return
+    }
+
+    focusLocatorItem(targetIndex)
+  }
+
+  const closeLocator = (restoreFocus = false): void => {
+    // 先移出焦点再隐藏，避免面板隐藏时焦点回落到 body
+    if (restoreFocus) locatorButtonRef.value?.focus()
+
+    locatorPopoverRef.value?.hide()
+  }
+
+  const handleLocatorBeforeShow = (): void => {
+    // before-show 早于浮层显示，等到下一帧输入框可聚焦时再落焦点，避免打开动画期间丢字
+    requestAnimationFrame(() => locatorInputRef.value?.focus())
+  }
+
+  const handleLocatorHide = (): void => {
+    locatorKeyword.value = ''
+  }
+
+  const locateTab = (tab: WorkTab): void => {
+    if (tab.path === activeTab.value) {
+      // 路由未变化时不会触发路由监听，这里手动把该标签滚入可视区
+      void nextTick(() => {
+        setTransition()
+        autoPositionTab()
+      })
+    } else {
+      clickTab(tab)
+    }
+
+    closeLocator(true)
+  }
+
   const focusTabAt = (index: number): void => {
     const targetTab = list.value[index]
 
@@ -566,6 +734,11 @@
     () => updateScrollAffordances()
   )
 
+  // 标签不再溢出时，定位面板失去入口，需要同步关闭
+  watch(hasOverflow, (overflow) => {
+    if (!overflow) closeLocator()
+  })
+
   watch(
     () => userStore.language,
     () => {
@@ -599,7 +772,7 @@
       padding-bottom: 0;
     }
 
-    &__menu-button {
+    &__more-button {
       color: var(--art-gray-700);
       background: transparent !important;
       border-color: transparent !important;
@@ -681,6 +854,18 @@
           background: color-mix(in srgb, var(--theme-color) 9%, transparent);
           box-shadow: var(--art-themed-action-focus-shadow);
         }
+      }
+
+      .art-work-tab__close {
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity var(--art-motion-duration-fast) var(--art-motion-ease-out);
+      }
+
+      &:hover .art-work-tab__close,
+      .art-work-tab__close:focus-visible {
+        pointer-events: auto;
+        opacity: 1;
       }
     }
 
@@ -768,6 +953,14 @@
       li[role='tab'] {
         margin-right: 0 !important;
         border-radius: calc(var(--custom-radius) / 2.5 + 4px) !important;
+      }
+    }
+
+    // 触屏设备没有悬停态，关闭按钮需常驻可点
+    @media (hover: none) {
+      li[role='tab'] .art-work-tab__close {
+        pointer-events: auto;
+        opacity: 1;
       }
     }
   }
@@ -873,5 +1066,72 @@
   .google-tab i:hover {
     color: var(--art-gray-700);
     background: var(--art-gray-300);
+  }
+
+  // 定位面板渲染在 body 下的浮层里，选择器需整体 :global 包裹且不能再嵌套后代
+  :global(.work-tab-locator-popover .work-tab-locator) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--art-space-2);
+    min-width: 0;
+  }
+
+  :global(.work-tab-locator-popover .work-tab-locator__item) {
+    display: flex;
+    gap: var(--art-space-2);
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 32px;
+    padding: 4px var(--art-space-2);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--art-gray-800);
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: var(--el-border-radius-base);
+    transition:
+      color 0.18s ease,
+      background-color 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  :global(.work-tab-locator-popover .work-tab-locator__item:hover) {
+    color: var(--theme-color);
+    background: var(--art-hover-color);
+  }
+
+  :global(.work-tab-locator-popover .work-tab-locator__item:focus-visible) {
+    color: var(--theme-color);
+    outline: none;
+    background: color-mix(in srgb, var(--theme-color) 8%, var(--default-box-color));
+    box-shadow: var(--art-themed-action-focus-shadow);
+  }
+
+  :global(.work-tab-locator-popover .work-tab-locator__item.is-current) {
+    font-weight: 600;
+    color: var(--theme-color);
+    background: color-mix(in srgb, var(--theme-color) 8%, var(--default-box-color));
+  }
+
+  :global(.work-tab-locator-popover .work-tab-locator__icon),
+  :global(.work-tab-locator-popover .work-tab-locator__mark) {
+    flex: 0 0 auto;
+    font-size: 14px;
+  }
+
+  :global(.work-tab-locator-popover .work-tab-locator__mark) {
+    color: var(--theme-color);
+  }
+
+  :global(.work-tab-locator-popover .work-tab-locator__label) {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>

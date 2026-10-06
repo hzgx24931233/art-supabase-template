@@ -141,6 +141,13 @@
       "closeRight": "Close right",
       "closeOther": "Close other",
       "closeAll": "Close all"
+    },
+    "nav": {
+      "more": "More",
+      "locate": "Quickly locate opened pages",
+      "searchPlaceholder": "Search opened pages",
+      "emptyTitle": "No matching opened pages",
+      "emptyDescription": "Try another keyword, or clear the search to see all tabs"
     }
   },
   "login": {
