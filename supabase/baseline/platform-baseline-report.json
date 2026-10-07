@@ -10,10 +10,10 @@
   "keptBlockCounts": {
     "POLICY": 785,
     "INDEX": 678,
-    "ACL": 544,
+    "ACL": 550,
     "TRIGGER": 493,
+    "FUNCTION": 462,
     "FK CONSTRAINT": 460,
-    "FUNCTION": 456,
     "CONSTRAINT": 378,
     "TABLE": 173,
     "ROW SECURITY": 172,
@@ -377,6 +377,7 @@
     "app_private.next_fms_voucher_no(uuid, uuid, smallint, smallint, text)",
     "app_private.normalize_mdm_business_type()",
     "app_private.normalize_mdm_document_type()",
+    "app_private.normalize_vms_supplier(public.mdm_supplier)",
     "app_private.notification_target_tenant(uuid)",
     "app_private.permission_access_rank(text)",
     "app_private.platform_tenant_id()",
@@ -437,7 +438,11 @@
     "app_private.tms_customer_address_to_secure_json(public.mdm_customer_address, jsonb)",
     "app_private.tms_customer_option_to_secure_json(public.mdm_customer)",
     "app_private.tms_customer_to_secure_json(public.mdm_customer, jsonb)",
+    "app_private.tms_driver_option_to_secure_json(public.mdm_driver)",
+    "app_private.tms_driver_to_secure_json(public.mdm_driver, jsonb)",
+    "app_private.tms_driver_with_relations_to_secure_json(public.mdm_driver)",
     "app_private.tms_recompute_source_order(uuid)",
+    "app_private.tms_remaining_cargo_items(public.tms_order)",
     "app_private.tms_valid_url_array(jsonb)",
     "app_private.touch_updated_at()",
     "app_private.transfer_workflow_task(uuid, uuid, text, text)",
@@ -528,6 +533,7 @@
     "public.current_is_super()",
     "public.delete_notification_rule(uuid)",
     "public.delete_workflow_definition(uuid)",
+    "public.dict_type_cascade_parent(public.sys_dict_type)",
     "public.execute_sql_query(text)",
     "public.export_mdm_business_types(uuid, uuid[], uuid, text, boolean, boolean, integer)",
     "public.export_mdm_document_types(uuid, uuid[], text, boolean, boolean, integer)",
@@ -1388,7 +1394,7 @@
     "public.tms_waybill_order_allocation": [
       "app_private.tms_lock_source_business_data()",
       "app_private.tms_recompute_source_order(\"uuid\")",
-      "public.trg_sync_order_terminal_status_from_waybill()"
+      "app_private.tms_remaining_cargo_items(\"public\".\"tms_order\")"
     ],
     "public.tms_waybill_profit": [
       "public.tms_get_waybill_cost_ai_evidence_secure(\"uuid\")",
@@ -1408,6 +1414,9 @@
     ],
     "public.vehicle_reminder_work_order": [
       "public.cleanup_master_data_delete_dependencies(\"text\", \"uuid\"[], \"text\", \"uuid\"[])"
+    ],
+    "public.vehicle_supplier": [
+      "app_private.normalize_vms_supplier(\"public\".\"mdm_supplier\")"
     ],
     "public.wms_inventory_batch": [
       "app_private.assert_wms_destination(\"uuid\", \"uuid\", \"uuid\", \"uuid\", numeric, numeric)",
@@ -1451,8 +1460,8 @@
     "mdm_organization": "3/41",
     "sys_role": "3/16",
     "sys_role_menu": "605/11825",
-    "sys_dict_type": "91/747",
-    "sys_dictionary": "389/2845",
+    "sys_dict_type": "286/747",
+    "sys_dictionary": "981/2845",
     "sys_param": "10/10",
     "ai_feature_config": "4/24",
     "ai_prompt_template": "4/14"

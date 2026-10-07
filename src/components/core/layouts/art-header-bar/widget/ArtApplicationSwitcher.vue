@@ -83,7 +83,9 @@
     ...(applications.value.length
       ? applications.value.map((application) => ({
           ...application,
-          name: APPLICATION_PROFILES[application.code].name
+          // 数据库里的应用码可能多于前端配置（例如 smis / vms / tms 等参考应用），
+          // 取不到配置时回退接口返回的名称，避免应用切换器整体抛错。
+          name: APPLICATION_PROFILES[application.code]?.name ?? application.name
         }))
       : [
           {

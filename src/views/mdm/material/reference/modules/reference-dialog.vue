@@ -221,7 +221,6 @@
     row?: MaterialReferenceRecord
     copy?: boolean
     tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
   }
   interface FormExpose {
     validate: () => Promise<boolean>
@@ -234,7 +233,6 @@
   const dialogRef = ref<ArtDialogExpose<ReferenceDialogOpenData>>()
   const formRef = ref<FormExpose>()
   const currentKind = ref<MaterialReferenceKind>('unit-of-measure')
-  const tenantOptions = ref<Array<{ label: string; value: string }>>([])
   const unitOptions = ref<UnitOfMeasure[]>([])
   const initialForm = (): ReferenceFormModel => ({
     id: undefined,
@@ -305,19 +303,6 @@
   const materialCodeDateFormatOptions = computed(
     () => getDictMap.value.mdmMaterialCodeDateFormat ?? []
   )
-  const tenantItems = (): FormItem[] => [
-    {
-      label: '目标租户',
-      key: 'tenantId',
-      type: 'select',
-      options: tenantOptions.value,
-      props: {
-        disabled: Boolean(formModel.id),
-        filterable: true,
-        placeholder: '请选择本次维护的数据归属租户'
-      }
-    }
-  ]
   const baseItems = (): FormItem[] => [
     {
       label: '启用状态',
@@ -349,7 +334,6 @@
     items: computed(() => {
       if (currentKind.value === 'unit-of-measure')
         return [
-          ...tenantItems(),
           {
             label: '单位编码',
             key: 'unitCode',
@@ -413,7 +397,6 @@
         ]
       if (currentKind.value === 'material-type')
         return [
-          ...tenantItems(),
           {
             label: '类型编码',
             key: 'typeCode',
@@ -441,7 +424,6 @@
         ]
       if (currentKind.value === 'attribute-group')
         return [
-          ...tenantItems(),
           {
             label: '属性组编码',
             key: 'groupCode',
@@ -458,7 +440,6 @@
           ...baseItems()
         ]
       return [
-        ...tenantItems(),
         {
           label: '规则编码',
           key: 'ruleCode',
@@ -502,7 +483,6 @@
       ]
     }),
     rules: {
-      tenantId: [{ required: true, message: '请选择目标租户', trigger: 'change' }],
       unitCode: [{ required: true, message: '请输入单位编码', trigger: 'blur' }],
       unitName: [{ required: true, message: '请输入单位名称', trigger: 'blur' }],
       baseUnitId: [
@@ -774,7 +754,6 @@
   const handleOpen = async (data: ReferenceDialogOpenData): Promise<void> => {
     Object.assign(form.model, initialForm())
     currentKind.value = data.kind
-    tenantOptions.value = data.tenantOptions
     form.model.tenantId = data.row?.tenantId || data.tenantId
     unitOptions.value = []
     if (data.row) Object.assign(form.model, cloneDeep(data.row))

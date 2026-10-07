@@ -46,6 +46,7 @@ onOpen: async (_data, api) => {
 - 默认启用 `destroy-on-close`
 - 默认启用 `draggable`
 - 默认显示全屏切换按钮；特殊弹窗可通过 `:show-fullscreen-button="false"` 显式关闭
+- 标题前默认显示主题色图标，可用 `title-icon` 按弹窗语义覆盖，或传空字符串隐藏
 - `#header-actions` 可在全屏按钮左侧放置弹窗级操作，图标操作需提供无障碍名称
 - 弹窗内使用 `ArtForm` 时自动显示“专注填单”按钮；专注态全屏、隐藏副标题与 `ArtEntitySummary`、居中表单并采用紧凑的左侧标签，退出后恢复原全屏状态。业务辅助说明可标记 `data-art-dialog-focus-hide`，必填说明或风险提示应继续显示。
 - 默认宽度为 `50%`
@@ -228,6 +229,25 @@ When the dialog enters fullscreen mode, `contentHeight` and `contentMaxHeight` s
 
 弹窗 Body 本身不设置内边距，默认内容间距由 `art-dialog__content` 承担，因此滚动条会贴近弹窗右侧边缘。确需贴边展示的特殊内容可在弹窗类名上覆盖 `--art-dialog-content-padding: 0`。
 
+## 标题图标
+
+标题前会渲染一个主题色图标，默认 `ri:file-list-3-line`，用于在弹窗打开时快速识别当前业务对象。图标只作视觉标识，不参与无障碍朗读，标题文字仍是唯一的名称来源。
+
+```vue
+<!-- 按业务语义覆盖图标 -->
+<ArtDialog ref="dialogRef" title-icon="ri:user-settings-line" />
+```
+
+```ts
+// 也可以在每次打开时覆盖
+dialogRef.value?.handleOpen(data, {
+  title: '编辑物料档案',
+  titleIcon: 'ri:archive-line'
+})
+```
+
+传入 `title-icon=""` 可隐藏图标，恢复为纯标题的弹窗头部。使用 `#header` 插槽自定义标题区域时，标题图标不会渲染，需要由业务自己控制头部内容。
+
 ## 自定义插槽
 
 ```vue
@@ -285,6 +305,7 @@ dialogRef.value?.handleOpen(user, {
 | 属性 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `title` | `string` | `''` | 标题 |
+| `titleIcon` | `string` | `'ri:file-list-3-line'` | 标题前图标（Iconify 名称），传空字符串隐藏 |
 | `width` | `string \| number` | `'50%'` | 弹窗宽度 |
 | `fullscreen` | `boolean` | `false` | 是否以全屏状态打开 |
 | `showFullscreenButton` | `boolean` | `true` | 是否显示全屏切换按钮 |

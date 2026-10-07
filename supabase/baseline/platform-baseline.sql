@@ -2,7 +2,7 @@
 -- 平台基线 schema（由 scripts/build-platform-baseline.ts 生成，请勿手工编辑）
 --
 -- 来源快照：D:\art-supabase-pro\supabase\backups\20261004-111116
--- 生成时间：2026-10-06T07:21:19.383Z
+-- 生成时间：2026-10-06T12:16:30.797Z
 -- 保留：平台内核（sys_* / wf_* / ai_* / app_private 助手层）+ 保留代码依赖的跨域契约对象
 -- 丢弃：业务域表、视图、策略、函数与历史备份表
 --
@@ -10311,6 +10311,34 @@ COMMENT ON TABLE "public"."mdm_supplier" IS 'MDM 供应商主数据；跨 SMIS�
 --
 
 --
+-- Name: normalize_vms_supplier("public"."mdm_supplier"); Type: FUNCTION; Schema: app_private
+--
+
+--
+
+CREATE OR REPLACE FUNCTION "app_private"."normalize_vms_supplier"("p_input" "public"."mdm_supplier") RETURNS "public"."mdm_supplier"
+    LANGUAGE "plpgsql" IMMUTABLE
+    SET "search_path" TO ''
+    AS $$
+declare v_input public.vehicle_supplier := p_input;
+begin
+  v_input.supplier_name := nullif(btrim(v_input.supplier_name),'');
+  if v_input.supplier_name is null then raise exception 'Supplier name is required'; end if;
+  v_input.contact_person := nullif(btrim(v_input.contact_person),'');
+  v_input.contact_phone := nullif(btrim(v_input.contact_phone),'');
+  v_input.region := nullif(btrim(v_input.region),'');
+  v_input.address_detail := nullif(btrim(v_input.address_detail),'');
+  v_input.remark := nullif(btrim(v_input.remark),'');
+  return v_input;
+end;
+$$;
+
+
+ALTER FUNCTION "app_private"."normalize_vms_supplier"("p_input" "public"."mdm_supplier") OWNER TO "postgres";
+
+--
+
+--
 -- Name: notification_target_tenant("uuid"); Type: FUNCTION; Schema: app_private
 --
 
@@ -14011,6 +14039,156 @@ COMMENT ON TABLE "public"."mdm_driver" IS 'MDM 驾驶员主数据；连接承运
 --
 
 --
+-- Name: tms_driver_option_to_secure_json("public"."mdm_driver"); Type: FUNCTION; Schema: app_private
+--
+
+--
+
+CREATE OR REPLACE FUNCTION "app_private"."tms_driver_option_to_secure_json"("p_driver" "public"."mdm_driver") RETURNS "jsonb"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+declare
+  v_secure jsonb := app_private.tms_driver_to_secure_json(p_driver, null);
+begin
+  return jsonb_strip_nulls(jsonb_build_object(
+    'id', p_driver.id,
+    'carrier_id', p_driver.carrier_id,
+    'driver_name', p_driver.driver_name,
+    'phone', v_secure->'phone',
+    'driver_type', p_driver.driver_type,
+    'license_type', p_driver.license_type,
+    'license_expire_date', p_driver.license_expire_date,
+    'enabled', p_driver.enabled,
+    'field_access', v_secure->'field_access',
+    'is_record_owner', v_secure->'is_record_owner'
+  ));
+end;
+$$;
+
+
+ALTER FUNCTION "app_private"."tms_driver_option_to_secure_json"("p_driver" "public"."mdm_driver") OWNER TO "postgres";
+
+--
+
+--
+-- Name: tms_driver_to_secure_json("public"."mdm_driver", "jsonb"); Type: FUNCTION; Schema: app_private
+--
+
+--
+
+CREATE OR REPLACE FUNCTION "app_private"."tms_driver_to_secure_json"("p_driver" "public"."mdm_driver", "p_access" "jsonb" DEFAULT NULL::"jsonb") RETURNS "jsonb"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+declare
+  v_access jsonb := coalesce(
+    p_access,
+    app_private.field_access_map('tms.driver', p_driver.created_by_user_id)
+  );
+  v_data jsonb := to_jsonb(p_driver) - 'tenant_id' - 'created_by_user_id';
+  v_level text;
+begin
+  v_level := coalesce(v_access->>'contactPhone', 'hidden');
+  if v_level = 'hidden' then
+    v_data := v_data - 'phone';
+  elsif v_level = 'masked' then
+    v_data := jsonb_set(v_data, '{phone}', coalesce(to_jsonb(
+      app_private.mask_permission_value(p_driver.phone, 'phone')
+    ), 'null'::jsonb));
+  end if;
+
+  v_level := coalesce(v_access->>'idCardNo', 'hidden');
+  if v_level = 'hidden' then
+    v_data := v_data - 'id_card_no';
+  elsif v_level = 'masked' then
+    v_data := jsonb_set(v_data, '{id_card_no}', coalesce(to_jsonb(
+      app_private.mask_permission_value(p_driver.id_card_no, 'id_card')
+    ), 'null'::jsonb));
+  end if;
+
+  v_level := coalesce(v_access->>'homeAddress', 'hidden');
+  if v_level = 'hidden' then
+    v_data := v_data - 'home_address';
+  elsif v_level = 'masked' then
+    v_data := jsonb_set(v_data, '{home_address}', coalesce(to_jsonb(
+      app_private.mask_permission_value(p_driver.home_address, 'address')
+    ), 'null'::jsonb));
+  end if;
+
+  v_level := coalesce(v_access->>'emergencyContact', 'hidden');
+  if v_level = 'hidden' then
+    v_data := v_data - 'emergency_contact_name' - 'emergency_contact_phone';
+  elsif v_level = 'masked' then
+    v_data := jsonb_set(v_data, '{emergency_contact_name}', coalesce(to_jsonb(
+      app_private.mask_permission_value(p_driver.emergency_contact_name, 'none')
+    ), 'null'::jsonb));
+    v_data := jsonb_set(v_data, '{emergency_contact_phone}', coalesce(to_jsonb(
+      app_private.mask_permission_value(p_driver.emergency_contact_phone, 'phone')
+    ), 'null'::jsonb));
+  end if;
+
+  v_level := coalesce(v_access->>'identityDocuments', 'hidden');
+  if v_level in ('hidden', 'masked') then
+    v_data := v_data
+      - 'id_card_front_url' - 'id_card_back_url'
+      - 'driver_license_front_url' - 'driver_license_back_url';
+  end if;
+
+  return v_data || jsonb_build_object(
+    'field_access', v_access,
+    'is_record_owner', p_driver.created_by_user_id = app_private.current_app_user_id()
+  );
+end;
+$$;
+
+
+ALTER FUNCTION "app_private"."tms_driver_to_secure_json"("p_driver" "public"."mdm_driver", "p_access" "jsonb") OWNER TO "postgres";
+
+--
+
+--
+-- Name: tms_driver_with_relations_to_secure_json("public"."mdm_driver"); Type: FUNCTION; Schema: app_private
+--
+
+--
+
+CREATE OR REPLACE FUNCTION "app_private"."tms_driver_with_relations_to_secure_json"("p_driver" "public"."mdm_driver") RETURNS "jsonb"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+declare
+  v_carrier jsonb;
+  v_vehicles jsonb;
+begin
+  select app_private.tms_carrier_option_to_secure_json(carrier_row)
+  into v_carrier
+  from public.mdm_carrier carrier_row
+  where carrier_row.id = p_driver.carrier_id
+    and carrier_row.tenant_id = p_driver.tenant_id;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', vehicle_row.id,
+    'carrier_id', vehicle_row.carrier_id,
+    'plate_no', vehicle_row.plate_no
+  ) order by vehicle_row.plate_no, vehicle_row.id), '[]'::jsonb)
+  into v_vehicles
+  from public.vehicle_archive vehicle_row
+  where vehicle_row.tenant_id = p_driver.tenant_id
+    and vehicle_row.carrier_id = p_driver.carrier_id
+    and (vehicle_row.primary_driver_id = p_driver.id or vehicle_row.secondary_driver_id = p_driver.id);
+
+  return app_private.tms_driver_to_secure_json(p_driver, null)
+    || jsonb_build_object('carrier', v_carrier, 'assigned_vehicles', v_vehicles);
+end;
+$$;
+
+
+ALTER FUNCTION "app_private"."tms_driver_with_relations_to_secure_json"("p_driver" "public"."mdm_driver") OWNER TO "postgres";
+
+--
+
+--
 -- Name: tms_recompute_source_order("uuid"); Type: FUNCTION; Schema: app_private
 --
 
@@ -14064,6 +14242,41 @@ end $$;
 
 
 ALTER FUNCTION "app_private"."tms_recompute_source_order"("p_order_id" "uuid") OWNER TO "postgres";
+
+--
+
+--
+-- Name: tms_remaining_cargo_items("public"."tms_order"); Type: FUNCTION; Schema: app_private
+--
+
+--
+
+CREATE OR REPLACE FUNCTION "app_private"."tms_remaining_cargo_items"("p_order" "public"."tms_order") RETURNS "jsonb"
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+ select coalesce(jsonb_agg(
+   item.value || jsonb_build_object(
+    'quantity',greatest(0,coalesce((item.value->>'quantity')::numeric,0)-coalesce(used.quantity,0)),
+    'weight_kg',greatest(0,coalesce((item.value->>'weight_kg')::numeric,0)-coalesce(used.weight_kg,0)),
+    'volume_m3',greatest(0,coalesce((item.value->>'volume_m3')::numeric,0)-coalesce(used.volume_m3,0))
+   ) order by item.ordinality
+ ),'[]'::jsonb)
+ from jsonb_array_elements(p_order.cargo_items) with ordinality item(value,ordinality)
+ left join lateral (
+   select sum((line.value->>'quantity')::numeric) quantity,
+     sum((line.value->>'weight_kg')::numeric) weight_kg,
+     sum((line.value->>'volume_m3')::numeric) volume_m3
+   from public.tms_waybill_order_allocation a
+   join public.tms_waybill w on w.id=a.waybill_id and w.status<>'cancelled'
+   cross join lateral jsonb_array_elements(a.cargo_items) line
+   where a.order_id=p_order.id and a.tenant_id=p_order.tenant_id
+     and (line.value->>'line_index')::integer=item.ordinality-1
+ ) used on true
+$$;
+
+
+ALTER FUNCTION "app_private"."tms_remaining_cargo_items"("p_order" "public"."tms_order") OWNER TO "postgres";
 
 --
 
@@ -18733,6 +18946,26 @@ ALTER TABLE "public"."sys_dict_type" OWNER TO "postgres";
 
 COMMENT ON TABLE "public"."sys_dict_type" IS '数据中心/字典类型';
 
+
+--
+
+--
+-- Name: dict_type_cascade_parent("public"."sys_dict_type"); Type: FUNCTION; Schema: public
+--
+
+--
+
+CREATE OR REPLACE FUNCTION "public"."dict_type_cascade_parent"("public"."sys_dict_type") RETURNS SETOF "public"."sys_dict_type"
+    LANGUAGE "sql" STABLE ROWS 1
+    SET "search_path" TO ''
+    AS $_$
+  select parent.*
+  from public.sys_dict_type as parent
+  where parent.id = ($1).cascade_parent_type_id
+$_$;
+
+
+ALTER FUNCTION "public"."dict_type_cascade_parent"("public"."sys_dict_type") OWNER TO "postgres";
 
 --
 
@@ -80332,6 +80565,18 @@ GRANT ALL ON TABLE "public"."mdm_supplier" TO "service_role";
 --
 
 --
+-- Name: FUNCTION "normalize_vms_supplier"("p_input" "public"."mdm_supplier"); Type: ACL; Schema: app_private
+--
+
+--
+
+REVOKE ALL ON FUNCTION "app_private"."normalize_vms_supplier"("p_input" "public"."mdm_supplier") FROM PUBLIC;
+GRANT ALL ON FUNCTION "app_private"."normalize_vms_supplier"("p_input" "public"."mdm_supplier") TO "service_role";
+
+
+--
+
+--
 -- Name: FUNCTION "permission_access_rank"("p_access" "text"); Type: ACL; Schema: app_private
 --
 
@@ -80902,6 +81147,50 @@ REVOKE ALL ON FUNCTION "app_private"."tms_customer_to_secure_json"("p_customer" 
 GRANT ALL ON TABLE "public"."mdm_driver" TO "anon";
 GRANT ALL ON TABLE "public"."mdm_driver" TO "authenticated";
 GRANT ALL ON TABLE "public"."mdm_driver" TO "service_role";
+
+
+--
+
+--
+-- Name: FUNCTION "tms_driver_option_to_secure_json"("p_driver" "public"."mdm_driver"); Type: ACL; Schema: app_private
+--
+
+--
+
+REVOKE ALL ON FUNCTION "app_private"."tms_driver_option_to_secure_json"("p_driver" "public"."mdm_driver") FROM PUBLIC;
+
+
+--
+
+--
+-- Name: FUNCTION "tms_driver_to_secure_json"("p_driver" "public"."mdm_driver", "p_access" "jsonb"); Type: ACL; Schema: app_private
+--
+
+--
+
+REVOKE ALL ON FUNCTION "app_private"."tms_driver_to_secure_json"("p_driver" "public"."mdm_driver", "p_access" "jsonb") FROM PUBLIC;
+
+
+--
+
+--
+-- Name: FUNCTION "tms_driver_with_relations_to_secure_json"("p_driver" "public"."mdm_driver"); Type: ACL; Schema: app_private
+--
+
+--
+
+REVOKE ALL ON FUNCTION "app_private"."tms_driver_with_relations_to_secure_json"("p_driver" "public"."mdm_driver") FROM PUBLIC;
+
+
+--
+
+--
+-- Name: FUNCTION "tms_remaining_cargo_items"("p_order" "public"."tms_order"); Type: ACL; Schema: app_private
+--
+
+--
+
+REVOKE ALL ON FUNCTION "app_private"."tms_remaining_cargo_items"("p_order" "public"."tms_order") FROM PUBLIC;
 
 
 --
@@ -81730,6 +82019,20 @@ GRANT ALL ON FUNCTION "public"."delete_workflow_definition"("p_definition_id" "u
 GRANT ALL ON TABLE "public"."sys_dict_type" TO "anon";
 GRANT ALL ON TABLE "public"."sys_dict_type" TO "authenticated";
 GRANT ALL ON TABLE "public"."sys_dict_type" TO "service_role";
+
+
+--
+
+--
+-- Name: FUNCTION "dict_type_cascade_parent"("public"."sys_dict_type"); Type: ACL; Schema: public
+--
+
+--
+
+REVOKE ALL ON FUNCTION "public"."dict_type_cascade_parent"("public"."sys_dict_type") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."dict_type_cascade_parent"("public"."sys_dict_type") TO "anon";
+GRANT ALL ON FUNCTION "public"."dict_type_cascade_parent"("public"."sys_dict_type") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."dict_type_cascade_parent"("public"."sys_dict_type") TO "service_role";
 
 
 --

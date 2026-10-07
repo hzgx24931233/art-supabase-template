@@ -8,6 +8,7 @@ platform-baseline.sql          平台内核 schema（约 90 张表 / 419 条策�
 platform-seed.sql              基线数据（内置租户、角色、平台菜单、字典、参数、编号场景）
 mdm-master-data-menu.sql       增量补丁：已并入主平台的主数据四块菜单（物料 / 工程 / 销售 / 生产）
 mdm-data-model-patch.sql       增量补丁：主数据四块所需的 mdm_* 表与函数
+dict-cascade-relationship.sql  增量补丁：数据字典的计算关联函数（字典页加载失败时使用）
 platform-baseline-report.json  生成报告：保留/丢弃清单、裁剪原因、种子行数
 verify-baseline.ps1            在一次性 Postgres 容器里应用并断言基线
 ```
@@ -85,6 +86,18 @@ supabase db query --linked --file supabase/baseline/mdm-data-model-patch.sql
 - 边界：引用未并入应用（如 VMS 的 `vehicle_type_profile`）的外键会跳过，并在文件末尾以注释列出，
   不会把其它应用的模型一起带进来。
 - 幂等：整段包在事务里，块内均为 IF NOT EXISTS / DROP IF EXISTS / CREATE OR REPLACE，可重复执行。
+
+### 数据字典页打不开时
+
+字典页依赖一条 PostgREST **计算关联**：`cascade_parent_type:dict_type_cascade_parent(...)`。
+它不是外键关系，而是「以 `sys_dict_type` 行类型为参数、返回该表集合」的函数；缺失时整页报
+「字典目录加载失败」，网络面板可见 `PGRST200 ... 'sys_dict_type' and 'dict_type_cascade_parent'`。
+
+```powershell
+supabase db query --linked --file supabase/baseline/dict-cascade-relationship.sql
+```
+
+生成器已补上「随已保留表的行类型函数一起保留」的规则，因此全新项目不再需要这个补丁。
 
 - 内容：根目录「主数据」+ 物料 / 工程 / 销售 / 生产四个分组、23 个页面菜单、178 个按钮，
   复用旧库的菜单 id 与权限码（`Mdm*`），因此页面里的 `Mdm*` 权限判断无需改动。

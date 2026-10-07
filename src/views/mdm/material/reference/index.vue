@@ -40,6 +40,7 @@
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useUserStore } from '@/store/modules/user'
   import { useTenantScopeStore } from '@/store/modules/tenantScope'
+  import { resolveTenantWorkspaceId } from '@/utils/tenant-scope-context'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import BusinessTableWorkspaceActions from '@/components/business/business-table-workspace-actions/index.vue'
@@ -171,8 +172,10 @@
   const { confirmDelete } = useArtFeedback()
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId, tenantOptions } = storeToRefs(useTenantScopeStore())
-  const tenantId = computed(() => effectiveTenantId.value ?? '')
+  const { effectiveTenantId } = storeToRefs(useTenantScopeStore())
+  const tenantId = computed(() =>
+    resolveTenantWorkspaceId(effectiveTenantId.value, userStore.getUserInfo.tenantId)
+  )
   void userStore.ensureDictLoaded('commonEnabledStatus')
   const tableRef = ref<ArtTableQueryExpose>()
   const dialogRef = ref<DialogExpose>()
@@ -204,11 +207,7 @@
       kind: config.value.kind,
       row: row ? cloneDeep(row) : undefined,
       copy,
-      tenantId: row?.tenantId || tenantId.value,
-      tenantOptions: tenantOptions.value.map((tenant) => ({
-        label: tenant.tenantName || tenant.tenantCode,
-        value: tenant.id
-      }))
+      tenantId: row?.tenantId || tenantId.value
     })
   const permission = (action: string): string => `${config.value.routeName}:${action}`
   const table = reactive({

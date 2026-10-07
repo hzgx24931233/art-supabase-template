@@ -271,7 +271,6 @@
     copy?: boolean
     presetCategoryId?: string
     tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
     categories: MaterialCategory[]
     materialTypes: MaterialType[]
     units: UnitOfMeasure[]
@@ -295,7 +294,6 @@
   const dialogRef = ref<ArtDialogExpose<ArchiveDialogOpenData>>()
   const formRef = ref<FormExpose>()
   const activeTab = ref<ArchiveTab>('base')
-  const tenantOptions = ref<Array<{ label: string; value: string }>>([])
   const categories = ref<MaterialCategory[]>([])
   const materialTypes = ref<MaterialType[]>([])
   const units = ref<UnitOfMeasure[]>([])
@@ -699,17 +697,6 @@
   const rawFormItems = computed<FormItem[]>(() => {
     if (activeTab.value === 'base')
       return [
-        {
-          label: '目标租户',
-          key: 'tenantId',
-          type: 'select',
-          options: tenantOptions.value,
-          props: {
-            disabled: Boolean(formModel.id),
-            filterable: true,
-            placeholder: '请选择本次维护的数据归属租户'
-          }
-        },
         { key: 'identity', label: '核心身份', type: 'divider', span: 24 },
         { label: '物料编码', key: 'materialCode', type: 'slot' },
         {
@@ -1358,7 +1345,6 @@
     ].map((code) => userStore.ensureDictLoaded(code))
   )
   const formRules: FormRules<Record<string, unknown>> = {
-    tenantId: [{ required: true, message: '请选择目标租户', trigger: 'change' }],
     materialName: [{ required: true, message: '请输入物料名称', trigger: 'blur' }],
     categoryId: [{ required: true, message: '请选择物料分类', trigger: 'change' }],
     materialTypeId: [{ required: true, message: '请选择物料类型', trigger: 'change' }],
@@ -1433,7 +1419,6 @@
     Object.assign(formModel, initialForm())
     resetEmployeeSelections()
     activeTab.value = 'base'
-    tenantOptions.value = data.tenantOptions
     categories.value = data.categories
     materialTypes.value = data.materialTypes
     units.value = data.units

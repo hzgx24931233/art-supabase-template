@@ -21,6 +21,7 @@
       v-if="
         $slots.header ||
         hasSubtitle ||
+        hasTitleIcon ||
         $slots['header-actions'] ||
         formCount ||
         options.showFullscreenButton
@@ -33,7 +34,12 @@
           :class="{ 'has-header-actions': $slots['header-actions'] || formCount }"
         >
           <slot v-if="$slots.header" name="header" :data="openData" :api="exposedApi" />
-          <span v-else :id="titleId" :class="titleClass">{{ dialogTitle }}</span>
+          <div v-else class="art-dialog__title-row">
+            <span v-if="dialogTitleIcon" class="art-dialog__title-icon" aria-hidden="true">
+              <ArtSvgIcon :icon="dialogTitleIcon" />
+            </span>
+            <span :id="titleId" :class="titleClass">{{ dialogTitle }}</span>
+          </div>
           <div v-if="hasSubtitle && !isFocusMode" class="art-dialog__subtitle">
             <slot name="subtitle" :data="openData" :api="exposedApi">
               {{ dialogSubtitle }}
@@ -148,6 +154,7 @@
     ArtScrollOptions
   } from './types'
   import ArtIconButton from '@/components/core/widget/art-icon-button/index.vue'
+  import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import ArtOverlayLoading from '@/components/core/feedback/art-overlay-loading/index.vue'
   import { mergeOverlayRecords, useArtOverlay } from '@/hooks/core/useArtOverlay'
   import { focusFirstInvalidFormField } from '@/utils/form/validation'
@@ -161,6 +168,7 @@
 
   const props = withDefaults(defineProps<ArtDialogProps<T>>(), {
     title: '',
+    titleIcon: 'ri:file-list-3-line',
     subtitle: '',
     width: undefined,
     size: undefined,
@@ -216,6 +224,7 @@
 
   const getDefaultOptions = (): ArtDialogOptions<T> => ({
     title: props.title,
+    titleIcon: props.titleIcon,
     subtitle: props.subtitle,
     width: props.width,
     size: props.size,
@@ -354,6 +363,8 @@
   ])
 
   const dialogTitle = computed(() => String(options.value.title ?? attrs.title ?? ''))
+  const dialogTitleIcon = computed(() => String(options.value.titleIcon ?? '').trim())
+  const hasTitleIcon = computed(() => Boolean(dialogTitleIcon.value))
   const dialogSubtitle = computed(() => String(options.value.subtitle ?? ''))
   const hasSubtitle = computed(() => Boolean(slots.subtitle || dialogSubtitle.value))
   const fullscreenIcon = computed(() =>
@@ -577,6 +588,35 @@
 
       &.has-header-actions {
         padding-right: 72px;
+      }
+    }
+
+    &__title-row {
+      display: flex;
+      gap: var(--art-space-2);
+      align-items: center;
+      min-width: 0;
+
+      > .el-dialog__title {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+    }
+
+    &__title-icon {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      color: var(--theme-color);
+      background: color-mix(in srgb, var(--theme-color) 10%, transparent);
+      border-radius: var(--art-control-radius);
+
+      :deep(svg) {
+        width: 16px;
+        height: 16px;
       }
     }
 

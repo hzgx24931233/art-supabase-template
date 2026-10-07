@@ -350,11 +350,12 @@ function scanCodeDependencies(codeRoots: string[]): {
     const source = readFileSync(file, 'utf8')
     for (const match of source.matchAll(/\.from\(\s*'([a-z_][a-z0-9_]*)'/g)) tables.add(match[1])
     for (const match of source.matchAll(/\.rpc\(\s*'([a-z_][a-z0-9_]*)'/g)) rpcs.add(match[1])
-    // 表名还会以其它形式出现，只认 .from() 会漏掉它们：
+    // 表名与字典码还会以其它形式出现，只认 .from() 会漏掉它们：
     //   · 作为参数传给封装函数：fetchReference('mdm_work_center', …)
     //   · PostgREST 嵌入查询字符串：select('…,mdm_material_attribute(id,name)')
-    // 因此再用快照里的表/视图名对源码标识符做一次匹配。
-    for (const match of source.matchAll(/\b([a-z][a-z0-9_]{4,})\b/g)) {
+    //   · 字典码是 camelCase：getDictMap.value.mdmMaterialSource
+    // 因此改用大小写不限的标识符扫描，再与快照里的对象名求交（比较时统一小写）。
+    for (const match of source.matchAll(/\b([A-Za-z][A-Za-z0-9_]{4,})\b/g)) {
       tables.add(match[1])
     }
   }
@@ -504,7 +505,24 @@ while (changed && pass < 40) {
         break
       }
       case 'FUNCTION': {
-        // 只保留被显式需要的函数（种子 RPC、触发器函数、策略依赖），由后续规则加入
+        // 只保留被显式需要的函数（种子 RPC、触发器函数、策略依赖），由后续规则加入。
+        //
+        // 例外：PostgREST 计算关联——参数是某张表的行类型、前端用 `alias:函数名(...)`
+        // 嵌入查询调用（如 dict_type_cascade_parent(sys_dict_type)），不经 .rpc()，
+        // 也不出现在策略/触发器里，必须随该表一起保留，否则嵌入查询会 400。
+        const computedRelationship = /^[a-z0-9_]+\("(public|app_private)"\."([a-z0-9_]+)"\)$/i.exec(
+          block.name.trim()
+        )
+        if (
+          computedRelationship &&
+          belongsToKeptRelation(`${computedRelationship[1]}.${computedRelationship[2]}`)
+        ) {
+          changed =
+            keep(
+              block,
+              `computed-relationship-of:${computedRelationship[1]}.${computedRelationship[2]}`
+            ) || changed
+        }
         break
       }
       case 'ACL': {
@@ -1351,9 +1369,14 @@ if (dictTypeBlock) {
   const codeIndex = columnIndex(dictTypeBlock.columns, 'code')
   const parentIndex = columnIndex(dictTypeBlock.columns, 'parent_id')
   const byId = new Map(dictTypeBlock.rows.map((row) => [row[idIndex], row]))
+  // 代码里出现的标识符（见 scanCodeDependencies）：与快照的字典编码求交，
+  // 得到「页面实际引用的字典」。仅按命名前缀判断会把并入平台的业务字典（如 mdm*）裁掉，
+  // 导致对应下拉框没有选项。
+  const codeIdentifiers = new Set([...codeDependencies.tables].map((name) => name.toLowerCase()))
   for (const row of dictTypeBlock.rows) {
     const dictPattern = profile === 'platform' ? PLATFORM_DICT_CODE_PATTERN : /^hr/
-    if (!dictPattern.test(row[codeIndex])) continue
+    const code = row[codeIndex] ?? ''
+    if (!dictPattern.test(code) && !codeIdentifiers.has(code.toLowerCase())) continue
     keptDictTypeIds.add(row[idIndex])
   }
   let grew = true

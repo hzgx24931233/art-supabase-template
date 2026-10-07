@@ -56,7 +56,6 @@
     materialTypes: MaterialType[]
     sites: MaterialContextOption[]
     tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
     parentId?: string
     copy?: boolean
   }
@@ -78,7 +77,6 @@
   const { getDictMap } = storeToRefs(userStore)
   const dialogRef = ref<ArtDialogExpose<CategoryDialogOpenData>>()
   const formRef = ref<FormExpose>()
-  const tenantOptions = ref<Array<{ label: string; value: string }>>([])
   const sourceCategories = ref<MaterialCategory[]>([])
   const sourceMaterialTypes = ref<MaterialType[]>([])
   const sourceSites = ref<MaterialContextOption[]>([])
@@ -137,17 +135,6 @@
     )
   })
   const formItems = computed<FormItem[]>(() => [
-    {
-      label: '目标租户',
-      key: 'tenantId',
-      type: 'select',
-      options: tenantOptions.value,
-      props: {
-        disabled: Boolean(formModel.id),
-        filterable: true,
-        placeholder: '请选择本次维护的数据归属租户'
-      }
-    },
     { label: '分类身份', key: 'identity', type: 'divider', span: 24 },
     {
       label: '上级分类',
@@ -283,7 +270,6 @@
     )
   )
   const formRules: FormRules<Record<string, unknown>> = {
-    tenantId: [{ required: true, message: '请选择目标租户', trigger: 'change' }],
     categoryCode: [{ required: true, message: '请输入分类编码', trigger: 'blur' }],
     categoryName: [{ required: true, message: '请输入分类名称', trigger: 'blur' }]
   }
@@ -310,7 +296,6 @@
   }
   const handleOpen = async (data: CategoryDialogOpenData): Promise<void> => {
     Object.assign(formModel, initialForm())
-    tenantOptions.value = data.tenantOptions
     sourceCategories.value = data.categories
     sourceMaterialTypes.value = data.materialTypes
     sourceSites.value = data.sites

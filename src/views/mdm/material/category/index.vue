@@ -60,6 +60,7 @@
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useUserStore } from '@/store/modules/user'
   import { useTenantScopeStore } from '@/store/modules/tenantScope'
+  import { resolveTenantWorkspaceId } from '@/utils/tenant-scope-context'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import BusinessWorkspaceHeader, {
@@ -95,8 +96,10 @@
   const { confirmDelete } = useArtFeedback()
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId, tenantOptions } = storeToRefs(useTenantScopeStore())
-  const tenantId = computed(() => effectiveTenantId.value ?? '')
+  const { effectiveTenantId } = storeToRefs(useTenantScopeStore())
+  const tenantId = computed(() =>
+    resolveTenantWorkspaceId(effectiveTenantId.value, userStore.getUserInfo.tenantId)
+  )
   const tableRef = ref<ArtTableQueryExpose>()
   const dialogRef = ref<DialogExpose>()
   const records = ref<MaterialCategory[]>([])
@@ -155,10 +158,6 @@
       materialTypes: materialTypes.value,
       sites: sites.value,
       tenantId: row?.tenantId || tenantId.value,
-      tenantOptions: tenantOptions.value.map((tenant) => ({
-        label: tenant.tenantName || tenant.tenantCode,
-        value: tenant.id
-      })),
       parentId
     })
   const openChildDialog = (parentId?: string): void => openDialog(undefined, false, parentId)
