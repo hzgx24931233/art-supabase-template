@@ -136,6 +136,12 @@ select r.id, m.id, '{}', 'baseline', 'baseline'
 on conflict do nothing;
 ```
 
+## 参数设置数据迁移（2026-10-08）
+
+已从源项目 `nvzlwcutsqptngyqfzqs` 的 `public.sys_param` 迁移 10 条记录到当前项目 `trthbpyqubyjtkzmcewy`。参数记录统一归属当前 `vms` 租户（`f0c0d42a-300b-4958-ab5e-7da8cf823a67`）；`website.config` 中的图片和资源 URL 按用户选择保留源项目 Storage 地址。
+
+当前项目原本缺少注册公共租户，因此同步创建 `public-register` 租户（`6675a0d6-3ff6-4ab7-bb09-232d85ae96ad`）及启用的 `R_REGISTER` / `default_register` 角色（`8bb744ab-c38e-436b-bafe-1cde73be0b7c`），并将 `registration.default_role_id` 的 `param_value` 与 `default_value` 映射到该角色。迁移前在事务中验证了租户、角色、10 条参数、租户归属和注册角色约束，回滚后正式提交；提交后再次核对参数键集合、租户归属及注册角色引用。
+
 ## 验证
 
 ```powershell
