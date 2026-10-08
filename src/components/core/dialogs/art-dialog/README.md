@@ -444,3 +444,19 @@ dialogRef.value?.handleOpen(data, {
 - 多种业务内容共用一个弹窗时使用动态 `content`
 - 需要完全自定义操作区时使用 `#footer`
 - 通用默认配置放组件 Props，业务场景差异放 `handleOpen` 第二参数
+
+## 固定顶部内容
+
+使用 `#content-top` 放置 Tab 或筛选栏。该插槽位于 `ElScrollbar` 外，只有默认内容滚动；普通、全屏和专注填单模式均保留顶部区域。插槽提供 `data`、`loading`、`api`，加载时可据此禁用操作。
+
+```vue
+<ArtDialog ref="dialogRef">
+  <template #content-top="{ loading }">
+    <ElTabs v-model="activeTab">
+      <ElTabPane label="基础信息" name="base" :disabled="loading" />
+      <ElTabPane label="库存信息" name="inventory" :disabled="loading" />
+    </ElTabs>
+  </template>
+  <ArtForm v-model="formModel" :items="formItems" />
+</ArtDialog>
+```

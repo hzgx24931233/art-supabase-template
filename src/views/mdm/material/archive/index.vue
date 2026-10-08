@@ -9,7 +9,7 @@
         :tags="[
           { label: '统一物料身份', type: 'primary' },
           { label: '多业务视图', type: 'success' },
-          { label: '租户隔离', type: 'info' }
+          { label: '项目隔离', type: 'info' }
         ]"
         :metrics="metrics"
       >
@@ -74,7 +74,7 @@
               ><small>物料类型</small><strong>{{ detailTypeLabel }}</strong></div
             >
             <div
-              ><small>物料分类</small
+              ><small>成本分类</small
               ><strong>{{ detailRow.category?.categoryName || '—' }}</strong></div
             >
             <div

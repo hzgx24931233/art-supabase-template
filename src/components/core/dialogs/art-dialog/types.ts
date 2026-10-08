@@ -101,6 +101,8 @@ export interface ArtDialogSlotProps<TData = unknown> {
 
 export interface ArtDialogSlots<TData = unknown> {
   default?: (props: ArtDialogSlotProps<TData> & { loading: boolean }) => VNodeChild
+  /** 内容顶部固定区域，位于 ElScrollbar 外 */
+  'content-top'?: (props: ArtDialogSlotProps<TData> & { loading: boolean }) => VNodeChild
   header?: (props: ArtDialogSlotProps<TData>) => VNodeChild
   'header-actions'?: (props: ArtDialogSlotProps<TData>) => VNodeChild
   subtitle?: (props: ArtDialogSlotProps<TData>) => VNodeChild

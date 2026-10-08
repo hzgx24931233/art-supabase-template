@@ -10,6 +10,7 @@ import { setupGlobDirectives } from './directives'
 import { setupErrorHandle } from './utils/sys/error-handle'
 import { setupSupabaseSessionLifecycle } from './plugins/supabase-session'
 import { setupContextMenuGuard } from './plugins/context-menu-guard'
+import { setupIconify } from './plugins/iconify'
 
 /**
  * 启动平台公共运行壳。
@@ -23,6 +24,7 @@ export function bootstrapPlatformApp(
   const app = createApp(App)
   initStore(app)
   initRouter(app, options.loadHostedApplications)
+  setupIconify()
   setupSupabaseSessionLifecycle()
   setupContextMenuGuard()
   setupGlobDirectives(app)

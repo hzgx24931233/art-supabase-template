@@ -190,16 +190,19 @@ export const useUserStore = defineStore(
         // 注意：不清空工作台标签页，等下次登录时根据用户判断
         sessionStorage.removeItem('iframeRoutes')
         useMenuStore().setHomePath('')
-        resetRouterState(500)
-
         const currentRoute = router.currentRoute.value
         const redirect =
           redirectTarget ??
           (currentRoute.path !== '/auth/login' ? currentRoute.fullPath : undefined)
-        await router.push({
-          name: 'Login',
-          query: redirect ? { redirect } : undefined
-        })
+        try {
+          await router.push({
+            name: 'Login',
+            query: redirect ? { redirect } : undefined
+          })
+        } finally {
+          // 登录导航完成后才移除动态路由，避免与 Vue 卸载组件时的 DOM 更新竞争。
+          resetRouterState(500)
+        }
       }
     }
 

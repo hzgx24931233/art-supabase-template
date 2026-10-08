@@ -404,13 +404,40 @@ try {
   # Match Supabase's logical restore guide: vector Storage tables may not exist
   # on a newly created target project.
   Invoke-Supabase (@('db', 'dump') + $dbTarget + @('--data-only', '--use-copy', '-x', 'storage.buckets_vectors', '-x', 'storage.vector_indexes', '--file', (Join-Path $databasePath 'data.sql')))
-  Invoke-Supabase (@('db', 'dump') + $dbTarget + @('--schema', 'supabase_migrations', '--file', (Join-Path $databasePath 'migration-history-schema.sql')))
-  Invoke-Supabase (@('db', 'dump') + $dbTarget + @('--schema', 'supabase_migrations', '--data-only', '--use-copy', '--file', (Join-Path $databasePath 'migration-history-data.sql')))
+  # Hosted projects can hide the managed migration-history schema from `db dump`.
+  # It is operational metadata rather than application data, so retain an explicit
+  # placeholder instead of failing a recoverable application backup.
+  $migrationHistorySchemaPath = Join-Path $databasePath 'migration-history-schema.sql'
+  $migrationHistoryDataPath = Join-Path $databasePath 'migration-history-data.sql'
+  $migrationHistorySchema = Invoke-SupabaseQuiet (@('db', 'dump') + $dbTarget + @('--schema', 'supabase_migrations', '--file', $migrationHistorySchemaPath))
+  $migrationHistoryData = Invoke-SupabaseQuiet (@('db', 'dump') + $dbTarget + @('--schema', 'supabase_migrations', '--data-only', '--use-copy', '--file', $migrationHistoryDataPath))
+  if (-not $migrationHistorySchema.Succeeded -or -not $migrationHistoryData.Succeeded) {
+    Write-Warning 'Supabase CLI did not expose migration history; recording it as unavailable and continuing the backup.'
+    '-- Managed migration history unavailable through the installed Supabase CLI.' |
+      Set-Content -Path $migrationHistorySchemaPath -Encoding utf8
+    '-- Managed migration history unavailable through the installed Supabase CLI.' |
+      Set-Content -Path $migrationHistoryDataPath -Encoding utf8
+  }
   # Standard schema dumps omit managed auth/storage schemas. Capture their complete
   # definitions as a recovery reference without requiring a shadow database. The
   # managed schemas are platform-owned and must not be replayed wholesale; restore
   # only reviewed project-specific policies/triggers from this snapshot.
-  Invoke-Supabase (@('db', 'dump') + $dbTarget + @('--schema', 'auth,storage', '--keep-comments', '--file', (Join-Path $databasePath 'managed-schema-snapshot.sql')))
+  # Recent Supabase CLI releases can reject managed schemas even when explicitly
+  # requested. The main logical dump, Storage metadata/object export, and Auth
+  # application records still remain recoverable, so preserve a diagnostic
+  # placeholder and continue instead of abandoning an otherwise complete backup.
+  $managedSchemaSnapshotPath = Join-Path $databasePath 'managed-schema-snapshot.sql'
+  $managedSchemaSnapshot = Invoke-SupabaseQuiet (@('db', 'dump') + $dbTarget + @('--schema', 'auth,storage', '--keep-comments', '--file', $managedSchemaSnapshotPath))
+  if (-not $managedSchemaSnapshot.Succeeded) {
+    Write-Warning 'Supabase CLI did not expose managed auth/storage schemas; continuing with the managed-schema snapshot marked unavailable.'
+    @"
+-- Managed auth/storage schema snapshot unavailable through the installed Supabase CLI.
+-- Database roles, application schema/data, Storage metadata/objects, and Edge Functions
+-- are captured elsewhere in this backup. Auth identities themselves remain managed by
+-- Supabase and are not exported by this logical dump. Recreate managed-schema settings from Supabase
+-- Dashboard configuration when restoring.
+"@ | Set-Content -Path $managedSchemaSnapshotPath -Encoding utf8
+  }
 
   Write-Host 'Capturing deployed Edge Function source and metadata...'
   $functionMetadataPath = Join-Path $metadataPath 'functions.json'

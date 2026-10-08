@@ -1,6 +1,6 @@
 <template>
   <ArtDialog ref="dialogRef" size="xl">
-    <div class="material-archive-dialog">
+    <template #content-top>
       <ElTabs v-model="activeTab" class="material-archive-dialog__tabs">
         <ElTabPane v-for="tab in tabs" :key="tab.name" :name="tab.name">
           <template #label
@@ -10,7 +10,9 @@
           ></template>
         </ElTabPane>
       </ElTabs>
+    </template>
 
+    <div class="material-archive-dialog">
       <section class="material-archive-dialog__panel">
         <header class="material-archive-dialog__section-heading">
           <div>
@@ -714,7 +716,14 @@
           props: { maxlength: 160, placeholder: '请输入标准物料名称' }
         },
         {
-          label: '物料分类',
+          label: '物料类型',
+          key: 'materialTypeId',
+          type: 'select',
+          options: typeOptions.value,
+          props: { filterable: true }
+        },
+        {
+          label: '成本分类',
           key: 'categoryId',
           type: 'treeSelect',
           options: categoryOptions.value,
@@ -725,13 +734,6 @@
             nodeKey: 'id',
             placeholder: '请按层级选择物料分类'
           }
-        },
-        {
-          label: '物料类型',
-          key: 'materialTypeId',
-          type: 'select',
-          options: typeOptions.value,
-          props: { filterable: true }
         },
         {
           label: '物料来源',
@@ -1534,11 +1536,11 @@
   }
 
   .material-archive-dialog__tabs {
-    margin-top: -4px;
+    margin: 0;
   }
 
   .material-archive-dialog__tabs :deep(.el-tabs__header) {
-    margin-bottom: 10px;
+    margin-bottom: 0;
   }
 
   .material-archive-dialog__tabs :deep(.el-tabs__content) {

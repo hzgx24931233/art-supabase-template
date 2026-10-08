@@ -7,7 +7,10 @@
       'art-dialog',
       options.size ? `art-dialog--${options.size}` : '',
       dialogClass,
-      { 'is-fullscreen-toggle-enabled': options.showFullscreenButton }
+      {
+        'is-fullscreen-toggle-enabled': options.showFullscreenButton,
+        'has-content-top': Boolean($slots['content-top'])
+      }
     ]"
     @update:model-value="handleModelValueChange"
     @open="handleOpenedStart"
@@ -65,7 +68,9 @@
         />
       </div>
     </template>
-
+    <div v-if="$slots['content-top']" class="art-dialog__content-top">
+      <slot name="content-top" :data="openData" :loading="contentLoading" :api="exposedApi" />
+    </div>
     <ElScrollbar
       v-if="shouldUseScrollbar"
       ref="scrollbarRef"
@@ -168,7 +173,7 @@
 
   const props = withDefaults(defineProps<ArtDialogProps<T>>(), {
     title: '',
-    titleIcon: 'ri:file-list-3-line',
+    titleIcon: 'ri:windows-fill',
     subtitle: '',
     width: undefined,
     size: undefined,
@@ -537,6 +542,16 @@
     overflow: hidden;
   }
 
+  :global(.art-dialog.has-content-top > .el-dialog__body) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  :global(.art-dialog.has-content-top .art-dialog__scrollbar) {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+
   :global(.art-dialog > .el-dialog__body) {
     overscroll-behavior: contain;
   }
@@ -632,6 +647,12 @@
 
     &__fullscreen-button {
       right: 52px !important;
+    }
+
+    &__content-top {
+      flex: none;
+      min-width: 0;
+      padding: var(--art-space-4) var(--art-space-5) 0;
     }
 
     &__content {
