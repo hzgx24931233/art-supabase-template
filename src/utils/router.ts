@@ -36,7 +36,7 @@ export const setPageTitle = (to: RouteLocationNormalized): void => {
   if (title) {
     setTimeout(() => {
       const { siteName } = useWebsiteConfig()
-      document.title = `${formatMenuTitle(String(title))} - ${siteName.value || AppConfig.systemInfo.name}`
+      document.title = `${siteName.value || AppConfig.systemInfo.name}->${formatMenuTitle(String(title))}`
     }, 150)
   }
 }
