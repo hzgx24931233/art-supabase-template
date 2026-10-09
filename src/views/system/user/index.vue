@@ -409,20 +409,6 @@
     )
   }
 
-  const formatUserType = (value: UserListItem['userType']): string => {
-    const normalizedValue = String(value ?? '')
-    if (normalizedValue === '1') return '系统用户'
-    if (normalizedValue === '2') return '普通用户'
-    return normalizedValue || '--'
-  }
-
-  const formatUserStatus = (value: UserListItem['status']): string => {
-    const normalizedValue = String(value ?? '')
-    if (normalizedValue === '1') return '启用'
-    if (normalizedValue === '0') return '禁用'
-    return normalizedValue || '--'
-  }
-
   const columnsFactory = (): ColumnOption<UserListItem>[] => [
     {
       type: 'selection',
@@ -474,7 +460,7 @@
       prop: 'userType',
       label: '用户类型',
       minWidth: 110,
-      formatter: (row: UserListItem) => formatUserType(row.userType)
+      dict: { code: 'userType', display: 'auto' }
     },
     {
       prop: 'tenant',
@@ -550,7 +536,7 @@
       prop: 'status',
       label: '状态',
       width: 100,
-      formatter: (row: UserListItem) => formatUserStatus(row.status)
+      dict: { code: 'status', display: 'auto' }
     },
     {
       prop: 'createTime',
