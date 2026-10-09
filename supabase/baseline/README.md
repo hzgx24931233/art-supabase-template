@@ -99,6 +99,66 @@ supabase db query --linked --file supabase/baseline/dict-cascade-relationship.sq
 
 生成器已补上「随已保留表的行类型函数一起保留」的规则，因此全新项目不再需要这个补丁。
 
+### 数据字典页「没有数据」（空目录而非报错）
+
+症状与上面的加载失败不同：左侧目录面板显示空状态「暂无字典目录」，页脚是「0 个目录 · 0 个类型」，
+页头计数为 0，但没有任何错误提示 —— 说明请求成功、只是返回了 0 行。此时问题在**读策略**或**数据缺失**，
+与计算关联无关。
+
+排查顺序（全程只读）：
+
+```sql
+-- 1) 数据是否存在、归属哪个租户
+select tenant_id, node_type, count(*) from public.sys_dict_type group by 1, 2;
+
+-- 2) 以真实登录用户身份看可见性（把 sub 换成 sys_user.auth_user_id）
+begin;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"<auth_user_id>","role":"authenticated"}';
+select app_private.is_platform_super() as is_super,
+       app_private.current_user_tenant_id() as user_tenant,
+       (select count(*) from public.sys_dict_type) as dict_type_visible,
+       (select count(*) from public.sys_dictionary) as dict_item_visible;
+rollback;
+```
+
+`is_platform_super()` 的判据是「用户租户 `builtin_type = 'platform'` 且该租户内存在启用中的
+`builtin_type = 'platform_super'` 角色」。**没有 platform 租户的项目里它对所有账号恒为 false**，
+所以一旦 `sys_dict_type` / `sys_dictionary` 的 SELECT 策略被写成 `is_platform_super()`，
+字典页和所有字典下拉对谁都读不到数据。
+
+修复：把两条读策略恢复成基线定义（`authenticated` 全量可读，与 `sys_menu_select_global` 一致），
+写入策略保持平台超管专属不变。
+
+```sql
+begin;
+drop policy if exists "sys_dict_type_select_global" on public.sys_dict_type;
+create policy "sys_dict_type_select_global" on public.sys_dict_type for select to authenticated using (true);
+drop policy if exists "sys_dictionary_select_global" on public.sys_dictionary;
+create policy "sys_dictionary_select_global" on public.sys_dictionary for select to authenticated using (true);
+commit;
+```
+
+回滚（恢复被收紧前的定义）：
+
+```sql
+begin;
+drop policy if exists "sys_dict_type_select_global" on public.sys_dict_type;
+create policy "sys_dict_type_select_global" on public.sys_dict_type for select to authenticated using (app_private.is_platform_super());
+drop policy if exists "sys_dictionary_select_global" on public.sys_dictionary;
+create policy "sys_dictionary_select_global" on public.sys_dictionary for select to authenticated using (app_private.is_platform_super());
+commit;
+```
+
+已执行的验证（2026-10-09，项目 `trthbpyqubyjtkzmcewy` / xmgl）：修复前以真实登录账号身份（`authenticated`，
+`is_platform_super() = false`）读到 0 行；事务内验证与正式执行后读到 `sys_dict_type` 307 行（63 目录 + 244 类型）、
+`sys_dictionary` 300 行、10 个根目录，`anon` 仍为 0 行；`supabase db advisors` 无新增告警；
+运行中的字典页由「0 个目录 · 0 个类型」变为「63 个目录 · 244 个类型」并渲染出根节点。
+
+注意：字典的写入（`insert` / `update` / `delete`）仍要求平台超管。项目若没有 platform 租户，
+字典维护需要在数据库侧补齐平台超管身份，或像 `sys_menu_delegate_*` 那样由复核过的委派策略授权，
+不要通过放宽写入策略来解决。
+
 - 内容：根目录「主数据」+ 物料 / 工程 / 销售 / 生产四个分组、23 个页面菜单、178 个按钮，
   复用旧库的菜单 id 与权限码（`Mdm*`），因此页面里的 `Mdm*` 权限判断无需改动。
 - 幂等：菜单按主键 `id` 去重并更新描述字段，授权按 `(role_id, menu_id)` 唯一键去重，可重复执行。
