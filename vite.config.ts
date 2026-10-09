@@ -15,12 +15,12 @@ import tailwindcss from '@tailwindcss/vite'
 import { fileViewerRenderers } from '@file-viewer/vite-plugin'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { createBuildLogPolicy } from './scripts/build-log-policy.mjs'
-import { shouldPreloadHtmlDependency } from './scripts/bundle-boundaries'
-import { createFileViewerAssetSyncPlugin } from './scripts/file-viewer-asset-sync'
+import { shouldPreloadHtmlDependency } from './scripts/bundle-boundaries.ts'
+import { createFileViewerAssetSyncPlugin } from './scripts/file-viewer-asset-sync.ts'
 import {
   hostedApplicationSourceDirectories,
   hostedModuleSharedDependencies
-} from './scripts/hosted-module-dependencies'
+} from './scripts/hosted-module-dependencies.ts'
 
 // import { visualizer } from 'rollup-plugin-visualizer'
 
@@ -400,5 +400,5 @@ export default ({ mode }: { mode: string }) => {
 }
 
 function resolvePath(paths: string) {
-  return path.resolve(__dirname, paths)
+  return path.resolve(import.meta.dirname, paths)
 }
