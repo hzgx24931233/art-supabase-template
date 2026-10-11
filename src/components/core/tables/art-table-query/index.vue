@@ -298,21 +298,13 @@
   import { exportExcel, mapExcelRowsToRecords, type ExcelColumn } from '@/utils/file'
   import { useCrossPageSelection } from './use-cross-page-selection'
   import { useRoute } from 'vue-router'
-  import { useTenantScopeAccessPolicy } from '@/hooks/core/useTenantScopeAccessPolicy'
   import { resolveBusinessButtonPermission } from '@/utils/business-permission'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import {
-    filterTenantDimensionDescriptors,
-    isTenantDimensionDescriptor
-  } from '@/utils/tenant-dimension-visibility'
 
   defineOptions({ name: 'ArtTableQuery' })
 
   const { hasAuth } = useAuth()
   const { confirmAction } = useArtFeedback()
   const route = useRoute()
-  const { isCrossTenantReadOnly } = useTenantScopeAccessPolicy()
-  const { isPlatformScope } = storeToRefs(useTenantScopeStore())
 
   export interface ArtTableQuerySanitizeOutputOptions {
     /** 移除空字符串 */
@@ -909,10 +901,7 @@
   })
 
   const resolvedColumns = computed(() =>
-    filterTenantDimensionDescriptors(
-      isManaged.value ? (managedTable.columns?.value ?? props.tableColumns) : props.tableColumns,
-      isPlatformScope.value
-    )
+    isManaged.value ? (managedTable.columns?.value ?? props.tableColumns) : props.tableColumns
   )
 
   const resolvedPagination = computed(() =>
@@ -1084,9 +1073,6 @@
     action: ArtTableQueryHeaderAction,
     scope: ArtTableQueryHeaderActionContext['scope'] = 'default'
   ): boolean => {
-    if (isCrossTenantReadOnly.value && ['add', 'delete', 'import'].includes(String(action.type))) {
-      return false
-    }
     const permission = getHeaderActionPermission(action)
     if (permission && !hasAuth(permission)) return false
     if (typeof action.hidden === 'function') {
@@ -1249,11 +1235,7 @@
                 : undefined
             }))
 
-    return isPlatformScope.value
-      ? excelColumns
-      : excelColumns.filter(
-          (column) => !isTenantDimensionDescriptor({ key: column.key, label: column.title })
-        )
+    return excelColumns
   }
 
   const getActionFilename = (

@@ -76,7 +76,6 @@
   import TreeUtils from '@/utils/tree'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
@@ -169,8 +168,6 @@
   const { confirmDelete } = useArtFeedback()
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const tenantScopeStore = useTenantScopeStore()
-  const { effectiveTenantId, tenantOptions } = storeToRefs(tenantScopeStore)
   const config = computed(() => resolveMasterConfig(route.path))
   const tableRef = ref<ArtTableQueryExpose>()
   const dialogRef = ref<{ handleOpen: (data: MasterDialogOpenData) => Promise<void> }>()
@@ -206,7 +203,7 @@
   void userStore.ensureDictLoaded('commonBoolean')
   const workspaceTags = computed<BusinessWorkspaceTag[]>(() => [
     { label: config.value.groupDomain ? '层级分组' : '统一口径', type: 'primary' },
-    { label: '租户隔离', type: 'success' },
+    { label: '一致口径', type: 'success' },
     { label: '权限受控', type: 'info' }
   ])
   const workspaceMetrics = computed<BusinessWorkspaceMetric[]>(() => [
@@ -306,11 +303,9 @@
           importTransformer: (rows) =>
             rows.map((row) => ({
               ...row,
-              tenantId: effectiveTenantId.value || '',
               enabled: row.enabled === '是' || row.enabled === true || row.enabled === '启用'
             })),
           importApi: async (rows) => {
-            if (!effectiveTenantId.value) throw new Error('请先选择目标租户再导入')
             await importOperationalMasters(config.value.kind, rows as OperationalMasterInput[])
           }
         })
@@ -506,7 +501,6 @@
       config.value.kind,
       {
         ...params,
-        tenantId: effectiveTenantId.value,
         groupId: groupState.selectedId || undefined,
         groupIds: selectedGroupIds.value
       },
@@ -518,18 +512,9 @@
     return { records: response.data, total: response.total }
   }
 
-  function tenantChoices(): Array<{ label: string; value: string }> {
-    return tenantOptions.value.map((tenant) => ({
-      label: `${tenant.tenantName || tenant.tenantCode}（${tenant.tenantCode}）`,
-      value: tenant.id
-    }))
-  }
-
   function openDialog(row?: OperationalMasterRecord, copy = false, readonly = false): void {
     const data: MasterDialogOpenData = {
       config: config.value,
-      tenantId: row?.tenantId || effectiveTenantId.value || '',
-      tenantOptions: tenantChoices(),
       groups: groupState.rows,
       initialGroupId:
         config.value.kind === 'operation' && !row ? groupState.selectedId || undefined : undefined,
@@ -548,8 +533,6 @@
     if (!config.value.groupDomain) return
     void groupDialogRef.value?.handleOpen({
       domain: config.value.groupDomain,
-      tenantId: parent?.tenantId || effectiveTenantId.value || '',
-      tenantOptions: tenantChoices(),
       groups: groupState.rows,
       parent
     })
@@ -559,8 +542,6 @@
     if (!config.value.groupDomain) return
     void groupDialogRef.value?.handleOpen({
       domain: config.value.groupDomain,
-      tenantId: row.tenantId,
-      tenantOptions: tenantChoices(),
       groups: groupState.rows,
       row
     })
@@ -588,7 +569,7 @@
     groupState.loading = true
     groupState.error = ''
     try {
-      groupState.rows = await fetchMasterGroups(config.value.groupDomain, effectiveTenantId.value)
+      groupState.rows = await fetchMasterGroups(config.value.groupDomain)
     } catch (error) {
       groupState.error = getFriendlySupabaseErrorMessage(error, '分组加载失败，请重试')
     } finally {
@@ -604,7 +585,7 @@
   async function handleSaved(mode: 'add' | 'edit'): Promise<void> {
     if (mode === 'add') await tableRef.value?.refreshCreate()
     else await tableRef.value?.refreshUpdate()
-    references.value = await fetchOperationalMasterReferences(effectiveTenantId.value || undefined)
+    references.value = await fetchOperationalMasterReferences()
   }
 
   async function handleGroupSaved(): Promise<void> {
@@ -615,22 +596,19 @@
   async function loadContext(): Promise<void> {
     Object.assign(table.search, { keyword: '', enabled: undefined })
     groupState.selectedId = ''
-    await tenantScopeStore.loadTenantOptions()
     await Promise.all([
       ...config.value.fields
         .map((field) => field.dictCode)
         .filter((code): code is string => !!code)
         .map((code) => userStore.ensureDictLoaded(code)),
       loadGroups(),
-      fetchOperationalMasterReferences(effectiveTenantId.value || undefined).then(
-        (value) => (references.value = value)
-      )
+      fetchOperationalMasterReferences().then((value) => (references.value = value))
     ])
     await tableRef.value?.getData()
   }
 
   watch(
-    [() => route.path, effectiveTenantId],
+    () => route.path,
     () => {
       if (isDocumentTypeRoute.value || isBusinessTypeRoute.value) return
       void loadContext()

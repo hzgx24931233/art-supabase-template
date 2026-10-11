@@ -6,7 +6,6 @@ import { buildSpecsFromMap, applyFilters, fetchAllRangePages, type Op } from '@/
 import { toNextDayStartUTC, toStartOfDayUTC } from '@/utils/time/format'
 import { omit } from 'lodash-es'
 import TreeUtils from '@/utils/tree'
-import { resolveTenantScopeId } from '@/utils/tenant-scope-context'
 const { supabase, keysToSnakeDeep, responseHandle } = useSupabase()
 
 const organizationTreeUtils = new TreeUtils({
@@ -17,8 +16,7 @@ const organizationTreeUtils = new TreeUtils({
 
 const ORGANIZATION_DETAIL_SELECT = `
   *,
-  tenant:sys_tenant!sys_organization_tenant_id_fkey(tenant_code, tenant_name),
-  leader:sys_user!sys_organization_leader_user_tenant_fkey(
+  leader:sys_user(
     id, avatar, user_name, nick_name, user_email
   ),
   members:sys_user!sys_user_organization_id_fkey(
@@ -57,7 +55,6 @@ interface UserEmployeeReferencePayload {
 export async function fetchGetUserList(params: Api.SystemManage.UserSearchParams) {
   const {
     id,
-    tenantId,
     organizationId,
     organizationIds,
     organizationUnassigned,
@@ -88,7 +85,6 @@ export async function fetchGetUserList(params: Api.SystemManage.UserSearchParams
       userEmail: userEmail?.trim() ? `%${userEmail.trim()}%` : undefined,
       userGender,
       status,
-      tenantId,
       accountIdentityType,
       organizationId: organizationUnassigned ? undefined : organizationId
     },
@@ -106,7 +102,6 @@ export async function fetchGetUserList(params: Api.SystemManage.UserSearchParams
     .select(
       `
         *,
-        tenant:sys_tenant!sys_user_tenant_id_fkey(tenant_code, tenant_name, builtin_type),
         organization:mdm_organization!sys_user_organization_id_fkey(
           id,
           organization_code,
@@ -163,13 +158,11 @@ export async function fetchGetUserList(params: Api.SystemManage.UserSearchParams
 export async function fetchGetOrganizationList(
   params: Api.SystemManage.OrganizationSearchParams = {}
 ) {
-  const { keyword, tenantId, organizationType, status, recordId } = params
-  const scopedTenantId = resolveTenantScopeId(tenantId)
+  const { keyword, organizationType, status, recordId } = params
   const response = await responseHandle<Api.SystemManage.OrganizationListItem[]>(
     () =>
       supabase.rpc('get_organization_list_secure', {
         p_keyword: keyword?.trim() || undefined,
-        p_tenant_id: scopedTenantId,
         p_organization_type: organizationType || undefined,
         p_status: status || undefined,
         p_record_id: recordId || undefined
@@ -215,18 +208,15 @@ export async function fetchGetOrganizationTree(
 
 /** Organization selectors need hierarchy and identity, not the management page's aggregate counts. */
 export async function fetchGetOrganizationOptionsTree(
-  params: Pick<Api.SystemManage.OrganizationSearchParams, 'tenantId' | 'status'> = {}
+  params: Pick<Api.SystemManage.OrganizationSearchParams, 'status'> = {}
 ) {
-  const scopedTenantId = resolveTenantScopeId(params.tenantId)
   let query = supabase
     .from('mdm_organization')
     .select(
-      `id,tenant_id,parent_id,organization_code,organization_name,organization_type,status,sort,is_system,
-       tenant:sys_tenant!sys_organization_tenant_id_fkey(tenant_code,tenant_name)`
+      `id,parent_id,organization_code,organization_name,organization_type,status,sort,is_system`
     )
     .order('sort')
     .order('organization_name')
-  if (scopedTenantId) query = query.eq('tenant_id', scopedTenantId)
   if (params.status) query = query.eq('status', params.status)
 
   const response = await responseHandle<Api.SystemManage.OrganizationListItem[]>(() => query, {
@@ -243,18 +233,10 @@ export async function fetchGetOrganizationOptionsTree(
 
 export async function fetchGetEnableOrganizationTree(
   params: {
-    tenantId?: string
     excludeId?: string
   } = {}
 ) {
-  if (!params?.tenantId) {
-    return { data: [], error: null }
-  }
-
-  const response = await fetchGetOrganizationOptionsTree({
-    tenantId: params.tenantId,
-    status: '1'
-  })
+  const response = await fetchGetOrganizationOptionsTree({ status: '1' })
   const data = params.excludeId
     ? organizationTreeUtils.removeNodesByCondition(
         response.data ?? [],
@@ -266,22 +248,21 @@ export async function fetchGetEnableOrganizationTree(
 }
 
 /** Flat enabled organizations for business forms that select a stock owner. */
-export async function fetchGetEnableOrganizationOptionsList(tenantId?: string) {
-  const response = await fetchGetOrganizationOptionsTree({ tenantId, status: '1' })
+export async function fetchGetEnableOrganizationOptionsList() {
+  const response = await fetchGetOrganizationOptionsTree({ status: '1' })
   return {
     ...response,
     data: organizationTreeUtils.treeToList(response.data ?? [])
   }
 }
 
-export async function fetchGetUserOrganizationTree(params: { tenantId?: string } = {}) {
-  let query = supabase
+export async function fetchGetUserOrganizationTree() {
+  const query = supabase
     .from('mdm_organization')
     .select(
       `
-        id, tenant_id, parent_id, organization_code, organization_name,
+        id, parent_id, organization_code, organization_name,
         organization_type, status, sort, is_system,
-        tenant:sys_tenant!sys_organization_tenant_id_fkey(tenant_code, tenant_name),
         members:sys_user!sys_user_organization_id_fkey(id, status)
       `
     )
@@ -289,8 +270,6 @@ export async function fetchGetUserOrganizationTree(params: { tenantId?: string }
     .is('members.deleted_at', null)
     .order('sort', { ascending: true })
     .order('organization_name', { ascending: true })
-
-  if (params.tenantId) query = query.eq('tenant_id', params.tenantId)
 
   const response = await responseHandle<
     Array<Api.SystemManage.OrganizationScopeFilterItem & { members?: Array<{ id: string }> }>
@@ -306,35 +285,26 @@ export async function fetchGetUserOrganizationTree(params: { tenantId?: string }
         scopeCount: members?.length ?? 0
       })),
       (a, b) => {
-        const tenantDiff = (a.tenant?.tenantName ?? '').localeCompare(
-          b.tenant?.tenantName ?? '',
-          'zh-CN'
-        )
         const sortDiff = (a.sort ?? 0) - (b.sort ?? 0)
-        return (
-          tenantDiff || sortDiff || a.organizationName.localeCompare(b.organizationName, 'zh-CN')
-        )
+        return sortDiff || a.organizationName.localeCompare(b.organizationName, 'zh-CN')
       }
     )
   }
 }
 
-export async function fetchGetRoleOrganizationTree(params: { tenantId?: string } = {}) {
-  let query = supabase
+export async function fetchGetRoleOrganizationTree() {
+  const query = supabase
     .from('mdm_organization')
     .select(
       `
-        id, tenant_id, parent_id, organization_code, organization_name,
+        id, parent_id, organization_code, organization_name,
         organization_type, status, sort, is_system,
-        tenant:sys_tenant!sys_organization_tenant_id_fkey(tenant_code, tenant_name),
         roles:sys_role!sys_role_organization_id_fkey(id, enabled)
       `
     )
     .eq('status', '1')
     .order('sort', { ascending: true })
     .order('organization_name', { ascending: true })
-
-  if (params.tenantId) query = query.eq('tenant_id', params.tenantId)
 
   const response = await responseHandle<
     Array<Api.SystemManage.OrganizationScopeFilterItem & { roles?: Array<{ id: string }> }>
@@ -350,30 +320,19 @@ export async function fetchGetRoleOrganizationTree(params: { tenantId?: string }
         scopeCount: roles?.length ?? 0
       })),
       (a, b) => {
-        const tenantDiff = (a.tenant?.tenantName ?? '').localeCompare(
-          b.tenant?.tenantName ?? '',
-          'zh-CN'
-        )
         const sortDiff = (a.sort ?? 0) - (b.sort ?? 0)
-        return (
-          tenantDiff || sortDiff || a.organizationName.localeCompare(b.organizationName, 'zh-CN')
-        )
+        return sortDiff || a.organizationName.localeCompare(b.organizationName, 'zh-CN')
       }
     )
   }
 }
 
-export async function fetchGetEnableOrganizationUserList(params: { tenantId?: string } = {}) {
-  if (!params?.tenantId) {
-    return { data: [], error: null }
-  }
-
+export async function fetchGetEnableOrganizationUserList() {
   const query = supabase
     .from('sys_user')
     .select(
       `
         id,
-        tenant_id,
         organization_id,
         avatar,
         user_name,
@@ -387,7 +346,6 @@ export async function fetchGetEnableOrganizationUserList(params: { tenantId?: st
         )
       `
     )
-    .eq('tenant_id', params.tenantId)
     .eq('status', '1')
     .is('deleted_at', null)
     .order('nick_name', { ascending: true })
@@ -447,7 +405,6 @@ const parseGeofenceConfig = (row: SystemParamItem | null): GeofenceConfigItem | 
     const parsed = JSON.parse(row.paramValue) as Partial<GeofenceConfigItem>
     return {
       id: row.id,
-      tenantId: row.tenantId,
       enabled: parsed.enabled !== false,
       loadingRadiusM: Number(parsed.loadingRadiusM) || 1000,
       unloadingRadiusM: Number(parsed.unloadingRadiusM) || 1000,
@@ -484,14 +441,7 @@ export async function fetchGeofenceConfig(): Promise<{
 }
 
 export async function saveGeofenceConfig(params: GeofenceConfigItem) {
-  const config = omit(params, [
-    'id',
-    'tenantId',
-    'createBy',
-    'createTime',
-    'updateBy',
-    'updateTime'
-  ])
+  const config = omit(params, ['id', 'createBy', 'createTime', 'updateBy', 'updateTime'])
   return await responseHandle<GeofenceConfigItem>(
     () => supabase.rpc('tms_save_geofence_config', { p_config: config }),
     { showMessage: true, breakReturn: true }
@@ -576,11 +526,7 @@ export async function editUser(params: Api.SystemManage.UserListItem) {
 }
 
 /** 员工建档完成后，将既有登录账号与员工档案建立一对一关联。 */
-export async function linkUserToEmployee(params: {
-  userId: string
-  employeeId: string
-  tenantId: string
-}) {
+export async function linkUserToEmployee(params: { userId: string; employeeId: string }) {
   const invokeResp = () =>
     supabase.functions.invoke('sync-user', {
       body: JSON.stringify(
@@ -588,7 +534,6 @@ export async function linkUserToEmployee(params: {
           action: 'update',
           id: params.userId,
           appUserData: {
-            tenantId: params.tenantId,
             accountIdentityType: 'employee',
             hrEmployeeId: params.employeeId
           }
@@ -602,16 +547,12 @@ export async function linkUserToEmployee(params: {
 }
 
 /*分配用户角色*/
-export async function assignUserRoles(params: {
-  id: string
-  tenantId: string
-  userRoles: string[]
-}) {
-  const { id, tenantId, userRoles } = params
+export async function assignUserRoles(params: { id: string; userRoles: string[] }) {
+  const { id, userRoles } = params
   const payload = {
     action: 'assign_roles',
     id,
-    appUserData: { tenantId, userRoles }
+    appUserData: { userRoles }
   }
   const invokeResp = () =>
     supabase.functions.invoke('sync-user', {
@@ -624,17 +565,10 @@ export async function assignUserRoles(params: {
 }
 
 // 获取所有用户可分配的角色
-export async function fetchGetEnableRoleList(params: { tenantId?: string } = {}) {
-  const { tenantId } = params
-
-  if (!tenantId) {
-    return { data: [], error: null }
-  }
-
+export async function fetchGetEnableRoleList() {
   const query = supabase
     .from('sys_role')
-    .select('id, role_name, role_code, enabled, tenant_id, builtin_type')
-    .eq('tenant_id', tenantId)
+    .select('id, role_name, role_code, enabled, builtin_type')
     .eq('enabled', true)
     .order('role_code', { ascending: true })
 
@@ -644,7 +578,6 @@ export async function fetchGetEnableRoleList(params: { tenantId?: string } = {})
 // 获取角色列表
 export async function fetchGetRoleList(params: Api.SystemManage.RoleSearchParams) {
   const {
-    tenantId,
     organizationId,
     organizationIds,
     organizationUnassigned,
@@ -664,7 +597,6 @@ export async function fetchGetRoleList(params: Api.SystemManage.RoleSearchParams
     { col: 'role_code', op: 'eq', val: roleCode },
     { col: 'description', op: 'ilike', val: description ? `%${description}%` : undefined },
     { col: 'enabled', op: 'eq', val: enabled },
-    { col: 'tenant_id', op: 'eq', val: tenantId },
     {
       col: 'organization_id',
       op: 'eq',
@@ -680,7 +612,6 @@ export async function fetchGetRoleList(params: Api.SystemManage.RoleSearchParams
     .select(
       `
         *,
-        tenant:sys_tenant!sys_role_tenant_id_fkey(tenant_code, tenant_name, builtin_type),
         organization:mdm_organization!sys_role_organization_id_fkey(
           id, organization_code, organization_name
         )
@@ -920,5 +851,4 @@ export async function saveMenuTreeOrder(
 
 export * from './system-manage/application-access'
 export * from './system-manage/system-param'
-export * from './system-manage/tenant'
 export * from './system-manage/website-config'

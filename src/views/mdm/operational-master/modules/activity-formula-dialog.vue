@@ -19,12 +19,7 @@
         </template>
       </ArtEntitySummary>
 
-      <ActivityFormulaDetail
-        v-if="readonly"
-        :record="model"
-        :parameters="parameters"
-        :tenant-options="tenantOptions"
-      />
+      <ActivityFormulaDetail v-if="readonly" :record="model" :parameters="parameters" />
 
       <ArtForm
         custom-layout
@@ -46,27 +41,6 @@
           </header>
 
           <div class="formula-dialog__basic-grid">
-            <ElFormItem
-              v-if="shouldExposeTenantField"
-              class="formula-dialog__field--wide"
-              label="所属租户"
-              prop="tenantId"
-            >
-              <ElSelect
-                v-model="model.tenantId"
-                filterable
-                :disabled="readonly || (!!model.id && !copy)"
-                placeholder="选择数据归属租户"
-                @change="handleScopeChange"
-              >
-                <ElOption
-                  v-for="tenant in tenantOptions"
-                  :key="tenant.value"
-                  :label="tenant.label"
-                  :value="tenant.value"
-                />
-              </ElSelect>
-            </ElFormItem>
             <ElFormItem class="formula-dialog__field--wide" label="公式编码" prop="code">
               <ElInput
                 v-model="model.code"
@@ -99,11 +73,7 @@
               </ElSelect>
             </ElFormItem>
             <ElFormItem
-              :class="
-                shouldExposeTenantField
-                  ? 'formula-dialog__field--wide'
-                  : 'formula-dialog__field--activity'
-              "
+              class="formula-dialog__field--activity"
               label="活动类型"
               prop="activityTypes"
             >
@@ -509,7 +479,6 @@
   import ArtEmptyState from '@/components/core/feedback/art-empty-state/index.vue'
   import ArtIconButton from '@/components/core/widget/art-icon-button/index.vue'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
-  import { useTenantScopeFormPolicy } from '@/hooks/core/useTenantScopeFormPolicy'
   import { useUserStore } from '@/store/modules/user'
   import {
     deleteActivityFormulaParameter,
@@ -544,13 +513,11 @@
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
   const { confirmDelete } = useArtFeedback()
-  const { shouldExposeTenantField } = useTenantScopeFormPolicy()
   const dialogRef = ref<ArtDialogExpose<MasterDialogOpenData>>()
   const parameterDialogRef = ref<ArtDialogExpose>()
   const formRef = ref<InstanceType<typeof ArtForm>>()
   const parameterFormRef = ref<InstanceType<typeof ArtForm>>()
   const parameterTreeRef = ref<InstanceType<typeof ElTree>>()
-  const tenantOptions = ref<Array<{ label: string; value: string }>>([])
   const readonly = ref(false)
   const copy = ref(false)
   const loadingParameters = ref(false)
@@ -558,7 +525,7 @@
   const parameters = ref<ActivityFormulaParameter[]>([])
   const parameterKeyword = ref('')
   const constantValue = ref('')
-  const model = reactive<OperationalMasterRecord>(createEmptyModel(''))
+  const model = reactive<OperationalMasterRecord>(createEmptyModel())
 
   const parameterEditor = reactive({
     id: '',
@@ -607,7 +574,6 @@
     )
   )
   const rules = {
-    tenantId: [{ required: true, message: '请选择所属租户', trigger: 'change' }],
     code: [{ required: true, message: '请输入公式编码', trigger: 'blur' }],
     name: [{ required: true, message: '请输入公式名称', trigger: 'blur' }],
     purpose: [{ required: true, message: '请选择用途', trigger: 'change' }],
@@ -662,10 +628,9 @@
     }))
   }
 
-  function createEmptyModel(tenantId: string): OperationalMasterRecord {
+  function createEmptyModel(): OperationalMasterRecord {
     return {
       id: '',
-      tenantId,
       code: '',
       name: '',
       purpose: null,
@@ -688,7 +653,6 @@
     parentId: string | null = null
   ): ActivityFormulaParameterFormModel {
     return {
-      tenantId: model.tenantId,
       purpose: isActivityFormulaPurpose(model.purpose) ? model.purpose : null,
       parentId,
       nodeType,
@@ -713,7 +677,7 @@
   }
 
   async function loadParameters(): Promise<void> {
-    if (!model.tenantId || !model.purpose) {
+    if (!model.purpose) {
       parameters.value = []
       return
     }
@@ -721,7 +685,6 @@
     parameterError.value = ''
     try {
       parameters.value = await fetchActivityFormulaParameters(
-        model.tenantId,
         model.purpose as ActivityFormulaPurpose
       )
     } catch (error) {
@@ -731,10 +694,6 @@
     }
   }
 
-  function handleScopeChange(): void {
-    clearFormula()
-    void loadParameters()
-  }
   function handlePurposeChange(): void {
     clearFormula()
     void loadParameters()
@@ -841,8 +800,7 @@
   const handleOpen = async (data: MasterDialogOpenData): Promise<void> => {
     readonly.value = !!data.readonly
     copy.value = !!data.copy
-    tenantOptions.value = data.tenantOptions
-    const next = createEmptyModel(data.row?.tenantId || data.tenantId)
+    const next = createEmptyModel()
     if (data.row) Object.assign(next, cloneDeep(data.row))
     next.activityTypes = data.row?.activityTypes?.length
       ? [...data.row.activityTypes]

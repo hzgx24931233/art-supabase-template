@@ -19,7 +19,7 @@
           <p class="user-center__account-name">@{{ accountName }}</p>
           <div class="user-center__profile-tags">
             <span><ArtSvgIcon icon="ri:shield-check-line" />当前登录</span>
-            <span><ArtSvgIcon icon="ri:building-4-line" />{{ tenantName }}</span>
+            <span><ArtSvgIcon icon="ri:building-4-line" />{{ organizationName }}</span>
           </div>
         </div>
 
@@ -276,7 +276,9 @@
   )
   const accountName = computed(() => userInfo.value.userName || 'account')
   const avatarFallback = computed(() => displayName.value.slice(0, 1).toUpperCase() || 'U')
-  const tenantName = computed(() => userInfo.value.tenant?.tenantName || '当前组织')
+  const organizationName = computed(
+    () => userInfo.value.organization?.organizationName || '未归属组织'
+  )
   const builtInRoleLabels: Record<string, string> = {
     R_SUPER: '超级管理员',
     R_ADMIN: '管理员',
@@ -330,7 +332,7 @@
     },
     {
       label: '所属组织',
-      value: tenantName.value,
+      value: organizationName.value,
       icon: 'ri:building-line'
     }
   ])

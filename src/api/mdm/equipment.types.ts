@@ -3,7 +3,6 @@ export type EquipmentOperationStatus = 'normal' | 'maintenance' | 'fault' | 'idl
 
 export interface EquipmentReference {
   id: string
-  tenantId: string
   parentId?: string | null
   departmentId?: string | null
   organizationId?: string | null
@@ -14,8 +13,6 @@ export interface EquipmentReference {
 
 export interface ProductionEquipment {
   id: string
-  tenantId: string
-  tenantName: string
   equipmentCode: string
   equipmentName: string
   photoUrl?: string | null
@@ -57,7 +54,6 @@ export interface ProductionEquipment {
 }
 
 export interface ProductionEquipmentInput {
-  tenantId?: string
   categoryId: string
   productionDepartmentId: string
   locationId?: string | null

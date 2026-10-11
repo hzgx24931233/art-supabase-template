@@ -11,22 +11,11 @@ test('extracts bearer tokens without surrounding whitespace', () => {
   assert.equal(extractAiEdgeBearerToken('raw-token'), 'raw-token')
 })
 
-test('accepts only active tenant-bound application users', () => {
-  assert.equal(
-    isActiveAiEdgeAppUser({ tenant_id: 'tenant-1', user_email: 'user@example.com', status: '1' }),
-    true
-  )
-  assert.equal(
-    isActiveAiEdgeAppUser({ tenant_id: 'tenant-1', user_email: 'user@example.com', status: null }),
-    true
-  )
-  assert.equal(
-    isActiveAiEdgeAppUser({ tenant_id: '', user_email: 'user@example.com', status: '1' }),
-    false
-  )
-  assert.equal(
-    isActiveAiEdgeAppUser({ tenant_id: 'tenant-1', user_email: 'user@example.com', status: '0' }),
-    false
-  )
+test('rejects malformed or inactive application users', () => {
   assert.equal(isActiveAiEdgeAppUser(null), false)
+  assert.equal(isActiveAiEdgeAppUser('user@example.com'), false)
+  assert.equal(isActiveAiEdgeAppUser(['user@example.com']), false)
+  assert.equal(isActiveAiEdgeAppUser({}), false)
+  assert.equal(isActiveAiEdgeAppUser({ user_email: 42, status: '1' }), false)
+  assert.equal(isActiveAiEdgeAppUser({ user_email: 'user@example.com', status: '0' }), false)
 })

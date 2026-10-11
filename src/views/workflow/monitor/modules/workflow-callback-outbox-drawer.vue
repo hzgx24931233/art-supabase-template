@@ -11,7 +11,7 @@
           <ElTag :type="unresolvedCount ? 'warning' : 'success'" effect="plain" round>
             {{ unresolvedCount ? `${unresolvedCount} 条待处理` : '队列运行正常' }}
           </ElTag>
-          <small>{{ isPlatformSuper ? '平台全局队列' : '本租户只读' }}</small>
+          <small>{{ isPlatformSuper ? '平台全局队列' : '只读队列' }}</small>
         </div>
       </section>
 
@@ -217,7 +217,6 @@
       <strong>{row.businessTitle}</strong>
       <small title={row.businessId}>
         <span>{compactIdentifier(row.businessId)}</span>
-        {row.tenantName ? <span>{row.tenantName}</span> : null}
       </small>
     </div>
   )

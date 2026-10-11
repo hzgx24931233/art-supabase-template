@@ -82,33 +82,33 @@ class QueryRecorder {
 }
 
 test('filter key helpers normalize camelCase without changing values', () => {
-  assert.equal(camelToSnake('tenantUserId'), 'tenant_user_id')
-  assert.deepEqual(convertKeysToSnake({ tenantId: 7, active: true }), {
-    tenant_id: 7,
+  assert.equal(camelToSnake('projectOwnerId'), 'project_owner_id')
+  assert.deepEqual(convertKeysToSnake({ projectId: 7, active: true }), {
+    project_id: 7,
     active: true
   })
 })
 
 test('equality filters skip absent and blank values by default', () => {
   const query = applyEqFilters(new QueryRecorder(), {
-    tenantId: 7,
+    projectId: 7,
     keyword: '   ',
     enabled: false,
     missing: null
   })
 
   assert.deepEqual(query.calls, [
-    { operation: 'eq', column: 'tenant_id', value: 7 },
+    { operation: 'eq', column: 'project_id', value: 7 },
     { operation: 'eq', column: 'enabled', value: false }
   ])
 
   const literalQuery = applyEqFilters(
     new QueryRecorder(),
-    { tenantId: 7, keyword: '' },
+    { projectId: 7, keyword: '' },
     { camelToSnake: false, skipEmpty: false }
   )
   assert.deepEqual(literalQuery.calls, [
-    { operation: 'eq', column: 'tenantId', value: 7 },
+    { operation: 'eq', column: 'projectId', value: 7 },
     { operation: 'eq', column: 'keyword', value: '' }
   ])
 })
@@ -172,15 +172,15 @@ test('map filters normalize descriptors, fallback operations and scalar in value
 test('filter maps build stable specs with matching normalized operation keys', () => {
   assert.deepEqual(
     buildSpecsFromMap(
-      { tenantId: 7, createdAt: '2026-08-23' },
-      { tenantId: 'eq', createdAt: 'gte' }
+      { projectId: 7, createdAt: '2026-08-23' },
+      { projectId: 'eq', createdAt: 'gte' }
     ),
     [
-      { col: 'tenant_id', op: 'eq', val: 7 },
+      { col: 'project_id', op: 'eq', val: 7 },
       { col: 'created_at', op: 'gte', val: '2026-08-23' }
     ]
   )
-  assert.deepEqual(buildSpecsFromMap({ tenantId: 7 }, undefined, false), [
-    { col: 'tenantId', op: 'eq', val: 7 }
+  assert.deepEqual(buildSpecsFromMap({ projectId: 7 }, undefined, false), [
+    { col: 'projectId', op: 'eq', val: 7 }
   ])
 })

@@ -1,17 +1,17 @@
 # art-supabase-pro · Platform Template
 
 An enterprise admin-platform template built with **Vue 3 + TypeScript + Element Plus + Supabase**, used to
-derive new business projects. It is more than a UI kit: the platform ships multi-tenancy, RBAC with
-field-level permissions, dynamic menus, a workflow engine, data dictionaries, document numbering,
-AI assistants and a SQL workbench, and it hosts business modules as independent sub-applications.
+derive new business projects. It is more than a UI kit: the platform ships RBAC with field-level
+permissions, dynamic menus, a workflow engine, data dictionaries, document numbering, AI assistants
+and a SQL workbench, and it hosts business modules as independent sub-applications.
 
 The product-specific business modules and branding have been removed; one real business sub-application
 (the FMS finance module) is kept as a working example of the hosting mechanism.
 
 ## What the template keeps
 
-- **Identity and authorization**: Supabase Auth sign-in, tenant isolation, role/menu/button permissions,
-  field-level permissions, platform-super tenant switching.
+- **Identity and authorization**: Supabase Auth sign-in, role/menu/button permissions, field-level
+  permissions, platform-super-only administration.
 - **Platform governance**: dynamic menu and route assembly, dictionaries, system parameters, website
   configuration, document numbering, notification reminders, attachment centre.
 - **Workflow engine**: definitions and versions, workbench, monitoring, analytics, business contracts.

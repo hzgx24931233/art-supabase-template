@@ -254,7 +254,6 @@
   import TreeUtils from '@/utils/tree'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import ArtAsyncState from '@/components/core/feedback/art-async-state/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
@@ -302,9 +301,7 @@
 
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const tenantScopeStore = useTenantScopeStore()
   const { confirmAction } = useArtFeedback()
-  const { effectiveTenantId, tenantOptions } = storeToRefs(tenantScopeStore)
   const tableRef = ref<ArtTableQueryExpose>()
   const dialogRef = ref<DialogExpose>()
   const drawerRef = ref<ArtDrawerExpose<ProductionEquipment>>()
@@ -328,7 +325,6 @@
   const currentTotal = ref(0)
   const search = reactive({ keyword: '', status: undefined as ProductionEquipmentQuery['status'] })
   const treeUtils = new TreeUtils({ idKey: 'id', parentKey: 'parentId', childrenKey: 'children' })
-  const visibleTenantId = computed(() => effectiveTenantId.value ?? '')
   const departmentTree = computed(
     () => treeUtils.listToTree(references.departments) as TreeReference[]
   )
@@ -370,10 +366,10 @@
           ? '设备范围将覆盖当前组织及其下级产线。'
           : '设备范围将覆盖当前位置及其下级节点。'
       : scopeMode.value === 'category'
-        ? '展示当前租户全部生产设备，可从左侧选择设备分类。'
+        ? '展示全部生产设备，可从左侧选择设备分类。'
         : scopeMode.value === 'department'
-          ? '展示当前租户全部生产设备，可从左侧选择部门或产线。'
-          : '展示当前租户全部生产设备，可从左侧选择放置地点。'
+          ? '展示全部生产设备，可从左侧选择部门或产线。'
+          : '展示全部生产设备，可从左侧选择放置地点。'
   )
 
   const metrics = computed<BusinessWorkspaceMetric[]>(() => [
@@ -447,11 +443,6 @@
   const dialogData = (row?: ProductionEquipment, copy = false): EquipmentDialogOpenData => ({
     row,
     copy,
-    targetTenantId: row?.tenantId || visibleTenantId.value,
-    tenantOptions: tenantOptions.value.map((item) => ({
-      label: item.tenantName || item.tenantCode,
-      value: item.id
-    })),
     references
   })
   const openDialog = (row?: ProductionEquipment, copy = false): void =>
@@ -625,7 +616,6 @@
       if (!category || !department || !row['设备名称'])
         throw new Error(`第 ${index + 2} 行缺少设备名称、有效分类或部门/产线`)
       await saveProductionEquipment({
-        tenantId: department.tenantId,
         categoryId: category.id,
         productionDepartmentId: department.id,
         equipmentCode: String(row['设备编号'] || ''),

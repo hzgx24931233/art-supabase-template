@@ -12,7 +12,7 @@
 />
 ```
 
-The supplied `apiFn` receives `DataSelectFetchParams`. Read the selected category from `params.filters.categoryId`, keep tenant and permission enforcement in the API/database boundary, and return `{ data, total }`. Records must expose the canonical material selector fields (`materialCode`, `materialName`, `specificationModel`, `drawingNo`, category and material-type references).
+The supplied `apiFn` receives `DataSelectFetchParams`. Read the selected category from `params.filters.categoryId`, keep permission enforcement in the API/database boundary, and return `{ data, total }`. Records must expose the canonical material selector fields (`materialCode`, `materialName`, `specificationModel`, `drawingNo`, category and material-type references).
 
 Use `multiple` with `v-model:model-values` for batch selection. Single-selection workflows show the selected summary by default so the category, result, and confirmation regions remain consistent; pass `:show-selected-panel="false"` only when the available width cannot support it.
 

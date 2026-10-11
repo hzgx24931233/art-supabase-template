@@ -24,10 +24,6 @@
             <code translate="no">{{ formModel.ruleKey }}</code>
           </div>
           <div>
-            <span>生效租户</span>
-            <strong>{{ tenantName }}</strong>
-          </div>
-          <div>
             <span>目标字段</span>
             <code translate="no">{{ formModel.targetTable }}.{{ formModel.targetColumn }}</code>
           </div>
@@ -142,7 +138,6 @@
   const { getDictMap } = storeToRefs(userStore)
 
   const createInitialForm = (): NumberRule => ({
-    tenantId: '',
     ruleKey: '',
     ruleName: '',
     category: 'business_document',
@@ -162,9 +157,6 @@
 
   const formModel = reactive<NumberRule>(createInitialForm())
   const resetCycleOptions = computed(() => getDictMap.value.documentNumberResetCycle ?? [])
-  const tenantName = computed(
-    () => formModel.tenant?.tenantName || formModel.tenant?.tenantCode || '当前租户'
-  )
   const previewText = computed(() => {
     if (!formModel.autoEnabled) return '手工填写'
     try {

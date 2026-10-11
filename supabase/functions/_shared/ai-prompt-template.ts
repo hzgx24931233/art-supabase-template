@@ -17,14 +17,12 @@ function normalizedText(value: unknown): string | null {
 
 export async function loadPublishedAiPrompt(
   admin: SupabaseClient,
-  tenantId: string,
   feature: string,
   fallback: { content: string; version: string }
 ): Promise<PublishedAiPrompt> {
   const { data, error } = await admin
     .from('ai_prompt_template')
     .select('version,system_prompt')
-    .eq('tenant_id', tenantId)
     .eq('feature', feature)
     .eq('status', 'published')
     .maybeSingle()

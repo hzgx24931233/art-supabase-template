@@ -1,0 +1,1 @@
+import{Cn as e,Rt as t}from"./framework-Bwlbiqw9.js";function n(n){let r=e();return{component:r,load:async()=>{r.value||(r.value=(await n()).default),await t()}}}export{n as t};

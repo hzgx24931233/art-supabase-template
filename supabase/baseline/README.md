@@ -5,7 +5,7 @@
 
 ```
 platform-baseline.sql          平台内核 schema（约 90 张表 / 419 条策略 / 278 个函数）
-platform-seed.sql              基线数据（内置租户、角色、平台菜单、字典、参数、编号场景）
+platform-seed.sql              基线数据（内置角色、平台菜单、字典、参数、编号场景）
 mdm-master-data-menu.sql       增量补丁：已并入主平台的主数据四块菜单（物料 / 工程 / 销售 / 生产）
 mdm-data-model-patch.sql       增量补丁：主数据四块所需的 mdm_* 表与函数
 dict-cascade-relationship.sql  增量补丁：数据字典的计算关联函数（字典页加载失败时使用）
@@ -19,7 +19,7 @@ verify-baseline.ps1            在一次性 Postgres 容器里应用并断言基
 
 - **函数**：Supabase 会把新建函数开放给 `anon`，源库不存在这种授权 —— 文件在建任何对象之前用
   `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE ON FUNCTIONS FROM anon, PUBLIC` 收回，
-  再由各函数的 ACL 块精确授予应有权访问的角色。结果是 `anon` 恰好拿到源库显式授予的那 101 个函数。
+  再由各函数的 ACL 块精确授予应有权访问的角色。结果是 `anon` 恰好拿到源库显式授予的那 169 个函数。
 - **序列**：身份列序列在源库里仅 owner 可用，同样通过默认权限收回业务角色授权。
 
 一个 PostgreSQL 固有细节：函数上的 `PUBLIC` 执行权限是**内建默认**，`ALTER DEFAULT PRIVILEGES`
@@ -29,8 +29,8 @@ verify-baseline.ps1            在一次性 Postgres 容器里应用并断言基
 
 ## 它包含什么
 
-- **平台内核**：`sys_*`（租户、用户、角色、菜单、字典、参数、编号、通知、附件、审计）、
-  `wf_*` 工作流引擎、`ai_*` AI 基座，以及 `app_private` 租户/权限助手层。
+- **平台内核**：`sys_*`（用户、角色、菜单、字典、参数、编号、通知、附件、审计）、
+  `wf_*` 工作流引擎、`ai_*` AI 基座，以及 `app_private` 权限助手层。
 - **保留代码依赖的跨域契约对象**：平台自己的集成读取与识别链路会用到的表，例如
   `mdm_organization`（组织）、`mdm_carrier` / `mdm_customer` / `mdm_employee` / `mdm_material`
   （FMS 与用户同步的读取契约）、`scm_receipt_target_*`（收发货目标工作区）、`tms_invoice`（发票 OCR 写回）。
@@ -108,22 +108,21 @@ supabase db query --linked --file supabase/baseline/dict-cascade-relationship.sq
 排查顺序（全程只读）：
 
 ```sql
--- 1) 数据是否存在、归属哪个租户
-select tenant_id, node_type, count(*) from public.sys_dict_type group by 1, 2;
+-- 1) 数据是否存在
+select (select count(*) from public.sys_dict_type) as dict_type_rows,
+       (select count(*) from public.sys_dictionary) as dict_item_rows;
 
 -- 2) 以真实登录用户身份看可见性（把 sub 换成 sys_user.auth_user_id）
 begin;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"<auth_user_id>","role":"authenticated"}';
 select app_private.is_platform_super() as is_super,
-       app_private.current_user_tenant_id() as user_tenant,
        (select count(*) from public.sys_dict_type) as dict_type_visible,
        (select count(*) from public.sys_dictionary) as dict_item_visible;
 rollback;
 ```
 
-`is_platform_super()` 的判据是「用户租户 `builtin_type = 'platform'` 且该租户内存在启用中的
-`builtin_type = 'platform_super'` 角色」。**没有 platform 租户的项目里它对所有账号恒为 false**，
+`is_platform_super()` 的判据是「当前用户处于启用状态，且其 `sys_user.user_roles` 含有启用中的 `R_SUPER` 角色」。
 所以一旦 `sys_dict_type` / `sys_dictionary` 的 SELECT 策略被写成 `is_platform_super()`，
 字典页和所有字典下拉对谁都读不到数据。
 
@@ -155,8 +154,8 @@ commit;
 `sys_dictionary` 300 行、10 个根目录，`anon` 仍为 0 行；`supabase db advisors` 无新增告警；
 运行中的字典页由「0 个目录 · 0 个类型」变为「63 个目录 · 244 个类型」并渲染出根节点。
 
-注意：字典的写入（`insert` / `update` / `delete`）仍要求平台超管。项目若没有 platform 租户，
-字典维护需要在数据库侧补齐平台超管身份，或像 `sys_menu_delegate_*` 那样由复核过的委派策略授权，
+注意：字典的写入（`insert` / `update` / `delete`）仍要求平台超管。字典维护需要先按「首个超级管理员
+需要自己创建」一节把库内账号配置成平台超管，或像 `sys_menu_delegate_*` 那样由复核过的委派策略授权，
 不要通过放宽写入策略来解决。
 
 - 内容：根目录「主数据」+ 物料 / 工程 / 销售 / 生产四个分组、23 个页面菜单、178 个按钮，
@@ -165,42 +164,46 @@ commit;
 - 授权：默认授予内置角色 `R_SUPER`（超级管理员）与 `R_ADMIN`（管理员）；其他角色请在
   「系统管理 / 角色管理」里按需分配。
 - 执行身份：请以项目所有者身份执行（SQL 编辑器、`service_role` 或平台超级管理员）。
-  `sys_role_menu` 上的 `trg_apply_current_tenant_id` 触发器会用会话租户覆盖显式 `tenant_id`，
-  普通租户用户执行会把授权落到自己的租户里。
 
 首个超级管理员需要自己创建（基线不含任何账号）：
 
 1. 通过前端注册或用 `register-and-sync-user` 创建 Auth 用户；
-2. 在 SQL 编辑器里把该用户提升到平台租户并授予超级管理员角色：
+2. 在 SQL 编辑器里启用该用户并授予内置超级管理员角色：
 
 ```sql
--- 用实际值替换 <user_id>、<tenant_code>
-select app_private.platform_tenant_id() as platform_tenant_id;   -- 平台租户 id
+-- 用实际 <auth_user_id> 替换（对应 auth.users.id 与 sys_user.auth_user_id）
 
+-- 1) 确认内置超级管理员角色存在且启用：应返回 role_code = 'R_SUPER' 且 enabled = true
+select id, role_code, enabled from public.sys_role where role_code = 'R_SUPER';
+
+-- 2) 启用该用户，并把 R_SUPER 并入其角色数组（可重复执行）
 update public.sys_user
-   set tenant_id = app_private.platform_tenant_id(),
-       user_type = '1',
-       status = '1'
- where id = '<user_id>';
+   set status = '1',
+       user_roles = case
+         when 'R_SUPER' = any(coalesce(user_roles, array[]::text[])) then user_roles
+         else coalesce(user_roles, array[]::text[]) || 'R_SUPER'
+       end
+ where auth_user_id = '<auth_user_id>';
+```
 
-insert into public.sys_user_tenant (user_id, tenant_id, is_default)
-select id, app_private.platform_tenant_id(), true from public.sys_user where id = '<user_id>'
-on conflict do nothing;
+`is_platform_super()` 只依据 `sys_user.status = '1'`、`sys_user.user_roles` 含 `'R_SUPER'`，
+以及 `sys_role` 中存在 `role_code = 'R_SUPER'` 且 `enabled is true` 判定，授完角色即生效。
+可在 SQL 编辑器里这样复核（把 `sub` 换成该用户的 `auth_user_id`）：
 
-insert into public.sys_role_menu (role_id, menu_id, permission, create_by, update_by)
-select r.id, m.id, '{}', 'baseline', 'baseline'
-  from public.sys_role r
-  join public.sys_menu m on m.app_code = 'platform'
- where r.role_code = 'R_SUPER'
-   and r.tenant_id = app_private.platform_tenant_id()
-on conflict do nothing;
+```sql
+begin;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"<auth_user_id>","role":"authenticated"}';
+select app_private.is_platform_super();   -- 期望 true
+rollback;
 ```
 
 ## 参数设置数据迁移（2026-10-08）
 
-已从源项目 `nvzlwcutsqptngyqfzqs` 的 `public.sys_param` 迁移 10 条记录到当前项目 `trthbpyqubyjtkzmcewy`。参数记录统一归属当前 `vms` 租户（`f0c0d42a-300b-4958-ab5e-7da8cf823a67`）；`website.config` 中的图片和资源 URL 按用户选择保留源项目 Storage 地址。
-
-当前项目原本缺少注册公共租户，因此同步创建 `public-register` 租户（`6675a0d6-3ff6-4ab7-bb09-232d85ae96ad`）及启用的 `R_REGISTER` / `default_register` 角色（`8bb744ab-c38e-436b-bafe-1cde73be0b7c`），并将 `registration.default_role_id` 的 `param_value` 与 `default_value` 映射到该角色。迁移前在事务中验证了租户、角色、10 条参数、租户归属和注册角色约束，回滚后正式提交；提交后再次核对参数键集合、租户归属及注册角色引用。
+已从源项目 `nvzlwcutsqptngyqfzqs` 的 `public.sys_param` 迁移 10 条记录到当前项目
+`trthbpyqubyjtkzmcewy`；`website.config` 中的图片和资源 URL 按用户选择保留源项目 Storage 地址。
+注册默认角色 `R_REGISTER`（`builtin_type = default_register`）已配置为启用，
+`registration.default_role_id` 的 `param_value` 与 `default_value` 均指向该角色。
 
 ## 验证
 
@@ -212,13 +215,14 @@ powershell -File supabase/baseline/verify-baseline.ps1 -KeepContainer   # 保留
 脚本会用 Supabase 官方 Postgres 镜像起一个临时库，补上最小的托管对象桩
 （`auth.users`、`auth.jwt()`、`supabase_realtime` 发布），应用基线 + 种子，然后断言：
 
-- 对象数量：表 ≥ 80、RLS 表 ≥ 85、策略 ≥ 380、函数 ≥ 200、触发器 ≥ 230；
-- 种子数据：内置租户 2、内置角色 3、平台菜单 ≥ 90、授权 ≥ 100、字典类型 ≥ 80、参数 10；
-- 平台助手：`platform_tenant_id()`、`default_register_tenant_id()`、`current_is_super()` 行为正确；
-- 安全模型：`sys_tenant` / `sys_user` 有策略，`anon`/`public` 没有多余的函数执行授权；
+- 对象数量：表 ≥ 80、RLS 表 ≥ 85、策略 ≥ 200、函数 ≥ 200、触发器 ≥ 230；
+- 种子数据：内置角色 ≥ 3、平台菜单 ≥ 90、角色菜单授权 ≥ 100、字典类型 ≥ 80、字典项 ≥ 300、
+  平台参数 ≥ 10、平台应用 ≥ 1；
+- 平台助手：`current_is_super()` 在缺少 JWT 时返回 false；基线确实种入了「角色→平台页面」授权
+  （脚本另输出 `sys_user` 策略数、`wf_definition` 列数等信息）；
 - 中文写入：字典标签的中文能正确落库（防编码回归）；
-- 无业务表残留（文档化的契约表除外）；
-- 权限保真度：anon 的函数授权恰好 101 个、PUBLIC 可执行函数数等于报告里的预期值、序列不授予业务角色。
+- 无业务表残留（文档化的契约表除外，脚本按契约表清单计数）；
+- 权限保真度：anon 的函数授权恰好 169 个、PUBLIC 可执行函数数等于报告里的预期值、序列不授予业务角色。
 
 **已验证**：基线在 `public.ecr.aws/supabase/postgres:17.11.0.002` 上可完整应用并自洽。
 端到端（登录、菜单装配、RPC 调用）仍需在真实 Supabase 项目上验证。
@@ -245,8 +249,8 @@ pnpm baseline:platform --backup supabase/backups/<时间戳>
 | 编号规则初始化 | 插入的规则键没有对应场景（源库同样会失败）→ 移除 |
 | ACL / 注释 | 对象已被移除 → 同步移除 |
 
-种子数据的过滤规则（见 `seedPlans`）：只取内置租户、平台菜单、平台字典、平台参数、
-平台 AI 功能配置，以及被保留 SQL 引用到的编号场景。所有 `create_by` / `update_by` 中的
+种子数据的过滤规则（见 `seedPlans`）：只取内置角色、平台菜单、平台字典、平台参数，
+以及被保留 SQL 引用到的编号场景。所有 `create_by` / `update_by` 中的
 邮箱与负责人字段会被清洗为占位值或置空。
 
 ## 业务模块交付物

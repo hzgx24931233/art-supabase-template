@@ -17,12 +17,12 @@ test('OR search escapes quotes and backslashes without deleting punctuation', ()
 })
 
 test('column names are application configuration, not arbitrary filter syntax', () => {
-  for (const columns of [[], ['name,tenant_id'], ['name.ilike'], ['name)'], ['']]) {
+  for (const columns of [[], ['name,status'], ['name.ilike'], ['name)'], ['']]) {
     assert.throws(() => buildOrIlikeFilter(columns, '测试'), /搜索字段配置不正确/)
   }
 })
 
-test('SDK encodes the quoted filter once and retains separate tenant constraints', async () => {
+test('SDK encodes the quoted filter once and retains separate constraints', async () => {
   let requestedUrl = ''
   const client = createClient('https://example.supabase.co', 'test-publishable-key', {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -33,12 +33,12 @@ test('SDK encodes the quoted filter once and retains separate tenant constraints
       }
     }
   })
-  const keyword = '"),tenant_id.not.is.null,(name.ilike."'
+  const keyword = '"),deleted_at.not.is.null,(name.ilike."'
   const filter = buildOrIlikeFilter(['code', 'name'], keyword)
-  const { error } = await client.from('records').select('id').eq('tenant_id', 'tenant-a').or(filter)
+  const { error } = await client.from('records').select('id').eq('status', 'active').or(filter)
   assert.equal(error, null)
   const url = new URL(requestedUrl)
   assert.equal(url.searchParams.get('or'), `(${filter})`)
-  assert.equal(url.searchParams.get('tenant_id'), 'eq.tenant-a')
+  assert.equal(url.searchParams.get('status'), 'eq.active')
   assert.equal(url.searchParams.size, 3)
 })

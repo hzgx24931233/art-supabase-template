@@ -44,11 +44,9 @@
             <ArtEmployeeSelect
               :model-value="formData.hrEmployeeId || undefined"
               :selected-data="employeeSelection.selectedRows"
-              :tenant-id="formData.tenantId || undefined"
               title="从员工花名册选择"
               :subtitle="employeeSelectorSubtitle"
-              :disabled="!formData.tenantId"
-              :placeholder="formData.tenantId ? '请选择员工档案' : '请先选择所属租户'"
+              placeholder="请选择员工档案"
               search-placeholder="员工工号、姓名、手机、邮箱或岗位"
               @update:model-value="handleEmployeeValueChange"
               @update:selected-data="handleEmployeeRowsChange"
@@ -65,7 +63,7 @@
           </div>
         </template>
         <template #avatar>
-          <ArtUploadImage v-model="formData.avatar" :resource-tenant-id="formData.tenantId || ''" />
+          <ArtUploadImage v-model="formData.avatar" />
         </template>
       </ArtForm>
     </div>
@@ -85,7 +83,6 @@
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { useUserStore } from '@/store/modules/user'
   import { addUser, editUser, fetchGetEnableOrganizationTree } from '@/api/system-manage'
-  import { fetchGetEnableTenantList } from '@/api/system-manage/tenant'
   import type { EmployeeIntegrationItem } from '@/api/integration/employees'
   import { useSystemParam } from '@/hooks'
 
@@ -110,7 +107,7 @@
   const emit = defineEmits<Emits>()
   const userStore = useUserStore()
   const router = useRouter()
-  const { getDictMap, getUserInfo, isPlatformSuper } = storeToRefs(userStore)
+  const { getDictMap, getUserInfo } = storeToRefs(userStore)
   const { t } = useI18n()
   const {
     passwordMinLength,
@@ -124,7 +121,6 @@
 
   const createInitialForm = (): UserListItem => ({
     id: undefined,
-    tenantId: undefined,
     organizationId: null,
     accountIdentityType: 'employee',
     hrEmployeeId: null,
@@ -161,20 +157,18 @@
       (String(formData.value.userEmail ?? '').toLowerCase() === '869123771@qq.com' ||
         Boolean(formData.value.userRoles?.includes('R_SUPER')))
   )
-  const canSelectTenant = computed(() => isPlatformSuper.value)
-  const currentTenantId = computed(() => getUserInfo.value.tenantId)
   const contextTitle = computed(() =>
     isEdit.value ? '维护用户资料与访问状态' : '创建新的登录账号'
   )
   const contextDescription = computed(() =>
     isEdit.value
       ? '账号邮箱保持锁定；员工账号必须与花名册一一关联，历史待确认账号需先完成身份归类。'
-      : '先确认账号身份；员工账号必须从当前租户花名册选择，外部或服务账号需说明用途。'
+      : '先确认账号身份；员工账号必须从花名册选择，外部或服务账号需说明用途。'
   )
   const employeeSelectorSubtitle = computed(() =>
     isEdit.value
-      ? '保留当前关联，或改选当前租户内在岗且尚未开通账号的员工'
-      : '仅展示当前租户内在岗、且尚未开通账号的员工'
+      ? '保留当前关联，或改选在岗且尚未开通账号的员工'
+      : '仅展示在岗、且尚未开通账号的员工'
   )
   const identityTypeOptions = computed(() => {
     const options = getDictMap.value.sysUserIdentityType ?? []
@@ -185,9 +179,6 @@
   })
 
   const rules = computed<FormRules>(() => ({
-    tenantId: canSelectTenant.value
-      ? [{ required: true, message: '请选择所属租户', trigger: 'change' }]
-      : [],
     userName: [{ min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'change' }],
     userPhone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'change' }],
     userEmail: [{ required: true, type: 'email', message: '请输入正确的邮箱', trigger: 'change' }],
@@ -229,24 +220,6 @@
         : '员工用于企业内部人员；外部协作和服务账号不进入员工花名册，必须说明用途。'
     },
     {
-      label: '所属租户',
-      key: 'tenantId',
-      type: 'select',
-      span: 24,
-      hidden: !canSelectTenant.value,
-      api: fetchGetEnableTenantList,
-      resultField: 'data',
-      labelField: 'tenantName',
-      valueField: 'id',
-      labelFn: (item) => `${item.tenantName}（${item.tenantCode}）`,
-      props: {
-        placeholder: '请选择所属租户',
-        filterable: true,
-        disabled: isProtectedSuperUser.value,
-        onChange: handleTenantChange
-      }
-    },
-    {
       label: '花名册员工',
       key: 'hrEmployeeId',
       span: 24,
@@ -260,19 +233,17 @@
       span: 24,
       api: fetchGetEnableOrganizationTree,
       immediate: false,
-      beforeFetch: () => ({ tenantId: formData.value.tenantId }),
       resultField: 'data',
       labelField: 'organizationName',
       valueField: 'id',
       labelFn: (item) => `${item.organizationName}（${item.organizationCode}）`,
       childrenField: 'children',
       props: {
-        disabled: !formData.value.tenantId,
         clearable: true,
         checkStrictly: true,
         defaultExpandAll: true,
         renderAfterExpand: false,
-        placeholder: formData.value.tenantId ? '请选择所属组织' : '请先选择租户'
+        placeholder: '请选择所属组织'
       },
       description: '用户归属组织决定组织治理视图；角色权限仍通过角色分配独立控制。'
     },
@@ -491,23 +462,8 @@
         ...formData.value,
         ...cloneDeep(row)
       }
-      employeeSelection.selectedRows = row.hrEmployee
-        ? [
-            {
-              ...cloneDeep(row.hrEmployee),
-              tenantId: row.hrEmployee.tenantId ?? row.tenantId ?? ''
-            }
-          ]
-        : []
-    } else if (!canSelectTenant.value) {
-      formData.value.tenantId = currentTenantId.value
+      employeeSelection.selectedRows = row.hrEmployee ? [cloneDeep(row.hrEmployee)] : []
     }
-  }
-
-  const handleTenantChange = (): void => {
-    formData.value.organizationId = null
-    handleEmployeeClear()
-    void formRef.value?.reloadOptions('organizationId')
   }
 
   const handleAccountIdentityTypeChange = (value: UserAccountIdentityType): void => {
@@ -551,7 +507,6 @@
       path: '/hr/personnel/employee-profile',
       query: {
         sourceUserId: formData.value.id,
-        tenantId: formData.value.tenantId,
         organizationId: formData.value.organizationId || undefined,
         email: formData.value.userEmail || undefined,
         returnPath: '/system/user'
@@ -576,7 +531,6 @@
         'authUserId',
         'userEmail',
         'password',
-        'tenant',
         'organization',
         'hrEmployee',
         'createBy',
@@ -588,9 +542,6 @@
         userEmail,
         password,
         ...rest
-      }
-      if (!canSelectTenant.value) {
-        params.tenantId = currentTenantId.value
       }
 
       if (!isEdit.value) {

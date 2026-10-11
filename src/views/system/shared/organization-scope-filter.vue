@@ -182,13 +182,11 @@
       loading?: boolean
       selectedKey: string
       includeDescendants?: boolean
-      globalScope?: boolean
     }>(),
     {
       loading: false,
       scopeType: 'user',
-      includeDescendants: true,
-      globalScope: false
+      includeDescendants: true
     }
   )
 
@@ -208,12 +206,11 @@
   const treeProps = { children: 'children', label: 'organizationName' }
 
   const scopeCopy = computed(() => {
-    const rangeLabel = props.globalScope ? '全部租户内' : '当前租户内'
     if (props.scopeType === 'position') {
       return {
         entityLabel: '岗位',
         allLabel: '全部岗位',
-        allDescription: `${rangeLabel}全部组织岗位`,
+        allDescription: '全部组织岗位',
         unassignedLabel: '',
         unassignedDescription: '',
         assignedSuffix: '个岗位已配置',
@@ -224,7 +221,7 @@
       return {
         entityLabel: '角色',
         allLabel: '全部角色',
-        allDescription: `${rangeLabel}全部角色`,
+        allDescription: '全部角色',
         unassignedLabel: '待归属角色',
         unassignedDescription: '尚未绑定适用组织',
         assignedSuffix: '个角色已归属',
@@ -235,7 +232,7 @@
       return {
         entityLabel: '员工',
         allLabel: '全部员工',
-        allDescription: `${rangeLabel}全部员工档案`,
+        allDescription: '全部员工档案',
         unassignedLabel: '待归属员工',
         unassignedDescription: '尚未分配所属组织',
         assignedSuffix: '名员工已归属',
@@ -245,7 +242,7 @@
     return {
       entityLabel: '用户',
       allLabel: '全部用户',
-      allDescription: `${rangeLabel}全部账号`,
+      allDescription: '全部账号',
       unassignedLabel: '待归属用户',
       unassignedDescription: '尚未分配所属组织',
       assignedSuffix: '人已归属',
@@ -253,9 +250,7 @@
     }
   })
   const showUnassigned = computed(() => props.scopeType !== 'position')
-  const emptyDescription = computed(() =>
-    props.globalScope ? '全部租户中暂无可用组织节点。' : '当前租户还没有可用的组织节点。'
-  )
+  const emptyDescription = '当前还没有可用的组织节点。'
 
   const flatOrganizations = computed(() => treeUtils.treeToList(props.data))
   const organizationCount = computed(() => flatOrganizations.value.length)
@@ -299,20 +294,14 @@
   }
 
   const getOrganizationMeta = (organization: Organization): string => {
-    const tenantName = props.globalScope ? organization.tenant?.tenantName : undefined
-    return [tenantName, organization.organizationCode].filter(Boolean).join(' · ')
+    return organization.organizationCode ?? ''
   }
 
   const filterNode = (value: string, data: TreeNodeData): boolean => {
     const organization = data as Organization
     const normalized = value.trim().toLocaleLowerCase('zh-CN')
     if (!normalized) return true
-    return [
-      organization.organizationName,
-      organization.organizationCode,
-      organization.tenant?.tenantName,
-      organization.tenant?.tenantCode
-    ].some((field) =>
+    return [organization.organizationName, organization.organizationCode].some((field) =>
       String(field ?? '')
         .toLocaleLowerCase('zh-CN')
         .includes(normalized)

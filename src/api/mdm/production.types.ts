@@ -1,7 +1,6 @@
 import type { EmployeeIntegrationItem } from '@/api/integration/employees'
 export type ProductionTag = 'primary' | 'success' | 'warning' | 'danger' | 'info'
 export interface ProductionDepartmentInput {
-  tenantId: string
   organizationId: string | null
   parentId: string | null
   name: string
@@ -16,13 +15,11 @@ export interface ProductionDepartmentInput {
 }
 export interface ProductionDepartment extends ProductionDepartmentInput {
   id: string
-  tenantId: string
 }
 export interface ProductionDepartmentTreeNode extends ProductionDepartment {
   children: ProductionDepartmentTreeNode[]
 }
 export interface ProductionPersonInput {
-  tenantId: string
   departmentId: string
   employeeId: string | null
   name: string
@@ -44,11 +41,9 @@ export interface ProductionPersonInput {
 }
 export interface ProductionPerson extends ProductionPersonInput {
   id: string
-  tenantId: string
   department: { id: string; name: string; code: string } | null
 }
 export interface ProductionPeopleQuery {
-  tenantId?: string | null
   departmentIds?: string[]
   keyword?: string
   phone?: string
@@ -78,7 +73,6 @@ export interface ShiftPatternInput {
 }
 export interface ShiftPattern extends ShiftPatternInput {
   id: string
-  tenantId: string
 }
 export interface ProductionCalendarDay {
   id: string

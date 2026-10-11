@@ -6,7 +6,7 @@ import { withRequestOptions } from '@/api/providers/supabase/query'
 /**
  * 平台级交易对手只读契约。
  *
- * FMS 等消费者只依赖稳定的最小字段 DTO；数据由 TMS 的租户隔离只读 RPC
+ * FMS 等消费者只依赖稳定的最小字段 DTO；数据由 TMS 的只读 RPC
  * 提供，不导入 TMS 前端源码，因此任一子应用都可以独立构建和部署。
  */
 export interface CounterpartyCarrierOption {
@@ -22,7 +22,6 @@ export interface CounterpartyCarrierOption {
 
 export interface CounterpartyCustomerOption {
   id: string
-  tenantId?: string
   customerCode?: string
   customerName: string
   enabled?: boolean
@@ -54,7 +53,6 @@ export interface CounterpartyCarrierSearchParams {
 export interface CounterpartyCustomerSearchParams {
   excludeId?: string
   includeDisabled?: boolean
-  tenantId?: string
 }
 
 export interface CounterpartyCustomerSelectorSearchParams {
@@ -100,8 +98,7 @@ export async function fetchCustomerOptions(
       withRequestOptions(
         supabase.rpc('tms_list_customer_options_secure', {
           p_exclude_id: params.excludeId || null,
-          p_include_disabled: params.includeDisabled ?? false,
-          p_tenant_id: params.tenantId || null
+          p_include_disabled: params.includeDisabled ?? false
         }),
         options
       ),

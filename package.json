@@ -152,7 +152,8 @@
     "vue-draggable-plus": "^0.6.1",
     "vue-i18n": "^11.4.13",
     "vue-router": "^5.3.1",
-    "xgplayer": "^3.0.26"
+    "xgplayer": "^3.0.26",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
@@ -202,7 +203,7 @@
     "vue-img-cutter": "^3.1.1",
     "vue-tsc": "~3.3.12"
   },
-  "description": "基于 Vue 3、TypeScript、Element Plus 与 Supabase 的企业级中后台平台模板：多租户、RBAC 与字段权限、动态菜单、工作流引擎、AI 助手与 SQL 工作台，并以 FMS 财务模块作为业务子应用接入示例。",
+  "description": "基于 Vue 3、TypeScript、Element Plus 与 Supabase 的企业级中后台平台模板：RBAC 与字段权限、动态菜单、工作流引擎、AI 助手与 SQL 工作台，并以 FMS 财务模块作为业务子应用接入示例。",
   "main": "index.js",
   "keywords": [
     "supabase",
@@ -214,7 +215,6 @@
     "sql-assistant",
     "postgresql",
     "rbac",
-    "multi-tenant",
     "typescript",
     "vite"
   ],

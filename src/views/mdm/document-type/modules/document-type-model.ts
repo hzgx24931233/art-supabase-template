@@ -12,7 +12,6 @@ export const createDocumentTypeFormModel = (
 ): DocumentTypeFormModel => ({
   id: undefined,
   sourceId: undefined,
-  tenantId: undefined,
   menuId: '',
   documentTypeCode: '',
   documentTypeName: '',
@@ -32,7 +31,6 @@ export const createDocumentTypeFormModel = (
 export const createDocumentTypeCopyModel = (source: DocumentTypeRecord): DocumentTypeFormModel =>
   createDocumentTypeFormModel({
     sourceId: source.id,
-    tenantId: source.tenantId,
     menuId: source.menuId,
     documentTypeCode: '',
     documentTypeName: `${source.documentTypeName}（副本）`,
@@ -48,12 +46,8 @@ export const createDocumentTypeCopyModel = (source: DocumentTypeRecord): Documen
     allowedIssueWarehouseTypes: [...source.allowedIssueWarehouseTypes]
   })
 
-export const buildDocumentTypeInput = (
-  model: DocumentTypeFormModel,
-  includeTenant: boolean
-): DocumentTypeWriteInput => {
+export const buildDocumentTypeInput = (model: DocumentTypeFormModel): DocumentTypeWriteInput => {
   const payload = pick(model, [
-    'tenantId',
     'menuId',
     'documentTypeCode',
     'documentTypeName',
@@ -86,14 +80,11 @@ export const buildDocumentTypeInput = (
   payload.packingThicknessFieldKey = payload.packingEnabled
     ? normalizeNonNullableText(payload.packingThicknessFieldKey ?? '')
     : null
-  if (!includeTenant) delete payload.tenantId
   return payload
 }
 
 export const buildDocumentTypeUpdateInput = (
   model: DocumentTypeFormModel
 ): DocumentTypeUpdateInput => {
-  const payload = buildDocumentTypeInput(model, false)
-  delete payload.tenantId
-  return payload
+  return buildDocumentTypeInput(model)
 }

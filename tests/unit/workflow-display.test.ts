@@ -63,7 +63,7 @@ test('workflow actions are rendered newest first with override audit context', (
       comment: '证件已过期',
       metadata: {
         operatorType: 'platform_super_override',
-        originalAssigneeName: '租户审批员'
+        originalAssigneeName: '业务审批员'
       },
       createTime: '2026-08-12T02:00:00Z'
     }
@@ -71,6 +71,6 @@ test('workflow actions are rendered newest first with override audit context', (
 
   assert.equal(items[0].id, 'reject')
   assert.equal(items[0].tone, 'danger')
-  assert.match(items[0].description ?? '', /原审批人：租户审批员/)
+  assert.match(items[0].description ?? '', /原审批人：业务审批员/)
   assert.match(items[0].description ?? '', /证件已过期/)
 })

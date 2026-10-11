@@ -4,7 +4,7 @@
       density="compact"
       eyebrow="NOTIFICATION OPERATIONS"
       title="消息提醒"
-      description="统一配置租户到期与业务单据提醒，集中管理触达规则、渠道凭据、失败重试和发送审计。"
+      description="统一配置业务到期与单据提醒，集中管理触达规则、渠道凭据、失败重试和发送审计。"
       icon="ri:notification-badge-line"
       :tags="workspaceTags"
       :metrics="workspaceMetrics"
@@ -18,7 +18,7 @@
           v-auth="'System:NotificationReminder:Dispatch'"
           type="primary"
           :loading="page.dispatching"
-          :disabled="!selectedTenantId || page.loading || isAllTenants"
+          :disabled="page.loading"
           @click="dispatchNow"
         >
           <ArtSvgIcon icon="ri:send-plane-line" />
@@ -32,18 +32,6 @@
       aria-label="提醒运行配置"
     >
       <div class="notification-reminder-page__scope">
-        <div class="notification-reminder-page__tenant-summary">
-          <span class="notification-reminder-page__scope-icon" aria-hidden="true">
-            <ArtSvgIcon icon="ri:building-4-line" />
-          </span>
-          <div>
-            <small>当前配置租户</small>
-            <strong :title="workspace?.tenant.tenantName">{{ tenantName }}</strong>
-            <span>{{ tenantValidityText }}</span>
-            <em v-if="isAllTenants">全部租户模式下仅预览平台租户，切换具体租户后可维护</em>
-          </div>
-        </div>
-
         <label class="notification-reminder-page__scope-field">
           <span>提醒场景</span>
           <ElSelect
@@ -138,7 +126,7 @@
             ><div class="notification-reminder-page__section-heading">
               <div>
                 <ArtSectionTitle :show-line="false">通知渠道</ArtSectionTitle>
-                <p>渠道凭据加密保存且不回显；跨租户测试发送给目标租户的可用管理员。</p>
+                <p>渠道凭据加密保存且不回显；测试发送给当前可用管理员。</p>
               </div>
               <span class="notification-reminder-page__section-count is-success">
                 <b>{{ workspace.summary.enabledChannelCount }}</b>
@@ -196,7 +184,6 @@
                 <ElButton
                   v-auth="'System:NotificationReminder:EditChannel'"
                   size="small"
-                  :disabled="isAllTenants"
                   @click="openChannelDialog(channel)"
                 >
                   配置
@@ -206,7 +193,7 @@
                   size="small"
                   type="primary"
                   plain
-                  :disabled="isAllTenants || !channel.secretConfigured"
+                  :disabled="!channel.secretConfigured"
                   :loading="page.testingChannel === channel.channelCode"
                   @click="testChannel(channel)"
                 >
@@ -221,15 +208,10 @@
 
     <NotificationRuleDialog
       ref="ruleDialogRef"
-      :tenant-id="selectedTenantId"
       :scenarios="workspace?.scenarios ?? []"
       @success="handleDialogSuccess"
     />
-    <NotificationChannelDialog
-      ref="channelDialogRef"
-      :tenant-id="selectedTenantId"
-      @success="handleDialogSuccess"
-    />
+    <NotificationChannelDialog ref="channelDialogRef" @success="handleDialogSuccess" />
   </div>
 </template>
 
@@ -258,9 +240,6 @@
     testNotificationChannel
   } from '@/api/notification-reminder'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { useUserStore } from '@/store/modules/user'
-  import { resolveTenantWorkspaceId } from '@/utils/tenant-scope-context'
   import NotificationRuleDialog from './modules/notification-rule-dialog.vue'
   import NotificationChannelDialog from './modules/notification-channel-dialog.vue'
 
@@ -292,11 +271,6 @@
   const ruleDialogRef = ref<DialogExpose<Rule>>()
   const channelDialogRef = ref<DialogExpose<ChannelConfig>>()
   const workspace = shallowRef<Api.NotificationReminder.Workspace | null>(null)
-  const userStore = useUserStore()
-  const { effectiveTenantId, isAllTenants } = storeToRefs(useTenantScopeStore())
-  const selectedTenantId = computed(() =>
-    resolveTenantWorkspaceId(effectiveTenantId.value, userStore.getUserInfo.tenantId)
-  )
   const scenarioFilter = ref(typeof route.query.scenario === 'string' ? route.query.scenario : '')
 
   const page = reactive<PageGroup>({
@@ -309,8 +283,8 @@
 
   const workspaceTags = computed<BusinessWorkspaceTag[]>(() => [
     {
-      label: isAllTenants.value ? '平台租户预览' : '站内通知已接入',
-      type: isAllTenants.value ? 'warning' : 'success',
+      label: '站内通知已接入',
+      type: 'success',
       effect: 'plain'
     },
     { label: '外部渠道凭据加密', type: 'primary', effect: 'plain' }
@@ -341,18 +315,11 @@
     size: ruleTable.size,
     total: filteredRules.value.length
   }))
-  const tenantName = computed(() => workspace.value?.tenant.tenantName || '正在加载租户配置')
-  const tenantValidityText = computed(() => {
-    const tenant = workspace.value?.tenant
-    if (!tenant) return '请选择租户查看服务期限'
-    if (!tenant.serviceStartDate && !tenant.serviceEndDate) return '未设置期限 · 长期有效'
-    return `服务期：${tenant.serviceStartDate || '未限制'} 至 ${tenant.serviceEndDate || '未限制'}`
-  })
   const workspaceMetrics = computed<BusinessWorkspaceMetric[]>(() => [
     {
       label: '活跃提醒对象',
       value: workspace.value?.summary.activeSubjectCount ?? 0,
-      description: '已接入租户与业务单据',
+      description: '已接入的业务单据与提醒场景',
       icon: 'ri:file-list-3-line',
       tone: 'primary'
     },
@@ -474,14 +441,12 @@
             type="edit"
             label="编辑提醒规则"
             permission="System:NotificationReminder:EditRule"
-            disabled={isAllTenants.value}
             onClick={() => openRuleDialog(row)}
           />
           <ArtButtonTable
             type="delete"
             label="删除提醒规则"
             permission="System:NotificationReminder:DeleteRule"
-            disabled={isAllTenants.value}
             onClick={() => void removeRule(row)}
           />
         </BusinessTableRowActions>
@@ -492,9 +457,8 @@
     {
       key: 'add-rule',
       type: 'add',
-      label: isAllTenants.value ? '选择租户后新增' : '新增规则',
+      label: '新增规则',
       permission: 'System:NotificationReminder:AddRule',
-      disabled: isAllTenants.value,
       onClick: () => openRuleDialog()
     }
   ])
@@ -502,7 +466,7 @@
     rowKey: 'id',
     tableLayout: 'fixed',
     emptyHeight: '230px',
-    emptyText: '当前范围暂无提醒规则',
+    emptyText: '暂无提醒规则',
     emptyDescription: '可切换提醒场景，或创建新的提醒阶段。',
     paginationOptions: {
       pageSizes: [10, 20, 50],
@@ -511,11 +475,10 @@
   }
 
   const loadWorkspace = async (): Promise<void> => {
-    if (!selectedTenantId.value) return
     page.loading = true
     page.error = null
     try {
-      const { data, error } = await fetchNotificationReminderWorkspace(selectedTenantId.value)
+      const { data, error } = await fetchNotificationReminderWorkspace()
       if (error || !data) throw error ?? new Error('empty workspace')
       workspace.value = data
       const maxPage = Math.max(1, Math.ceil(filteredRules.value.length / ruleTable.size))
@@ -546,12 +509,10 @@
   }
 
   const openRuleDialog = (row?: Rule): void => {
-    if (isAllTenants.value) return
     void ruleDialogRef.value?.handleOpen(row)
   }
 
   const openChannelDialog = (row: ChannelConfig): void => {
-    if (isAllTenants.value) return
     void channelDialogRef.value?.handleOpen(row)
   }
 
@@ -560,7 +521,7 @@
   }
 
   const removeRule = async (rule: Rule): Promise<void> => {
-    if (!rule.id || isAllTenants.value) return
+    if (!rule.id) return
     try {
       await confirmAction(
         `确定删除规则“${rule.ruleName}”吗？已经生成的发送记录会继续保留。`,
@@ -579,10 +540,9 @@
   }
 
   const testChannel = async (channel: ChannelConfig): Promise<void> => {
-    if (isAllTenants.value) return
     page.testingChannel = channel.channelCode
     try {
-      await testNotificationChannel(selectedTenantId.value, channel.channelCode)
+      await testNotificationChannel(channel.channelCode)
       ElMessage.success(
         channel.channelCode === 'in_app'
           ? '站内通知测试成功'
@@ -595,10 +555,9 @@
   }
 
   const dispatchNow = async (): Promise<void> => {
-    if (!selectedTenantId.value || isAllTenants.value) return
     page.dispatching = true
     try {
-      const { data, error } = await runNotificationRemindersNow(selectedTenantId.value)
+      const { data, error } = await runNotificationRemindersNow()
       if (error) throw error
       ElMessage.success(
         `执行完成：生成 ${data?.createdEventCount ?? 0} 个事件，投递 ${data?.deliveredCount ?? data?.deliveredInAppCount ?? 0} 条。`
@@ -617,15 +576,9 @@
     }
   )
 
-  watch(
-    [selectedTenantId, isAllTenants],
-    () => {
-      workspace.value = null
-      ruleTable.current = 1
-      void loadWorkspace()
-    },
-    { immediate: true }
-  )
+  onMounted(() => {
+    void loadWorkspace()
+  })
 </script>
 
 <style scoped lang="scss">
@@ -642,57 +595,10 @@
 
     &__scope {
       display: grid;
-      grid-template-columns: minmax(300px, 1.15fr) minmax(230px, 0.85fr);
+      grid-template-columns: minmax(230px, 340px);
       gap: 16px;
       align-items: end;
       padding: 16px;
-    }
-
-    &__tenant-summary {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      min-width: 0;
-
-      > div {
-        display: grid;
-        min-width: 0;
-      }
-
-      small,
-      span {
-        font-size: 12px;
-        color: var(--el-text-color-secondary);
-      }
-
-      strong {
-        margin: 2px 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        color: var(--el-text-color-primary);
-        white-space: nowrap;
-      }
-
-      em {
-        margin-top: 3px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        font-size: 11px;
-        font-style: normal;
-        color: var(--el-color-warning-dark-2);
-        white-space: nowrap;
-      }
-    }
-
-    &__scope-icon {
-      display: grid;
-      flex: 0 0 40px;
-      place-items: center;
-      width: 40px;
-      height: 40px;
-      color: var(--el-color-primary);
-      background: var(--el-color-primary-light-9);
-      border-radius: var(--art-control-radius);
     }
 
     &__scope-field {
@@ -1022,14 +928,6 @@
     }
 
     @media (width <= 1100px) {
-      &__scope {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      &__tenant-summary {
-        grid-column: 1 / -1;
-      }
-
       &__health {
         align-items: flex-start;
       }
@@ -1038,10 +936,6 @@
     @media (width <= 720px) {
       &__scope {
         grid-template-columns: 1fr;
-      }
-
-      &__tenant-summary {
-        grid-column: auto;
       }
 
       &__health {

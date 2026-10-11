@@ -96,20 +96,20 @@ test('table insights summarize metadata, relationships and safe RLS drafting', (
     ddl: 'create table public.orders (\n  id uuid primary key\n);',
     columns: [
       { name: 'id', dataType: 'uuid', nullable: false, description: '主键' },
-      { name: 'tenant_id', dataType: 'uuid', nullable: false }
+      { name: 'customer_id', dataType: 'uuid', nullable: false }
     ],
     constraints: [{ name: 'orders_pkey', type: 'PRIMARY KEY', definition: 'PRIMARY KEY (id)' }]
   }
   const relationships: ProjectRelationship[] = [
     {
-      constraintName: 'orders_tenant_id_fkey',
+      constraintName: 'orders_customer_id_fkey',
       sourceSchema: 'public',
       sourceTable: 'orders',
-      sourceColumns: ['tenant_id'],
+      sourceColumns: ['customer_id'],
       targetSchema: 'public',
-      targetTable: 'sys_tenant',
+      targetTable: 'mdm_sales_customer',
       targetColumns: ['id'],
-      definition: 'FOREIGN KEY (tenant_id) REFERENCES sys_tenant(id)'
+      definition: 'FOREIGN KEY (customer_id) REFERENCES mdm_sales_customer(id)'
     }
   ]
 

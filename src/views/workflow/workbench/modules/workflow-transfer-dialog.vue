@@ -102,7 +102,7 @@
         type: 'userSelect',
         span: 24,
         props: {
-          placeholder: '选择同租户在职人员',
+          placeholder: '选择在职人员',
           filterable: true,
           options: state.users
             .filter((user) => user.id !== state.task?.assigneeUserId)
@@ -148,7 +148,7 @@
     rebuildItems()
     await dialogRef.value?.handleOpen(undefined, {
       title: '转交审批待办',
-      subtitle: '新审批人必须属于同一租户且账号处于启用状态。',
+      subtitle: '新审批人账号必须处于启用状态。',
       confirmText: '确认转交',
       contentMaxHeight: '70vh',
       loading: true,
@@ -157,7 +157,7 @@
         await nextTick()
         formRef.value?.clearValidate()
         try {
-          const response = await fetchWorkflowUserOptions({ tenantId: task.tenantId })
+          const response = await fetchWorkflowUserOptions()
           state.users = response.data ?? []
           rebuildItems()
         } finally {

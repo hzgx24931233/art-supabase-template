@@ -7,14 +7,13 @@
       density="compact"
       eyebrow="NUMBER GOVERNANCE"
       title="编号规则"
-      description="统一维护运输单据、财务单据、基础资料和车辆业务的编码方式。系统取号由数据库事务完成，支持租户隔离、周期重置与并发防重。"
+      description="统一维护运输单据、财务单据、基础资料和车辆业务的编码方式。系统取号由数据库事务完成，支持周期重置与并发防重。"
       icon="ri:hashtag"
       :tags="[
         {
-          label: canManage ? '已授权维护' : '本租户只读视图',
+          label: canManage ? '已授权维护' : '只读视图',
           type: canManage ? 'primary' : 'info'
         },
-        { label: `覆盖租户：${overview.stats.tenantCount}` },
         { label: `最近更新：${overview.lastUpdateText}` }
       ]"
       :metrics="overview.cards"
@@ -131,9 +130,7 @@
     fetchDocumentNumberSceneList
   } from '@/api/document-number'
   import { fetchGetEnableMenuList } from '@/api/system-manage'
-  import { fetchGetEnableTenantList } from '@/api/system-manage/tenant'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import { useAuth } from '@/hooks/core/useAuth'
   import { pageInfoHandler } from '@/utils/table/tableUtils'
   import { formatWithDayjs } from '@/utils/time'
@@ -169,7 +166,6 @@
   const dialogRef = ref<DialogExpose>()
   const createDialogRef = ref<CreateDialogExpose>()
   const menuDrawerRef = ref<ArtDrawerExpose<Record<string, never>>>()
-  const tenantOptions = ref<Array<{ label: string; value: string }>>([])
   const menuTree = ref<AppRouteRecord[]>([])
   const scenes = ref<Api.SystemManage.DocumentNumberSceneItem[]>([])
   const selectedMenuId = ref(typeof route.query.menuId === 'string' ? route.query.menuId : '')
@@ -184,8 +180,7 @@
   const isDesktopMenuLayout = useMediaQuery('(min-width: 1201px)')
   const treeUtils = new TreeUtils({ idKey: 'id', parentKey: 'parentId', childrenKey: 'children' })
   const userStore = useUserStore()
-  const tenantScopeStore = useTenantScopeStore()
-  const { getDictMap, isPlatformSuper } = storeToRefs(userStore)
+  const { getDictMap } = storeToRefs(userStore)
   const { hasAuth, hasAnyAuth } = useAuth()
   const canManage = computed(() =>
     hasAnyAuth(['System:DocumentNumberRule:Add', 'System:DocumentNumberRule:Edit'])
@@ -196,7 +191,6 @@
       total: 0,
       automatic: 0,
       manual: 0,
-      tenantCount: 0,
       categoryCounts: { business_document: 0, master_data: 0, vehicle: 0 }
     },
     lastUpdateText: computed(() => formatWithDayjs(overview.stats.lastUpdateTime) || '-'),
@@ -271,7 +265,6 @@
   const table = reactive({
     searchQuery: {
       keyword: '',
-      tenantId: undefined,
       category: undefined,
       autoEnabled: undefined
     } as SearchParams,
@@ -282,21 +275,6 @@
         type: 'input',
         props: { clearable: true, placeholder: '搜索名称、规则键或目标表' }
       },
-      ...(tenantScopeStore.isAllTenants
-        ? [
-            {
-              label: '生效租户',
-              key: 'tenantId',
-              type: 'select' as const,
-              props: {
-                clearable: true,
-                filterable: true,
-                options: tenantOptions.value,
-                placeholder: '全部租户'
-              }
-            }
-          ]
-        : []),
       {
         label: '生成方式',
         key: 'autoEnabled',
@@ -324,7 +302,7 @@
     height: '100%',
     showOverflowTooltip: true,
     emptyText: '暂无符合条件的编号规则',
-    emptyDescription: '可调整租户、业务分类或生成方式后重试。'
+    emptyDescription: '可调整业务分类或生成方式后重试。'
   }
 
   const fetchTableData = (params: TableParams) => {
@@ -376,21 +354,6 @@
         </div>
       )
     },
-    ...(isPlatformSuper.value
-      ? [
-          {
-            prop: 'tenant',
-            label: '生效租户',
-            minWidth: 150,
-            formatter: (row: NumberRule) => (
-              <div class="number-rule-tenant">
-                <strong>{row.tenant?.tenantName || '--'}</strong>
-                <small>{row.tenant?.tenantCode || '--'}</small>
-              </div>
-            )
-          } satisfies ColumnOption<NumberRule>
-        ]
-      : []),
     {
       prop: 'category',
       label: '业务分类',
@@ -478,17 +441,8 @@
   let statsRequestId = 0
   const loadStats = async (): Promise<void> => {
     const requestId = ++statsRequestId
-    const { data } = await fetchDocumentNumberRuleStats(table.searchQuery.tenantId)
+    const { data } = await fetchDocumentNumberRuleStats()
     if (requestId === statsRequestId) Object.assign(overview.stats, data)
-  }
-
-  const loadTenantOptions = async (): Promise<void> => {
-    if (!isPlatformSuper.value) return
-    const { data } = await fetchGetEnableTenantList()
-    tenantOptions.value = (data ?? []).map((tenant) => ({
-      label: `${tenant.tenantName}（${tenant.tenantCode}）`,
-      value: String(tenant.id)
-    }))
   }
 
   const loadMenuTree = async (): Promise<void> => {
@@ -566,7 +520,6 @@
         userStore.ensureDictLoaded('documentNumberCategory'),
         userStore.ensureDictLoaded('documentNumberResetCycle'),
         loadStats(),
-        loadTenantOptions(),
         loadMenuTree(),
         loadScenes()
       ])
@@ -582,23 +535,6 @@
       selectedMenuId.value = typeof menuId === 'string' ? menuId : ''
       table.searchQuery.keyword = ''
       await tableQueryRef.value?.refreshCreate()
-    }
-  )
-
-  watch(
-    () => table.searchQuery.tenantId,
-    () => void loadStats()
-  )
-
-  watch(
-    () => tenantScopeStore.revision,
-    async () => {
-      const hadTenantFilter = Boolean(table.searchQuery.tenantId)
-      table.searchQuery.tenantId = undefined
-      await Promise.all([
-        tableQueryRef.value?.refreshCreate(),
-        ...(hadTenantFilter ? [] : [loadStats()])
-      ])
     }
   )
 </script>
@@ -736,7 +672,6 @@
     border-radius: var(--art-control-radius);
   }
 
-  :deep(.number-rule-tenant),
   :deep(.number-rule-menu),
   :deep(.number-rule-template),
   :deep(.number-rule-counter),

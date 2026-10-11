@@ -245,7 +245,6 @@
   import ArtOverlayLoading from '@/components/core/feedback/art-overlay-loading/index.vue'
   import BusinessTableRowActions from '@/components/business/business-table-row-actions/index.vue'
   import { useTableStore } from '@/store/modules/table'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import { useCommon } from '@/hooks/core/useCommon'
   import { useAuth } from '@/hooks/core/useAuth'
   import { useTableHeight } from '@/hooks/core/useTableHeight'
@@ -253,7 +252,6 @@
   import ArtDictDisplay from '@/components/core/base/art-dict-display/index.vue'
   import TreeUtils from '@/utils/tree'
   import { handoffVerticalWheel } from '@/utils/ui/wheel-scroll'
-  import { filterTenantDimensionDescriptors } from '@/utils/tenant-dimension-visibility'
 
   defineOptions({ name: 'ArtTable' })
 
@@ -316,7 +314,6 @@
   let validationRefreshSeed = 0
   const tableStore = useTableStore()
   const { isBorder, isZebra, tableSize, isFullScreen, isHeaderBackground } = storeToRefs(tableStore)
-  const { isPlatformScope } = storeToRefs(useTenantScopeStore())
   const { hasAuth } = useAuth()
 
   interface RowDragPayload<T = ArtTableRow> {
@@ -402,9 +399,7 @@
     fixedColumnMinWidth: 640
   })
   const { t } = useI18n()
-  const visibleColumns = computed(() =>
-    filterTenantDimensionDescriptors(props.columns, isPlatformScope.value)
-  )
+  const visibleColumns = computed(() => props.columns)
   const instance = getCurrentInstance()
   const attrs = useAttrs()
 

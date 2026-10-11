@@ -32,21 +32,6 @@ export const systemRoutes: AppRouteRecord = {
       }
     },
     {
-      path: 'tenant',
-      name: 'Tenant',
-      component: '/system/tenant',
-      meta: {
-        title: '租户管理',
-        keepAlive: true,
-        roles: [SYSTEM_PARAM_DEFAULTS.SUPER_ROLE_CODE],
-        authList: [
-          { title: '新增', authMark: 'add' },
-          { title: '编辑', authMark: 'edit' },
-          { title: '删除', authMark: 'delete' }
-        ]
-      }
-    },
-    {
       path: 'system-param',
       name: 'SystemParam',
       component: '/system/system-param',

@@ -2,12 +2,9 @@ import { useSupabase } from '@/hooks'
 
 const { supabase, responseHandle } = useSupabase()
 
-export async function fetchNotificationReminderWorkspace(tenantId?: string) {
+export async function fetchNotificationReminderWorkspace() {
   return await responseHandle<Api.NotificationReminder.Workspace>(
-    () =>
-      supabase.rpc('get_notification_reminder_workspace', {
-        p_tenant_id: tenantId || null
-      }),
+    () => supabase.rpc('get_notification_reminder_workspace'),
     {
       showErrorMessage: true,
       errorMessage: '消息提醒工作台加载失败，请稍后重试'
@@ -45,7 +42,6 @@ export async function saveNotificationChannel(
   return await responseHandle<Api.NotificationReminder.ChannelConfig>(
     () =>
       supabase.rpc('save_notification_channel_config', {
-        p_tenant_id: payload.tenantId,
         p_channel_code: payload.channelCode,
         p_provider_code: payload.providerCode,
         p_enabled: payload.enabled,
@@ -61,11 +57,10 @@ export async function saveNotificationChannel(
   )
 }
 
-export async function testNotificationChannel(tenantId: string, channelCode: string) {
+export async function testNotificationChannel(channelCode: string) {
   const result = await responseHandle<string>(
     () =>
       supabase.rpc('test_notification_channel', {
-        p_tenant_id: tenantId,
         p_channel_code: channelCode
       }),
     {
@@ -86,9 +81,9 @@ export async function testNotificationChannel(tenantId: string, channelCode: str
   return result
 }
 
-export async function runNotificationRemindersNow(tenantId: string) {
+export async function runNotificationRemindersNow() {
   const reminderResult = await responseHandle<Api.NotificationReminder.DispatchResult>(
-    () => supabase.rpc('run_notification_reminders_now', { p_tenant_id: tenantId }),
+    () => supabase.rpc('run_notification_reminders_now'),
     {
       showErrorMessage: true,
       errorMessage: '提醒任务执行失败，请稍后重试'

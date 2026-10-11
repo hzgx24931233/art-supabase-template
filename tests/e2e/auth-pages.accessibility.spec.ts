@@ -54,7 +54,8 @@ test('login starts empty and keeps the remember option', async ({ page }) => {
   await page.goto('/#/auth/login', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('input[name="username"]')).toHaveValue('')
   await expect(page.locator('input[name="password"]')).toHaveValue('')
-  await expect(page.getByRole('checkbox', { name: '记住密码' })).not.toBeChecked()
+  // 记住密码是「默认开启、localStorage 里显式 false 才关闭」的偏好（见 remember-password.ts）
+  await expect(page.getByRole('checkbox', { name: '记住密码' })).toBeChecked()
   await expect(page.locator('button[type="submit"]')).toContainText('登录')
 })
 

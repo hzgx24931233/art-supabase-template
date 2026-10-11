@@ -38,16 +38,13 @@
   import { ElMessage } from 'element-plus'
   import type { ArtDialogExpose } from '@/components/core/dialogs/art-dialog/types'
   import type { DataSelectFetchParams } from '@/components/core/forms/art-data-select/types'
-  import { useUserStore } from '@/store/modules/user'
   import { fetchOperationTemplates, bindOperationTemplate } from '@/api/mdm'
   const emit = defineEmits<{ success: [] }>()
-  const user = useUserStore()
   const dialogRef = ref<ArtDialogExpose>()
   const ids = ref<string[]>([])
   const form = reactive({ templateId: undefined as string | undefined })
   const fetchChoices = (p: DataSelectFetchParams) =>
     fetchOperationTemplates({
-      tenantId: user.info.tenantId || '',
       keyword: p.keyword,
       current: p.page,
       size: p.pageSize,

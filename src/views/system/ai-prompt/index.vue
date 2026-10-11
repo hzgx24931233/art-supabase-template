@@ -95,13 +95,13 @@
   }
 
   interface TableGroup {
-    searchQuery: Partial<Omit<AiPromptSearchParams, 'tenantId'>>
+    searchQuery: Partial<AiPromptSearchParams>
     searchItems: ComputedRef<SearchFormItem[]>
     headerActions: ComputedRef<ArtTableQueryHeaderAction[]>
   }
 
   const userStore = useUserStore()
-  const { getDictMap, getUserInfo, isPlatformSuper } = storeToRefs(userStore)
+  const { getDictMap, isPlatformSuper } = storeToRefs(userStore)
   const tableQueryRef = ref<ArtTableQueryExpose>()
   const dialogRef = ref<DialogExpose>()
   const overview = reactive<{ loading: boolean; rows: AiPromptTemplate[] }>({
@@ -109,7 +109,6 @@
     rows: []
   })
 
-  const tenantId = computed(() => getUserInfo.value.tenantId ?? '')
   const canManage = computed(() => isPlatformSuper.value)
 
   const table: UnwrapNestedRefs<TableGroup> = reactive<TableGroup>({
@@ -164,7 +163,7 @@
       {
         label: '全部版本',
         value: `${overview.rows.length} 个`,
-        description: '租户内全部 Prompt 资产',
+        description: '全部 Prompt 资产',
         icon: 'ri:file-list-3-line',
         tone: 'primary'
       },
@@ -192,15 +191,14 @@
     ]
   })
 
-  async function fetchTableData(params: Omit<AiPromptSearchParams, 'tenantId'>) {
-    return await fetchAiPromptList({ ...params, tenantId: tenantId.value })
+  async function fetchTableData(params: AiPromptSearchParams) {
+    return await fetchAiPromptList(params)
   }
 
   async function loadOverview(): Promise<void> {
-    if (!tenantId.value) return
     overview.loading = true
     try {
-      const result = await fetchAiPromptList({ current: 1, size: 100, tenantId: tenantId.value })
+      const result = await fetchAiPromptList({ current: 1, size: 100 })
       overview.rows = result.data ?? []
     } finally {
       overview.loading = false

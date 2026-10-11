@@ -61,8 +61,7 @@
 </template>
 
 <script setup lang="tsx">
-  import { computed, reactive, ref, watch } from 'vue'
-  import { storeToRefs } from 'pinia'
+  import { computed, reactive, ref } from 'vue'
   import { ElAvatar, ElButton, ElMessage, ElTag } from 'element-plus'
   import ArtTooltip from '@/components/core/feedback/art-tooltip/index.vue'
   import type { ColumnOption } from '@/types'
@@ -78,7 +77,6 @@
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import { useAuth } from '@/hooks/core/useAuth'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { exportExcel } from '@/utils/file'
@@ -99,11 +97,6 @@
 
   defineOptions({ name: 'MdmPersonnelWorkCenter' })
 
-  const tenantScopeStore = useTenantScopeStore()
-  const { effectiveTenantId, isAllTenants, tenantOptions } = storeToRefs(tenantScopeStore)
-  const tenantNames = computed(() =>
-    Object.fromEntries(tenantOptions.value.map((tenant) => [tenant.id, tenant.tenantName]))
-  )
   const { hasAuth } = useAuth()
   const { confirmAction } = useArtFeedback()
   const tableRef = ref<ArtTableQueryExpose>()
@@ -177,7 +170,6 @@
     fetchPersonnelWorkCenterConfigs(
       {
         ...params,
-        tenantId: effectiveTenantId.value || '',
         departmentIds: departmentIds()
       },
       options
@@ -196,8 +188,7 @@
     scope.loading = true
     scope.error = ''
     try {
-      await tenantScopeStore.loadTenantOptions()
-      const rows = await fetchProductionDepartments(effectiveTenantId.value)
+      const rows = await fetchProductionDepartments()
       if (version !== loadVersion) return
       scope.departments = rows
       await refresh()
@@ -294,11 +285,7 @@
           </ElAvatar>
           <span>
             <strong>{row.name}</strong>
-            <small>
-              {isAllTenants.value
-                ? `${tenantNames.value[row.tenantId] || row.tenantId} · ${row.jobTitle || '现场作业员'}`
-                : row.jobTitle || '现场作业员'}
-            </small>
+            <small>{row.jobTitle || '现场作业员'}</small>
           </span>
         </div>
       )
@@ -388,7 +375,6 @@
     const rows: PersonnelWorkCenterConfig[] = []
     for (let current = 1; current <= Math.ceil(limit / 1000); current++) {
       const result = await fetchRows({
-        tenantId: '',
         keyword: table.search.keyword,
         current,
         size: 1000
@@ -458,15 +444,7 @@
     }
   ]
 
-  watch(
-    effectiveTenantId,
-    () => {
-      scope.departments = []
-      scope.selected = ''
-      void loadDepartments()
-    },
-    { immediate: true }
-  )
+  onMounted(() => void loadDepartments())
 </script>
 
 <style scoped lang="scss">

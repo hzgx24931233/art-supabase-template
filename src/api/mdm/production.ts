@@ -38,22 +38,21 @@ const writeOptions = {
   errorMessage: '操作失败，请检查数据后重试'
 }
 
-export async function fetchProductionDepartments(
-  tenantId?: string | null
-): Promise<ProductionDepartment[]> {
+export async function fetchProductionDepartments(): Promise<ProductionDepartment[]> {
   const { data } = await fetchAllRangePages<ProductionDepartment>(({ from, to }) =>
     responseHandle<ProductionDepartment[]>(() => {
-      let query = supabase.from('mdm_production_department').select('*').order('sort').order('code')
-      if (tenantId) query = query.eq('tenant_id', tenantId)
+      const query = supabase
+        .from('mdm_production_department')
+        .select('*')
+        .order('sort')
+        .order('code')
       return query.range(from, to)
     }, readOptions)
   )
   return data ?? []
 }
-export async function fetchProductionDepartmentTree(
-  tenantId: string
-): Promise<ProductionDepartmentTreeNode[]> {
-  const rows = await fetchProductionDepartments(tenantId)
+export async function fetchProductionDepartmentTree(): Promise<ProductionDepartmentTreeNode[]> {
+  const rows = await fetchProductionDepartments()
   return new TreeUtils({ parentKey: 'parentId' }).listToTree<ProductionDepartmentTreeNode>(
     rows as ProductionDepartmentTreeNode[],
     (left, right) => left.sort - right.sort || left.code.localeCompare(right.code)
@@ -116,13 +115,12 @@ export async function fetchProductionPeople(
   params: ProductionPeopleQuery,
   options?: { signal?: AbortSignal }
 ) {
-  const { current, size, tenantId, departmentIds, keyword, phone, enabled } = params
+  const { current, size, departmentIds, keyword, phone, enabled } = params
   let query = supabase
     .from('mdm_production_personnel')
     .select('*,department:mdm_production_department(id,name,code)', { count: 'exact' })
     .order('sort')
     .order('employee_no')
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   if (departmentIds) query = query.in('department_id', departmentIds)
   if (keyword) query = query.or(buildOrIlikeFilter(['name', 'employee_no', 'barcode'], keyword))
   if (phone) query = query.ilike('phone', `%${phone}%`)
@@ -214,16 +212,12 @@ export async function fetchProductionEmployeeReference(id: string) {
   if (!employee) throw new Error('员工资料不可访问，请重新选择')
   return employee
 }
-export async function fetchShiftPatterns(
-  tenantId: string,
-  departmentId: string
-): Promise<ShiftPattern[]> {
+export async function fetchShiftPatterns(departmentId: string): Promise<ShiftPattern[]> {
   const { data } = await responseHandle<ShiftPattern[]>(
     () =>
       supabase
         .from('mdm_production_shift_pattern')
         .select('*')
-        .eq('tenant_id', tenantId)
         .eq('department_id', departmentId)
         .order('sort')
         .order('name'),
@@ -278,7 +272,6 @@ export async function referenceShiftPatterns(
   )
 }
 export async function fetchProductionCalendar(
-  tenantId: string,
   departmentId: string,
   start: string,
   end: string
@@ -288,7 +281,6 @@ export async function fetchProductionCalendar(
       supabase
         .from('mdm_production_calendar')
         .select('id,department_id,work_date,pattern_id')
-        .eq('tenant_id', tenantId)
         .eq('department_id', departmentId)
         .gte('work_date', start)
         .lte('work_date', end),
@@ -409,7 +401,6 @@ export async function deleteStatutoryHolidays(ids: string[]) {
   )
 }
 export async function fetchCalendarReminder(
-  tenantId: string,
   departmentId: string
 ): Promise<CalendarReminder | null> {
   const { data } = await responseHandle<CalendarReminder>(
@@ -417,7 +408,6 @@ export async function fetchCalendarReminder(
       supabase
         .from('mdm_production_calendar_reminder')
         .select('id,department_id,enabled,lead_days')
-        .eq('tenant_id', tenantId)
         .eq('department_id', departmentId)
         .maybeSingle(),
     readOptions

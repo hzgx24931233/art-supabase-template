@@ -1,0 +1,1 @@
+import{Mn as e}from"./framework-Bwlbiqw9.js";var t=(e=``)=>e.replace(/[|\\{}()[\]^$+*?.]/g,`\\$&`).replace(/-/g,`\\x2d`),n=t=>e(t);export{t as n,n as t};

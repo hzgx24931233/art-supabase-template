@@ -22,7 +22,6 @@
         <template #purchaser>
           <ArtEmployeeSelect
             :model-value="formModel.purchaserId ?? undefined"
-            :tenant-id="tenantId"
             placeholder="选择默认采购员"
             @update:model-value="formModel.purchaserId = $event ?? null"
           />
@@ -55,7 +54,6 @@
     categories: MaterialCategory[]
     materialTypes: MaterialType[]
     sites: MaterialContextOption[]
-    tenantId: string
     parentId?: string
     copy?: boolean
   }
@@ -85,7 +83,6 @@
   const siteOptions = ref<Array<{ label: string; value: string }>>([])
   const initialForm = (): MaterialCategory => ({
     id: '',
-    tenantId: '',
     parentId: null,
     categoryCode: '',
     codePrefix: '',
@@ -112,9 +109,8 @@
     sort: 10
   })
   const formModel = reactive<MaterialCategory>(initialForm())
-  const tenantId = computed(() => formModel.tenantId)
   const categoryOptions = computed<CategoryTreeOption[]>(() => {
-    const scoped = sourceCategories.value.filter((item) => item.tenantId === formModel.tenantId)
+    const scoped = sourceCategories.value
     const sourceTree = categoryTreeUtils.listToTree(scoped)
     const blockedIds = new Set(
       formModel.id
@@ -273,13 +269,12 @@
     categoryCode: [{ required: true, message: '请输入分类编码', trigger: 'blur' }],
     categoryName: [{ required: true, message: '请输入分类名称', trigger: 'blur' }]
   }
-  const syncTenantOptions = (): void => {
-    typeOptions.value = sourceMaterialTypes.value
-      .filter((item) => item.tenantId === formModel.tenantId)
-      .map((item) => ({ label: `${item.typeName} · ${item.typeCode}`, value: item.id }))
-    siteOptions.value = sourceSites.value
-      .filter((item) => item.tenantId === formModel.tenantId)
-      .map((item) => ({ label: item.name, value: item.id }))
+  const syncContextOptions = (): void => {
+    typeOptions.value = sourceMaterialTypes.value.map((item) => ({
+      label: `${item.typeName} · ${item.typeCode}`,
+      value: item.id
+    }))
+    siteOptions.value = sourceSites.value.map((item) => ({ label: item.name, value: item.id }))
   }
   const handleSubmit = async (): Promise<boolean> => {
     try {
@@ -300,7 +295,6 @@
     sourceMaterialTypes.value = data.materialTypes
     sourceSites.value = data.sites
     if (data.row) Object.assign(formModel, cloneDeep(data.row))
-    formModel.tenantId = data.row?.tenantId || data.tenantId
     if (!data.row && data.parentId) formModel.parentId = data.parentId
     if (data.copy) {
       const originalCode = formModel.categoryCode
@@ -309,7 +303,7 @@
       if (formModel.codePrefix === originalCode) formModel.codePrefix = formModel.categoryCode
       formModel.categoryName = `${formModel.categoryName}（副本）`
     }
-    syncTenantOptions()
+    syncContextOptions()
     await dialogRef.value?.handleOpen(data, {
       title: `${data.copy ? '复制' : data.row ? '编辑' : '新增'}物料分类`,
       subtitle: '统一维护分类语义、采购收货容差与批次计价默认策略',
@@ -325,28 +319,6 @@
       if (!formModel.codePrefix || formModel.codePrefix === previous) {
         formModel.codePrefix = value
       }
-    }
-  )
-  watch(
-    () => formModel.tenantId,
-    (value, previous) => {
-      if (value === previous) return
-      syncTenantOptions()
-      if (!previous) return
-      if (
-        !sourceCategories.value.some(
-          (item) => item.tenantId === value && item.id === formModel.parentId
-        )
-      ) {
-        formModel.parentId = null
-      }
-      if (!typeOptions.value.some((item) => item.value === formModel.materialTypeId)) {
-        formModel.materialTypeId = null
-      }
-      if (!siteOptions.value.some((item) => item.value === formModel.defaultSiteId)) {
-        formModel.defaultSiteId = null
-      }
-      formModel.purchaserId = null
     }
   )
   defineExpose({ handleOpen })

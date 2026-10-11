@@ -16,17 +16,15 @@ export const splitStaffNumbers = (value: unknown): string[] =>
     .filter(Boolean)
 
 interface ImportReferences {
-  departments: { id: string; code: string; tenantId: string }[]
+  departments: { id: string; code: string }[]
   centers: { id: string; code: string }[]
   people: { id: string; employeeNo: string }[]
   defaults: CenterPolicy
 }
 export function parseCenterImport(
   rows: Record<string, unknown>[],
-  refs: ImportReferences,
-  tenantId: string
-): Array<WorkCenterInput & { tenantId: string }> {
-  if (!tenantId) throw new Error('请先选择目标租户再导入')
+  refs: ImportReferences
+): WorkCenterInput[] {
   return rows.map((row, index) => {
     const fail = (message: string): never => {
       throw new Error(`第 ${index + 2} 行：${message}`)
@@ -34,9 +32,7 @@ export function parseCenterImport(
     const text = (key: string) => String(row[key] ?? '').trim()
     const code = text('工作中心'),
       name = text('名称')
-    const department = refs.departments.find(
-      (d) => d.tenantId === tenantId && d.code === text('所属产线编码')
-    )
+    const department = refs.departments.find((d) => d.code === text('所属产线编码'))
     if (!code || !name || !department) return fail('请填写工作中心、名称和正确的所属产线编码')
     const personnelMode = text('人员安排') || '指定人数'
     if (personnelMode !== '指定人数' && personnelMode !== '指定人员')
@@ -96,7 +92,6 @@ export function parseCenterImport(
       return fail('自定义报工时间应为 HH:mm')
     return {
       ...createWorkCenter(),
-      tenantId: department.tenantId,
       code,
       name,
       departmentId: department.id,

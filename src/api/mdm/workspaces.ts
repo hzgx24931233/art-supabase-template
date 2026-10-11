@@ -59,10 +59,10 @@ type WorkCenterDepartment = NonNullable<WorkCenter['department']>
 type MainCenterReference = NonNullable<WorkCenter['mainCenter']>
 type CenterPersonReference = Pick<
   ProductionPerson,
-  'id' | 'tenantId' | 'name' | 'employeeNo' | 'jobTitle' | 'enabled'
+  'id' | 'name' | 'employeeNo' | 'jobTitle' | 'enabled'
 >
 
-/** One tenant-safe projection for selection, edit display, imports and adjustments. */
+/** One shared projection for selection, edit display, imports and adjustments. */
 async function fetchCenterPersonReferences(filter: { ids?: string[]; employeeNos?: string[] }) {
   if (!filter.ids?.length && !filter.employeeNos?.length) return []
   const { data } = await fetchAllRangePages<CenterPersonReference>(({ from, to }) => {
@@ -77,7 +77,6 @@ async function fetchCenterPersonReferences(filter: { ids?: string[]; employeeNos
 function toCenterEmployee(row: CenterPersonReference): EmployeeIntegrationItem {
   return {
     id: row.id,
-    tenantId: row.tenantId,
     employeeName: row.name,
     employeeNo: row.employeeNo,
     employmentStatus: row.enabled ? 'active' : 'inactive',
@@ -91,7 +90,6 @@ export async function fetchOperationTemplates(
   let q = supabase
     .from('mdm_operation_template')
     .select('*', { count: 'exact' })
-    .eq('tenant_id', p.tenantId)
     .order('sort')
     .order('create_time', { ascending: false })
   if (p.keyword) q = q.or(buildOrIlikeFilter(['name'], p.keyword))
@@ -135,7 +133,6 @@ export async function fetchWorkCenters(p: WorkspaceQuery, options?: { signal?: A
     )
     .order('sort')
     .order('code')
-  if (p.tenantId) q = q.eq('tenant_id', p.tenantId)
   if (p.keyword) q = q.or(buildOrIlikeFilter(['code', 'name'], p.keyword))
   if (p.departmentIds) q = q.in('department_id', p.departmentIds)
   q = q.range((p.current - 1) * p.size, p.current * p.size - 1)
@@ -151,21 +148,19 @@ export async function fetchWorkCenters(p: WorkspaceQuery, options?: { signal?: A
   const [departmentResult, mainCenterResult] = await Promise.all([
     departmentIds.length
       ? responseHandle<WorkCenterDepartment[]>(() => {
-          let query = supabase
+          const query = supabase
             .from('mdm_production_department')
             .select('id,name,code')
             .in('id', departmentIds)
-          if (p.tenantId) query = query.eq('tenant_id', p.tenantId)
           return options?.signal ? query.abortSignal(options.signal) : query
         }, read)
       : Promise.resolve({ data: [] as WorkCenterDepartment[] }),
     mainCenterIds.length
       ? responseHandle<MainCenterReference[]>(() => {
-          let query = supabase
+          const query = supabase
             .from('mdm_work_center')
             .select('id,code,name')
             .in('id', mainCenterIds)
-          if (p.tenantId) query = query.eq('tenant_id', p.tenantId)
           return options?.signal ? query.abortSignal(options.signal) : query
         }, read)
       : Promise.resolve({ data: [] as MainCenterReference[] })
@@ -219,7 +214,6 @@ export async function fetchWorkCenterActivities(centerId: string) {
 
 export async function fetchWorkCenterReferenceOptions(
   kind: 'control_code' | 'activity_formula' | 'equipment',
-  tenantId: string,
   keyword: string,
   current: number,
   size: number,
@@ -229,7 +223,6 @@ export async function fetchWorkCenterReferenceOptions(
     () =>
       supabase.rpc('mdm_work_center_reference_options', {
         p_kind: kind,
-        p_tenant_id: tenantId || null,
         p_keyword: keyword,
         p_from: (current - 1) * size,
         p_to: current * size - 1,
@@ -260,20 +253,11 @@ export async function fetchAvailableMainCenters(
   )
   return { data: data?.records ?? [], total: data?.total ?? 0 }
 }
-export async function fetchCenterImportReferences(
-  codes: string[],
-  employeeNos: string[],
-  tenantId: string
-) {
+export async function fetchCenterImportReferences(codes: string[], employeeNos: string[]) {
   const [centers, people] = await Promise.all([
     codes.length
       ? responseHandle<Pick<WorkCenter, 'id' | 'code'>[]>(
-          () =>
-            supabase
-              .from('mdm_work_center')
-              .select('id,code')
-              .eq('tenant_id', tenantId)
-              .in('code', codes),
+          () => supabase.from('mdm_work_center').select('id,code').in('code', codes),
           read
         )
       : Promise.resolve({ data: [] }),
@@ -281,10 +265,10 @@ export async function fetchCenterImportReferences(
   ])
   return {
     centers: centers.data ?? [],
-    people: people.filter((person) => person.tenantId === tenantId)
+    people
   }
 }
-export async function importWorkCenters(inputs: Array<WorkCenterInput & { tenantId: string }>) {
+export async function importWorkCenters(inputs: WorkCenterInput[]) {
   await responseHandle(
     () =>
       supabase
@@ -301,20 +285,22 @@ export async function deleteWorkCenters(ids: string[]) {
   })
 }
 
-export async function fetchWorkstationScope(tenantId?: string | null): Promise<WorkstationScope> {
+export async function fetchWorkstationScope(): Promise<WorkstationScope> {
   const [departmentResult, centerResult] = await Promise.all([
     fetchAllRangePages<ProductionDepartment>(({ from, to }) => {
-      let query = supabase.from('mdm_production_department').select('*').order('sort').order('code')
-      if (tenantId) query = query.eq('tenant_id', tenantId)
+      const query = supabase
+        .from('mdm_production_department')
+        .select('*')
+        .order('sort')
+        .order('code')
       return responseHandle<ProductionDepartment[]>(() => query.range(from, to), read)
     }),
     fetchAllRangePages<WorkstationScopeCenter>(({ from, to }) => {
-      let query = supabase
+      const query = supabase
         .from('mdm_work_center')
-        .select('id,tenant_id,department_id,code,name,sort')
+        .select('id,department_id,code,name,sort')
         .order('sort')
         .order('code')
-      if (tenantId) query = query.eq('tenant_id', tenantId)
       return responseHandle<WorkstationScopeCenter[]>(() => query.range(from, to), read)
     })
   ])
@@ -328,23 +314,22 @@ export async function fetchWorkstations(
   params: WorkstationQuery,
   options?: { signal?: AbortSignal }
 ) {
-  const { current, size, tenantId, workCenterId, keyword, enabled } = params
+  const { current, size, workCenterId, keyword, enabled } = params
   if (!workCenterId) return { data: [], total: 0, current, size }
 
   let query = supabase
     .from('mdm_workstation')
     .select(
       `*,
-      department:mdm_production_department!mdm_workstation_department_fk(id,tenant_id,code,name),
-      workCenter:mdm_work_center!mdm_workstation_center_fk(id,tenant_id,code,name),
-      responsiblePerson:mdm_production_personnel!mdm_workstation_person_fk(id,tenant_id,name,employee_no,job_title,enabled)`,
+      department:mdm_production_department!mdm_workstation_department_fk(id,code,name),
+      workCenter:mdm_work_center!mdm_workstation_center_fk(id,code,name),
+      responsiblePerson:mdm_production_personnel!mdm_workstation_person_fk(id,name,employee_no,job_title,enabled)`,
       { count: 'exact' }
     )
     .eq('work_center_id', workCenterId)
     .order('workstation_code')
     .range((current - 1) * size, current * size - 1)
 
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   if (typeof enabled === 'boolean') query = query.eq('enabled', enabled)
   if (keyword?.trim()) {
     query = query.or(
@@ -468,7 +453,6 @@ export async function fetchProductionPersonSelector(p: EmployeeSelectorContractP
     .eq('enabled', true)
     .order('employee_no')
     .order('id')
-  if (p.tenantId) query = query.eq('tenant_id', p.tenantId)
   if (p.keyword) query = query.or(buildOrIlikeFilter(['name', 'employee_no'], p.keyword))
   const { data, total, error } = await responseHandle<CenterPersonReference[]>(
     () => query.range(Math.max(0, from), Math.max(from, to, 0)),
@@ -513,7 +497,6 @@ export async function fetchUnconfiguredPersonnelSelector(
 ) {
   const { from = 0, to = 9 } = params
   const result = await fetchPersonnelWorkCenterConfigs({
-    tenantId: params.tenantId || '',
     keyword: params.keyword,
     departmentIds,
     onlyUnconfigured: true,
@@ -523,7 +506,6 @@ export async function fetchUnconfiguredPersonnelSelector(
   return {
     data: result.data.map((person): EmployeeIntegrationItem => ({
       id: person.id,
-      tenantId: person.tenantId,
       organizationId: person.departmentId,
       employeeName: person.name,
       employeeNo: person.employeeNo,
@@ -564,7 +546,6 @@ export async function deletePersonnelCommonWorkCenters(personnelIds: string[]) {
 }
 export async function fetchProductionReferences(
   kind: 'material' | 'equipment',
-  _tenantId: string,
   keyword: string,
   current: number,
   size: number
@@ -583,7 +564,6 @@ export async function fetchProductionReferences(
 }
 
 export async function fetchProcessRouteMaterialOptions(params: {
-  tenantId?: string
   keyword: string
   categoryId?: string
   current: number
@@ -595,7 +575,6 @@ export async function fetchProcessRouteMaterialOptions(params: {
   }>(
     () =>
       supabase.rpc('mdm_process_route_material_options', {
-        p_tenant_id: normalizeNullableText(params.tenantId),
         p_keyword: params.keyword,
         p_category_id: normalizeNullableText(params.categoryId),
         p_from: (params.current - 1) * params.size,
@@ -610,13 +589,12 @@ export async function fetchProcessRoutes(p: WorkspaceQuery, options?: { signal?:
   let query = supabase
     .from('mdm_process_route')
     .select(
-      `*,material:mdm_material!mdm_process_route_material_tenant_fkey(id,category_id,material_code,material_name,specification_model,drawing_no,material_composition,brand,material_type,material_source,special_purchase_type,production_unit_id,category:mdm_material_category(id,category_code,category_name),materialTypeRef:mdm_material_type(id,type_code,type_name)),group:mdm_master_group!mdm_process_route_group_fk(id,code,name),productionUnit:mdm_unit_of_measure!mdm_process_route_production_unit_fk(id,unit_code,unit_name,symbol),department:mdm_production_department!mdm_process_route_department_fk(id,code,name)`,
+      `*,material:mdm_material(id,category_id,material_code,material_name,specification_model,drawing_no,material_composition,brand,material_type,material_source,special_purchase_type,production_unit_id,category:mdm_material_category(id,category_code,category_name),materialTypeRef:mdm_material_type(id,type_code,type_name)),group:mdm_master_group!mdm_process_route_group_fk(id,code,name),productionUnit:mdm_unit_of_measure!mdm_process_route_production_unit_fk(id,unit_code,unit_name,symbol),department:mdm_production_department!mdm_process_route_department_fk(id,code,name)`,
       { count: 'exact' }
     )
     .order('is_default', { ascending: false })
     .order('update_time', { ascending: false })
     .range((p.current - 1) * p.size, p.current * p.size - 1)
-  if (p.tenantId) query = query.eq('tenant_id', p.tenantId)
   if (p.groupIds?.length) query = query.in('group_id', p.groupIds)
   else if (p.groupId) query = query.eq('group_id', p.groupId)
   if (typeof p.enabled === 'boolean') query = query.eq('enabled', p.enabled)
@@ -629,15 +607,14 @@ export async function fetchProcessRoutes(p: WorkspaceQuery, options?: { signal?:
   return { data: data ?? [], total: total ?? 0, current: p.current, size: p.size }
 }
 
-export async function fetchProcessRoutePath(routeId: string, tenantId?: string) {
-  let query = supabase
+export async function fetchProcessRoutePath(routeId: string) {
+  const query = supabase
     .from('mdm_process_route_step')
     .select('name')
     .eq('route_id', routeId)
     .order('sort')
     .order('code')
     .limit(1000)
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   const { data } = await responseHandle<Array<{ name: string }>>(() => query, read)
   return (data ?? [])
     .map((step) => step.name.trim())
@@ -735,13 +712,12 @@ export async function fetchProcessSteps(
   let query = supabase
     .from('mdm_process_route_step')
     .select(
-      `*,route:mdm_process_route!mdm_process_route_step_tenant_id_route_id_fkey(*,material:mdm_material!mdm_process_route_material_tenant_fkey(id,material_code,material_name)),template:mdm_operation_template!mdm_process_route_step_tenant_id_template_id_fkey(id,name,total_score),workCenter:mdm_work_center!mdm_process_route_step_tenant_id_work_center_id_fkey(id,code,name),sequence:mdm_process_route_sequence!mdm_process_route_step_sequence_fk(id,sequence_no,sequence_type,remark),operation:mdm_operation!mdm_process_route_step_operation_fk(id,code,name),controlCode:mdm_operation_control_code!mdm_process_route_step_control_code_fk(id,control_code,control_code_name),unit:mdm_unit_of_measure!mdm_process_route_step_unit_fk(id,unit_code,unit_name,symbol),department:mdm_production_department!mdm_process_route_step_department_fk(id,code,name)`,
+      `*,route:mdm_process_route(*,material:mdm_material(id,material_code,material_name)),template:mdm_operation_template(id,name,total_score),workCenter:mdm_work_center(id,code,name),sequence:mdm_process_route_sequence!mdm_process_route_step_sequence_fk(id,sequence_no,sequence_type,remark),operation:mdm_operation!mdm_process_route_step_operation_fk(id,code,name),controlCode:mdm_operation_control_code!mdm_process_route_step_control_code_fk(id,control_code,control_code_name),unit:mdm_unit_of_measure!mdm_process_route_step_unit_fk(id,unit_code,unit_name,symbol),department:mdm_production_department!mdm_process_route_step_department_fk(id,code,name)`,
       { count: 'exact' }
     )
     .order('sort')
     .order('code')
     .range((p.current - 1) * p.size, p.current * p.size - 1)
-  if (p.tenantId) query = query.eq('tenant_id', p.tenantId)
   if (p.routeId) query = query.eq('route_id', p.routeId)
   if (p.sequenceId) query = query.eq('sequence_id', p.sequenceId)
   if (p.workCenterId) query = query.contains('work_center_ids', [p.workCenterId])
@@ -819,9 +795,9 @@ export async function deleteProcessSteps(ids: string[]) {
     { ...write, message: `已删除 ${ids.length} 道工序` }
   )
 }
-export async function fetchProcessRouteReferences(tenantId?: string) {
+export async function fetchProcessRouteReferences() {
   const { data } = await responseHandle<ProcessRouteReferences>(
-    () => supabase.rpc('mdm_process_route_references', { p_tenant_id: tenantId || null }),
+    () => supabase.rpc('mdm_process_route_references'),
     read
   )
   return (
@@ -851,25 +827,16 @@ export async function updateCenterProcesses(id: string) {
   )
   return data ?? 0
 }
-export async function fetchCenterDefaults(tenantId: string) {
+export async function fetchCenterDefaults() {
   const { data } = await responseHandle<{ policy: CenterPolicy }>(
-    () =>
-      supabase
-        .from('mdm_work_center_defaults')
-        .select('policy')
-        .eq('tenant_id', tenantId)
-        .maybeSingle(),
+    () => supabase.from('mdm_work_center_defaults').select('policy').maybeSingle(),
     read
   )
   return data?.policy
 }
-export async function saveCenterDefaults(policy: CenterPolicy, tenantId: string) {
+export async function saveCenterDefaults(policy: CenterPolicy) {
   await responseHandle(
-    () =>
-      supabase
-        .from('mdm_work_center_defaults')
-        .upsert({ tenant_id: tenantId, policy }, { onConflict: 'tenant_id' })
-        .select('id'),
+    () => supabase.from('mdm_work_center_defaults').upsert({ policy }).select('id'),
     write
   )
 }

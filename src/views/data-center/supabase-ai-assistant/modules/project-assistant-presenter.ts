@@ -371,7 +371,7 @@ function getProjectObjectAiActions(
     actions.push({
       label: '生成 RLS 方案',
       description: '给出策略草案、验证和回滚步骤',
-      prompt: `检查 ${target} 当前 RLS 策略并生成企业级优化草案，覆盖 SELECT、INSERT、UPDATE、DELETE、租户隔离、验证 SQL 和回滚步骤；不要直接执行。`,
+      prompt: `检查 ${target} 当前 RLS 策略并生成企业级优化草案，覆盖 SELECT、INSERT、UPDATE、DELETE、验证 SQL 和回滚步骤；不要直接执行。`,
       icon: 'ri:shield-keyhole-line'
     })
   }

@@ -46,7 +46,7 @@
    `AGENTS.md` 中同名占位与 `supabase/README*.md`。
 3. 建库，二选一：
    - **平台基线（推荐）**：在空项目上依次执行 `supabase/baseline/platform-baseline.sql` 与
-     `supabase/baseline/platform-seed.sql`，得到平台内核与内置租户/角色/菜单/字典；
+     `supabase/baseline/platform-seed.sql`，得到平台内核与内置角色/菜单/字典；
      然后用 [supabase/baseline/README.md](../supabase/baseline/README.md) 里的引导 SQL 提升首个超级管理员。
    - **整库快照**：用 `supabase/README.zh-CN.md` 的恢复流程把一份快照恢复到新项目（含业务数据）。
 

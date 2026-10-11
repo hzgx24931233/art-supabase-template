@@ -11,10 +11,10 @@ const referenced = {
   code: '23503',
   message:
     'update or delete on table "wiki_category" violates foreign key constraint "wiki_article_category_fkey" on table "wiki_article"',
-  details: `Key (id, tenant_id)=(${id}, 99999999-2222-3333-4444-555555555555) is still referenced from table "wiki_article".`
+  details: `Key (id, revision_id)=(${id}, 7) is still referenced from table "wiki_article".`
 }
 
-test('identifies the deleted record from a composite FK without mistaking its tenant for the resource', () => {
+test('identifies the deleted record from a composite FK without mistaking a sibling column for the resource', () => {
   assert.deepEqual(getDeleteReferenceContext(referenced), {
     table: 'wiki_category',
     ids: [id],

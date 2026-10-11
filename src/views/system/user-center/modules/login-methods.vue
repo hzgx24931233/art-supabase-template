@@ -3,7 +3,7 @@
     <div class="login-methods__head">
       <div>
         <ArtSectionTitle :show-line="false">登录方式</ArtSectionTitle>
-        <p>绑定后可使用对应渠道进入同一个系统账号，租户、角色和业务权限不会改变。</p>
+        <p>绑定后可使用对应渠道进入同一个系统账号，组织、角色和业务权限不会改变。</p>
       </div>
       <ElButton :loading="state.loading" @click="loadIdentities">
         <ArtSvgIcon icon="ri:refresh-line" />
@@ -15,7 +15,7 @@
       <span aria-hidden="true"><ArtSvgIcon icon="ri:shield-user-line" /></span>
       <div>
         <strong>账号安全边界</strong>
-        <p>第三方平台只验证身份。账号停用、租户失效或没有可用角色时，任何登录渠道都会被拒绝。</p>
+        <p>第三方平台只验证身份。账号停用或没有可用角色时，任何登录渠道都会被拒绝。</p>
       </div>
     </div>
 

@@ -44,8 +44,6 @@
   import { saveBomGroup, type BomGroup, type BomGroupInput } from '@/api/mdm'
 
   export interface BomGroupDialogOpenData {
-    tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
     groups: BomGroup[]
     row?: BomGroup
     parent?: BomGroup
@@ -58,7 +56,6 @@
   const formRef = ref<InstanceType<typeof ArtForm>>()
   const initialModel = (): BomGroupInput => ({
     id: undefined,
-    tenantId: '',
     parentId: null,
     code: '',
     name: '',
@@ -68,8 +65,7 @@
   })
   const form = reactive({
     model: initialModel(),
-    groups: [] as BomGroup[],
-    tenantOptions: [] as Array<{ label: string; value: string }>
+    groups: [] as BomGroup[]
   })
   const dialogTitle = computed(() =>
     form.model.id ? '编辑 BOM 分组' : form.model.parentId ? '新增下级分组' : '新增 BOM 分组'
@@ -88,25 +84,12 @@
   const formItems = computed<FormItem[]>(() => [
     { key: 'hierarchy', label: '分组层级', type: 'divider', span: 24 },
     {
-      key: 'tenantId',
-      label: '所属租户',
-      type: 'select',
-      span: 24,
-      options: form.tenantOptions,
-      hidden: form.tenantOptions.length <= 1 && Boolean(form.model.tenantId),
-      props: {
-        disabled: Boolean(form.model.id || form.model.parentId),
-        filterable: true,
-        placeholder: '请选择 BOM 分组归属租户'
-      }
-    },
-    {
       key: 'parentId',
       label: '上级分组',
       type: 'treeSelect',
       span: 24,
       options: form.groups
-        .filter((group) => group.id !== form.model.id && group.tenantId === form.model.tenantId)
+        .filter((group) => group.id !== form.model.id)
         .map((group) => ({
           label: `${group.name}（${group.code}）`,
           value: group.id,
@@ -149,7 +132,6 @@
     }
   ])
   const formRules = {
-    tenantId: [{ required: true, message: '请选择所属租户', trigger: 'change' }],
     code: [
       { required: true, message: '请输入分组编码', trigger: 'blur' },
       {
@@ -184,7 +166,6 @@
 
   const handleOpen = async (data: BomGroupDialogOpenData): Promise<void> => {
     form.groups = cloneDeep(data.groups)
-    form.tenantOptions = data.tenantOptions
     form.model = data.row
       ? {
           ...initialModel(),
@@ -193,7 +174,6 @@
         }
       : {
           ...initialModel(),
-          tenantId: data.parent?.tenantId || data.tenantId,
           parentId: data.parent?.id || null
         }
     await dialogRef.value?.handleOpen(data, {
@@ -207,15 +187,6 @@
       onConfirm: submit
     })
   }
-
-  watch(
-    () => form.model.tenantId,
-    (tenantId) => {
-      if (!form.model.parentId) return
-      const parent = form.groups.find((group) => group.id === form.model.parentId)
-      if (parent?.tenantId !== tenantId) form.model.parentId = null
-    }
-  )
 
   defineExpose({ handleOpen })
 </script>

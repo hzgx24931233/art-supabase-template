@@ -89,8 +89,6 @@
   import type { ElTree } from 'element-plus'
   import type { ProductionDepartment } from '@/api/mdm'
   import ArtTreeExpandToggle from '@/components/core/widget/art-tree-expand-toggle/index.vue'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { storeToRefs } from 'pinia'
   import { productionTree } from './production-model'
   const props = withDefaults(
     defineProps<{
@@ -108,14 +106,7 @@
   )
   const emit = defineEmits<{ select: [id: string]; refresh: [] }>()
   const treeRef = ref<InstanceType<typeof ElTree>>()
-  const { isAllTenants, tenantOptions } = storeToRefs(useTenantScopeStore())
-  const tenantNames = computed(() =>
-    Object.fromEntries(tenantOptions.value.map((tenant) => [tenant.id, tenant.tenantName]))
-  )
-  const departmentSubtitle = (department: ProductionDepartment): string =>
-    isAllTenants.value
-      ? `${tenantNames.value[department.tenantId] || department.tenantId} · ${department.code}`
-      : department.code
+  const departmentSubtitle = (department: ProductionDepartment): string => department.code
   const keyword = ref('')
   const nodes = computed(() => productionTree.listToTree(props.departments))
   const activeCount = computed(() => props.departments.filter((row) => row.enabled).length)

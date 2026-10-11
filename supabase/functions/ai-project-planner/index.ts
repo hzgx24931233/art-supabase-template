@@ -392,13 +392,11 @@ function parseProviderSuggestions(content: string): SuggestionCandidate[] {
 
 async function loadPreferenceSummary(
   admin: SupabaseClient,
-  tenantId: string,
   userId: string
 ): Promise<PreferenceSummary> {
   const { data: suggestions, error: suggestionError } = await admin
     .from('ai_suggestion')
     .select('id,category')
-    .eq('tenant_id', tenantId)
     .eq('auth_user_id', userId)
     .order('create_time', { ascending: false })
     .limit(300)
@@ -419,7 +417,6 @@ async function loadPreferenceSummary(
   const { data: events, error: eventError } = await admin
     .from('ai_suggestion_event')
     .select('suggestion_id,event_type,create_time')
-    .eq('tenant_id', tenantId)
     .eq('auth_user_id', userId)
     .in('suggestion_id', suggestionIds)
     .order('create_time', { ascending: false })
@@ -586,7 +583,6 @@ async function requestProviderWithFallback(
 
 async function loadPlannerState(
   admin: SupabaseClient,
-  tenantId: string,
   userId: string,
   status: SuggestionStatus | 'all' = 'all'
 ): Promise<Record<string, unknown>> {
@@ -595,7 +591,6 @@ async function loadPlannerState(
     .select(
       'id,batch_id,category,title,summary,evidence,why_now,impact,effort,confidence,risk,prompt,acceptance_criteria,status,rank_score,position,accepted_at,completed_at,dismissed_at,create_time,update_time'
     )
-    .eq('tenant_id', tenantId)
     .eq('auth_user_id', userId)
     .order('create_time', { ascending: false })
     .order('position', { ascending: true })
@@ -609,7 +604,6 @@ async function loadPlannerState(
         .select(
           'id,snapshot_id,focus,effort,status,model,prompt_version,preference_summary,suggestion_count,error_message,finished_at,create_time'
         )
-        .eq('tenant_id', tenantId)
         .eq('auth_user_id', userId)
         .order('create_time', { ascending: false })
         .limit(1)
@@ -623,7 +617,6 @@ async function loadPlannerState(
     const { data, error } = await admin
       .from('ai_suggestion_event')
       .select('suggestion_id,event_type,reason,create_time')
-      .eq('tenant_id', tenantId)
       .eq('auth_user_id', userId)
       .in('suggestion_id', suggestionIds)
       .order('create_time', { ascending: false })
@@ -642,7 +635,7 @@ async function loadPlannerState(
     if (current.sentiment === 0 && eventType === 'disliked') current.sentiment = -1
     eventState.set(suggestionId, current)
   }
-  const preferenceSummary = await loadPreferenceSummary(admin, tenantId, userId)
+  const preferenceSummary = await loadPreferenceSummary(admin, userId)
   const statusCounts: Record<SuggestionStatus, number> = {
     active: 0,
     accepted: 0,
@@ -751,7 +744,7 @@ Deno.serve(async (request) => {
         protocol: 'openai_compatible',
         structuredOutput: true,
         access: {
-          mode: canManageWorkflow ? 'platform_write' : 'tenant_read_only',
+          mode: 'platform_write',
           canManageWorkflow
         },
         repositorySnapshot: {
@@ -771,7 +764,7 @@ Deno.serve(async (request) => {
       if (status !== 'all' && !suggestionStatuses.has(status)) {
         return json({ code: 'invalid_status', message: '不支持的建议状态' }, 400)
       }
-      return json(await loadPlannerState(admin, appUser.tenant_id, user.id, status))
+      return json(await loadPlannerState(admin, user.id, status))
     }
 
     if (action === 'event') {
@@ -790,7 +783,6 @@ Deno.serve(async (request) => {
         .from('ai_suggestion')
         .select('id,batch_id,status')
         .eq('id', suggestionId)
-        .eq('tenant_id', appUser.tenant_id)
         .eq('auth_user_id', user.id)
         .maybeSingle()
       if (suggestionError) throw suggestionError
@@ -827,7 +819,6 @@ Deno.serve(async (request) => {
         suggestion_id: suggestion.id,
         batch_id: suggestion.batch_id,
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         event_type: eventType,
         reason: textValue(body.reason, 500) || null,
         metadata: isRecord(body.metadata) ? body.metadata : {},
@@ -840,7 +831,6 @@ Deno.serve(async (request) => {
           .from('ai_suggestion')
           .update({ ...statusPatch, update_by: appUser.user_email })
           .eq('id', suggestion.id)
-          .eq('tenant_id', appUser.tenant_id)
           .eq('auth_user_id', user.id)
         if (updateError) throw updateError
       }
@@ -853,7 +843,7 @@ Deno.serve(async (request) => {
 
     const sharedModel =
       Deno.env.get('AI_MODEL') || Deno.env.get('OPENAI_MODEL') || 'gpt-4.1-mini'
-    const runtimeConfig = await loadAiRuntimeConfig(admin, appUser.tenant_id, FEATURE, {
+    const runtimeConfig = await loadAiRuntimeConfig(admin, FEATURE, {
       enabled: true,
       provider: 'openai_compatible',
       model: Deno.env.get('AI_PROJECT_PLANNER_MODEL') || sharedModel,
@@ -882,7 +872,7 @@ Deno.serve(async (request) => {
         503
       )
     }
-    const publishedPrompt = await loadPublishedAiPrompt(admin, appUser.tenant_id, FEATURE, {
+    const publishedPrompt = await loadPublishedAiPrompt(admin, FEATURE, {
       content: DEFAULT_PROMPT,
       version: runtimeConfig.promptVersion
     })
@@ -895,14 +885,12 @@ Deno.serve(async (request) => {
       admin
         .from('ai_run')
         .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', appUser.tenant_id)
         .eq('auth_user_id', user.id)
         .eq('feature', FEATURE)
         .gte('started_at', minuteAgo),
       admin
         .from('ai_run')
         .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', appUser.tenant_id)
         .eq('auth_user_id', user.id)
         .eq('feature', FEATURE)
         .gte('started_at', dayAgo)
@@ -924,7 +912,6 @@ Deno.serve(async (request) => {
       .upsert(
         {
           auth_user_id: user.id,
-          tenant_id: appUser.tenant_id,
           source_hash: BUNDLED_PROJECT_SNAPSHOT.sourceHash,
           source_version: BUNDLED_PROJECT_SNAPSHOT.facts.project.head,
           status: 'ready',
@@ -935,17 +922,16 @@ Deno.serve(async (request) => {
           create_by: appUser.user_email,
           update_by: appUser.user_email
         },
-        { onConflict: 'tenant_id,auth_user_id,source_hash' }
+        { onConflict: 'auth_user_id,source_hash' }
       )
       .select('id')
       .single()
     if (snapshotError) throw snapshotError
 
-    const preferenceSummary = await loadPreferenceSummary(admin, appUser.tenant_id, user.id)
+    const preferenceSummary = await loadPreferenceSummary(admin, user.id)
     const { data: recentSuggestions, error: recentError } = await admin
       .from('ai_suggestion')
       .select('title,category,fingerprint,status')
-      .eq('tenant_id', appUser.tenant_id)
       .eq('auth_user_id', user.id)
       .order('create_time', { ascending: false })
       .limit(100)
@@ -956,7 +942,6 @@ Deno.serve(async (request) => {
       .insert({
         conversation_id: null,
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         feature: FEATURE,
         model: runtimeConfig.model,
         prompt_version: publishedPrompt.version,
@@ -983,7 +968,6 @@ Deno.serve(async (request) => {
         snapshot_id: snapshot.id,
         ai_run_id: runId,
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         focus,
         effort,
         status: 'generating',
@@ -1044,7 +1028,6 @@ Deno.serve(async (request) => {
     const suggestionRows = ranked.map((candidate, index) => ({
       batch_id: batchId,
       auth_user_id: user.id,
-      tenant_id: appUser.tenant_id,
       category: candidate.category,
       title: candidate.title,
       summary: candidate.summary,
@@ -1095,7 +1078,7 @@ Deno.serve(async (request) => {
     ])
     if (batchUpdateError) throw batchUpdateError
     if (runUpdateError) throw runUpdateError
-    return json(await loadPlannerState(admin, appUser.tenant_id, user.id, 'all'))
+    return json(await loadPlannerState(admin, user.id, 'all'))
   } catch (error) {
     const isTimeout = error instanceof DOMException && error.name === 'AbortError'
     const isInvalidOutput = error instanceof PlannerOutputError

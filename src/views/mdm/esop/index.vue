@@ -8,8 +8,7 @@
         icon="ri:file-shield-2-line"
         :tags="[
           { label: '版本受控', type: 'primary' },
-          { label: '产品与工艺关联', type: 'success' },
-          { label: '租户隔离', type: 'info' }
+          { label: '产品与工艺关联', type: 'success' }
         ]"
         :metrics="metrics"
       >
@@ -304,7 +303,6 @@
   import type { ColumnOption } from '@/types'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import { exportExcel, viewAttachment } from '@/utils/file'
   import { normalizeNullableText } from '@/utils/form/normalize'
   import TreeUtils from '@/utils/tree'
@@ -356,7 +354,7 @@
   } from './modules/document-dialog.vue'
 
   defineOptions({ name: 'MdmEsop' })
-  type SearchModel = Omit<EsopDocumentQuery, 'tenantId' | 'categoryIds' | 'current' | 'size'>
+  type SearchModel = Omit<EsopDocumentQuery, 'categoryIds' | 'current' | 'size'>
   type QueryParams = SearchModel & Api.Common.PaginationParams
   interface CategoryTreeExpose {
     filter: (value: string) => void
@@ -372,8 +370,6 @@
   const { confirmAction } = useArtFeedback()
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId, tenantOptions } = storeToRefs(useTenantScopeStore())
-  const tenantId = computed(() => effectiveTenantId.value ?? '')
   const tableRef = ref<ArtTableQueryExpose>()
   const categoryTreeRef = ref<CategoryTreeExpose>()
   const categoryDialogRef = ref<CategoryDialogExpose>()
@@ -479,8 +475,8 @@
     optionsError.value = null
     try {
       const [categoryRows, referenceRows] = await Promise.all([
-        fetchEsopCategories(tenantId.value),
-        fetchEsopReferenceOptions(tenantId.value)
+        fetchEsopCategories(),
+        fetchEsopReferenceOptions()
       ])
       categories.value = categoryRows
       references.value = referenceRows
@@ -498,7 +494,6 @@
     return fetchEsopDocuments(
       {
         ...params,
-        tenantId: tenantId.value,
         categoryIds: selectedCategoryIds.value.length ? selectedCategoryIds.value : undefined
       },
       options
@@ -535,12 +530,7 @@
     void categoryDialogRef.value?.handleOpen({
       row,
       parentId: row ? undefined : selectedCategoryId.value,
-      categories: categoryTree.value,
-      tenantId: row?.tenantId || selectedCategory.value?.tenantId || tenantId.value,
-      tenantOptions: tenantOptions.value.map((tenant) => ({
-        label: tenant.tenantName || tenant.tenantCode,
-        value: tenant.id
-      }))
+      categories: categoryTree.value
     })
   }
   const handleCategorySaved = async (): Promise<void> => {
@@ -569,12 +559,7 @@
       row,
       categoryId: selectedCategoryId.value,
       categories: categoryTree.value,
-      references: references.value,
-      tenantId: row?.tenantId || selectedCategory.value?.tenantId || tenantId.value,
-      tenantOptions: tenantOptions.value.map((tenant) => ({
-        label: tenant.tenantName || tenant.tenantCode,
-        value: tenant.id
-      }))
+      references: references.value
     })
   }
   const formatDateTime = createDateTimeFormatter({ format: 'YYYY-MM-DD HH:mm', emptyText: '—' })
@@ -746,7 +731,6 @@
   const exportRows = async (): Promise<void> => {
     const result = await fetchEsopDocuments({
       ...search,
-      tenantId: tenantId.value,
       categoryIds: selectedCategoryIds.value.length ? selectedCategoryIds.value : undefined,
       current: 1,
       size: 10000
@@ -798,7 +782,6 @@
         if (!category || !documentCode || !documentName || !attachmentUrl)
           throw new Error(`第 ${index + 2} 行缺少文档编号、名称、有效分类或附件地址`)
         return {
-          tenantId: category.tenantId,
           categoryId: category.id,
           documentCode,
           documentName,
@@ -867,13 +850,6 @@
       }
     }
   ]
-  watch(tenantId, async (value, oldValue) => {
-    if (value === oldValue) return
-    selectedCategoryId.value = undefined
-    optionsLoaded.value = false
-    await loadOptions()
-    await tableRef.value?.refreshData()
-  })
 </script>
 
 <style scoped lang="scss">

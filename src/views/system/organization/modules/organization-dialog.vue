@@ -56,7 +56,6 @@
     fetchGetEnableOrganizationTree,
     fetchGetEnableOrganizationUserList
   } from '@/api/system-manage'
-  import { fetchGetEnableTenantList } from '@/api/system-manage/tenant'
   import { useUserStore } from '@/store/modules/user'
   import { uniqueValidator } from '@/utils/form/validator'
 
@@ -87,21 +86,18 @@
 
   const emit = defineEmits<Emits>()
   const userStore = useUserStore()
-  const { getDictMap, getUserInfo, isPlatformSuper } = storeToRefs(userStore)
+  const { getDictMap } = storeToRefs(userStore)
   const dialogRef = ref<ArtDialogExpose<OpenData>>()
   const formRef = ref<ArtFormExpose>()
   const dialogType = ref<DialogType>('add')
 
-  const canSelectTenant = computed(() => Boolean(isPlatformSuper.value))
-  const currentTenantId = computed(() => getUserInfo.value.tenantId)
-  const isEditing = computed(() => dialogType.value === 'edit')
   const contextTitle = computed(() =>
     dialogType.value === 'add' ? '建立新的组织节点' : '维护组织职责与归属关系'
   )
   const contextDescription = computed(() =>
     dialogType.value === 'add'
       ? '组织建立后，可在用户与角色管理中直接选择该节点完成授权归属。'
-      : '层级和租户变更会影响成员、角色与菜单权限的治理视图，请谨慎调整。'
+      : '层级变更会影响成员、角色与菜单权限的治理视图，请谨慎调整。'
   )
 
   const normalizeUserIdentity = (value: unknown): string => {
@@ -122,7 +118,6 @@
 
   const createInitialForm = (): FormModel => ({
     id: undefined,
-    tenantId: undefined,
     parentId: null,
     organizationCode: '',
     organizationName: '',
@@ -140,9 +135,6 @@
   const form = reactive<FormModel>(createInitialForm())
 
   const rules = computed<FormRules<FormModel>>(() => ({
-    tenantId: canSelectTenant.value
-      ? [{ required: true, message: '请选择所属租户', trigger: 'change' }]
-      : [],
     organizationName: [
       { required: true, message: '请输入组织名称', trigger: 'blur' },
       { min: 2, max: 80, message: '长度应为 2 到 80 个字符', trigger: 'blur' }
@@ -159,8 +151,7 @@
           table: 'mdm_organization',
           field: 'organization_code',
           getExcludeId: () => form.id,
-          extraWhere: () => ({ tenant_id: form.tenantId }),
-          message: '当前租户已存在相同组织编码'
+          message: '组织编码已存在'
         }),
         trigger: 'blur'
       }
@@ -179,42 +170,24 @@
       span: 24
     },
     {
-      label: '所属租户',
-      key: 'tenantId',
-      type: 'select',
-      span: 24,
-      hidden: !canSelectTenant.value,
-      api: fetchGetEnableTenantList,
-      resultField: 'data',
-      labelField: 'tenantName',
-      valueField: 'id',
-      labelFn: (item) => `${item.tenantName}（${item.tenantCode}）`,
-      props: {
-        disabled: isEditing.value,
-        filterable: true,
-        placeholder: '请选择所属租户',
-        onChange: handleTenantChange
-      }
-    },
-    {
       label: '上级组织',
       key: 'parentId',
       type: 'treeSelect',
       span: 24,
       api: fetchGetEnableOrganizationTree,
       immediate: false,
-      beforeFetch: () => ({ tenantId: form.tenantId, excludeId: form.id }),
+      beforeFetch: () => ({ excludeId: form.id }),
       resultField: 'data',
       labelField: 'organizationName',
       valueField: 'id',
       childrenField: 'children',
       props: {
-        disabled: form.isSystem || !form.tenantId,
+        disabled: form.isSystem,
         clearable: true,
         checkStrictly: true,
         defaultExpandAll: true,
         renderAfterExpand: false,
-        placeholder: form.tenantId ? '不选则为一级组织' : '请先选择租户'
+        placeholder: '不选则为一级组织'
       },
       description: form.isSystem ? '系统根组织固定为最高层级。' : '支持跨层级选择上级组织。'
     },
@@ -238,7 +211,7 @@
         clearable: true,
         placeholder: '如：EAST_OPS'
       },
-      help: '同一租户内唯一，建议使用稳定的业务编码。'
+      help: '建议使用稳定的业务编码，全组织内唯一。'
     },
     {
       label: '组织类型',
@@ -274,20 +247,18 @@
       span: 24,
       api: fetchGetEnableOrganizationUserList,
       immediate: false,
-      beforeFetch: () => ({ tenantId: form.tenantId }),
       resultField: 'data',
       labelField: 'nickName',
       valueField: 'id',
       labelFn: getOrganizationUserLabel,
       props: {
-        disabled: !form.tenantId,
         clearable: true,
         filterable: true,
-        placeholder: form.tenantId ? '请选择负责人' : '请先选择租户',
-        noDataText: '当前租户暂无启用用户',
+        placeholder: '请选择负责人',
+        noDataText: '暂无启用用户',
         noMatchText: '未找到匹配用户'
       },
-      description: '负责人必须属于同一租户，可与成员的直接所属组织不同。'
+      description: '负责人可与成员的直接所属组织不同。'
     },
     {
       label: '联系电话',
@@ -350,7 +321,6 @@
       const row = cloneDeep(data.row)
       Object.assign(form, {
         id: row.id,
-        tenantId: row.tenantId,
         parentId: row.parentId ?? null,
         organizationCode: row.organizationCode,
         organizationName: row.organizationName,
@@ -369,28 +339,13 @@
 
     if (data.parent) {
       Object.assign(form, {
-        tenantId: data.parent.tenantId,
         parentId: data.parent.id ?? null
       })
-    } else if (!canSelectTenant.value) {
-      form.tenantId = currentTenantId.value
-    }
-  }
-
-  const handleTenantChange = (): void => {
-    Object.assign(form, { parentId: null, leaderUserId: null })
-    void Promise.all([
-      formRef.value?.reloadOptions('parentId'),
-      formRef.value?.reloadOptions('leaderUserId')
-    ])
-    if (form.organizationCode) {
-      void formRef.value?.validateField('organizationCode')
     }
   }
 
   const buildPayload = (): OrganizationSavePayload => ({
     id: form.id,
-    tenantId: form.tenantId,
     parentId: form.parentId || null,
     organizationCode: form.organizationCode.trim().toUpperCase(),
     organizationName: form.organizationName.trim(),

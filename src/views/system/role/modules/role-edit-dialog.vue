@@ -49,12 +49,9 @@
   import ArtForm, { type FormItem } from '@/components/core/forms/art-form/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { addRole, editRole, fetchGetEnableOrganizationTree } from '@/api/system-manage'
-  import { fetchGetEnableTenantList } from '@/api/system-manage/tenant'
   import { uniqueValidator } from '@/utils/form/validator'
-  import { useUserStore } from '@/store/modules/user'
 
   type RoleListItem = Api.SystemManage.RoleListItem
-  type TenantListItem = Api.SystemManage.TenantListItem
   type DialogType = 'add' | 'edit'
 
   interface RoleEditDialogOpenData {
@@ -74,19 +71,9 @@
   }
 
   const emit = defineEmits<Emits>()
-  const userStore = useUserStore()
-  const { getUserInfo, isPlatformSuper } = storeToRefs(userStore)
   const dialogRef = ref<ArtDialogExpose<RoleEditDialogOpenData>>()
   const formRef = ref<ArtFormExpose>()
   const dialogType = ref<DialogType>('add')
-  const tenantOptions = shallowRef<TenantListItem[]>([])
-  const canSelectTenant = computed(() => isPlatformSuper.value)
-  const currentTenantId = computed(() => getUserInfo.value.tenantId)
-  const selectableTenantOptions = computed(() =>
-    tenantOptions.value.filter((tenant): tenant is TenantListItem & { id: string } =>
-      Boolean(tenant.id)
-    )
-  )
 
   const isDefaultRegisterRole = computed(
     () => dialogType.value === 'edit' && form.builtinType === 'default_register'
@@ -108,7 +95,6 @@
 
   const createInitialForm = (): RoleListItem => ({
     id: undefined,
-    tenantId: undefined,
     organizationId: null,
     roleName: '',
     roleCode: '',
@@ -121,9 +107,6 @@
   const form = reactive<RoleListItem>(createInitialForm())
 
   const rules = computed<FormRules>(() => ({
-    tenantId: canSelectTenant.value
-      ? [{ required: true, message: '请选择所属租户', trigger: 'change' }]
-      : [],
     roleName: [
       { required: true, message: '请输入角色名称', trigger: 'change' },
       { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'change' }
@@ -136,7 +119,6 @@
           table: 'sys_role',
           field: 'role_code',
           getExcludeId: (): string | undefined => form.id,
-          extraWhere: () => ({ tenant_id: form.tenantId }),
           message: '角色编码已存在'
         }),
         trigger: 'change'
@@ -145,31 +127,12 @@
     description: [{ required: true, message: '请输入角色描述', trigger: 'change' }]
   }))
 
-  const formatTenantOption = (tenant: TenantListItem): string =>
-    tenant.tenantCode ? `${tenant.tenantName}（${tenant.tenantCode}）` : tenant.tenantName
-
   const formItems = computed<FormItem[]>(() => [
     {
       label: '角色定义',
       key: 'identitySection',
       type: 'divider',
       span: 24
-    },
-    {
-      label: '所属租户',
-      key: 'tenantId',
-      type: 'select',
-      hidden: !canSelectTenant.value,
-      props: {
-        disabled: dialogType.value === 'edit',
-        filterable: true,
-        options: selectableTenantOptions.value.map((tenant) => ({
-          label: formatTenantOption(tenant),
-          value: tenant.id
-        })),
-        onChange: handleTenantChange
-      },
-      help: '角色编码在同一租户内必须唯一。'
     },
     {
       label: '角色名称',
@@ -187,22 +150,21 @@
       span: 24,
       api: fetchGetEnableOrganizationTree,
       immediate: false,
-      beforeFetch: () => ({ tenantId: form.tenantId }),
       resultField: 'data',
       labelField: 'organizationName',
       valueField: 'id',
       labelFn: (item) => `${item.organizationName}（${item.organizationCode}）`,
       childrenField: 'children',
       props: {
-        disabled: !form.tenantId || isSystemBuiltinRole.value,
+        disabled: isSystemBuiltinRole.value,
         clearable: true,
         checkStrictly: true,
         defaultExpandAll: true,
         renderAfterExpand: false,
-        placeholder: form.tenantId ? '请选择角色主要适用组织' : '请先选择租户'
+        placeholder: '请选择角色主要适用组织'
       },
       description: isSystemBuiltinRole.value
-        ? '系统内置角色固定归入租户根组织。'
+        ? '系统内置角色固定归入根组织。'
         : '用于组织治理与职责审计，不改变角色菜单权限的独立配置。'
     },
     {
@@ -262,7 +224,6 @@
     if (data.roleData) {
       const {
         id,
-        tenantId,
         organizationId,
         roleName,
         roleCode,
@@ -273,7 +234,6 @@
       } = data.roleData
       Object.assign(form, {
         id,
-        tenantId,
         organizationId,
         roleName,
         roleCode,
@@ -282,11 +242,6 @@
         enabled,
         createBy
       })
-      return
-    }
-
-    if (!canSelectTenant.value) {
-      form.tenantId = currentTenantId.value
     }
   }
 
@@ -294,10 +249,6 @@
     const payload = { ...toRaw(form) }
     delete payload.id
     delete payload.builtinType
-
-    if (!canSelectTenant.value) {
-      payload.tenantId = currentTenantId.value
-    }
 
     if (isSystemBuiltinRole.value) {
       payload.enabled = true
@@ -330,20 +281,6 @@
     }
   }
 
-  const loadTenantOptions = async (): Promise<void> => {
-    if (!canSelectTenant.value) return
-    const { data } = await fetchGetEnableTenantList()
-    tenantOptions.value = data ?? []
-  }
-
-  const handleTenantChange = (): void => {
-    form.organizationId = null
-    void formRef.value?.reloadOptions('organizationId')
-    if (form.roleCode) {
-      void formRef.value?.validateField('roleCode')
-    }
-  }
-
   const handleOpen = async (data: RoleEditDialogOpenData): Promise<void> => {
     await initializeForm(data)
     await dialogRef.value?.handleOpen(data, {
@@ -352,7 +289,6 @@
       loading: true,
       onOpen: async (_openData, api) => {
         try {
-          await loadTenantOptions()
           await initializeForm(data)
           await formRef.value?.reloadOptions('organizationId')
         } finally {

@@ -10,7 +10,6 @@ import {
 const material = (id: string): MaterialArchive =>
   ({
     id,
-    tenantId: 'tenant-1',
     materialCode: id.toUpperCase(),
     materialName: id,
     baseUnitId: 'unit-1'

@@ -7,8 +7,7 @@
     :density="density"
     :tags="[
       { label: '生产主数据', type: 'primary', effect: 'plain' },
-      { label: capability, type: 'success', effect: 'light' },
-      { label: '租户级配置', type: 'info', effect: 'plain' }
+      { label: capability, type: 'success', effect: 'light' }
     ]"
     :metrics="metrics"
   >

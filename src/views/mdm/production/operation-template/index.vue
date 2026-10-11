@@ -98,7 +98,6 @@
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import type { BusinessWorkspaceMetric } from '@/components/business/business-workspace-header/index.vue'
-  import { useUserStore } from '@/store/modules/user'
   import { useAuth } from '@/hooks/core/useAuth'
   import { exportExcel } from '@/utils/file'
   import { formatWithDayjs } from '@/utils/time'
@@ -117,7 +116,6 @@
   import RecordDetail from '../modules/record-detail.vue'
   import ProductionWorkspaceHeader from '../modules/production-workspace-header.vue'
   defineOptions({ name: 'MdmOperationTemplate' })
-  const user = useUserStore()
   const { hasAuth } = useAuth()
   const templateTable = ref<ArtTableQueryExpose>()
   const bindingTable = ref<ArtTableQueryExpose>()
@@ -223,9 +221,9 @@
     }
   ]
   const fetchTemplates = (p: WorkspaceQuery, o?: { signal?: AbortSignal }) =>
-    fetchOperationTemplates({ ...p, tenantId: user.info.tenantId || '' }, o)
+    fetchOperationTemplates(p, o)
   const fetchBindings = (p: WorkspaceQuery & { bound?: boolean }, o?: { signal?: AbortSignal }) =>
-    fetchProcessSteps({ ...p, tenantId: user.info.tenantId || '' }, o)
+    fetchProcessSteps(p, o)
   const refresh = () => activeTable.value?.refreshData()
   const handleTemplateSuccess: ArtTableQueryProps['onSuccess'] = (rows, response) => {
     overview.templateRows = rows as OperationTemplate[]
@@ -475,7 +473,7 @@
   async function exportTemplates() {
     const rows: OperationTemplate[] = []
     for (let current = 1; current <= 10; current++) {
-      const r = await fetchTemplates({ ...table.search, tenantId: '', current, size: 1000 })
+      const r = await fetchTemplates({ ...table.search, current, size: 1000 })
       if (r.total > 10000) {
         ElMessage.warning('请缩小筛选范围至 10000 条以内')
         return
@@ -502,7 +500,7 @@
   async function exportBindings() {
     const rows: ProcessStep[] = []
     for (let current = 1; current <= 10; current++) {
-      const r = await fetchBindings({ ...table.bindingSearch, tenantId: '', current, size: 1000 })
+      const r = await fetchBindings({ ...table.bindingSearch, current, size: 1000 })
       if (r.total > 10000) {
         ElMessage.warning('请缩小筛选范围至 10000 条以内')
         return

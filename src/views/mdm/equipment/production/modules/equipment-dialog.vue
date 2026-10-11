@@ -49,7 +49,6 @@
           <template #photoUrl>
             <ArtUploadImage
               v-model="form.photoUrl"
-              :resource-tenant-id="form.tenantId"
               title="上传设备图片"
               :limit="1"
               :size="104"
@@ -59,7 +58,6 @@
           <template #responsibleEmployeeId>
             <ArtEmployeeSelect
               :model-value="form.responsibleEmployeeId ?? undefined"
-              :tenant-id="form.tenantId"
               :selected-data="selectedEmployee"
               placeholder="选择设备管理员"
               @update:model-value="form.responsibleEmployeeId = $event ?? null"
@@ -96,8 +94,6 @@
   export interface EquipmentDialogOpenData {
     row?: ProductionEquipment
     copy?: boolean
-    targetTenantId?: string
-    tenantOptions: Array<{ label: string; value: string }>
     references: ProductionEquipmentReferences
   }
 
@@ -126,7 +122,6 @@
     workCenters: [],
     suppliers: []
   })
-  const tenantOptions = ref<Array<{ label: string; value: string }>>([])
   const editingRow = shallowRef<ProductionEquipment>()
   const referenceTree = new TreeUtils({ parentKey: 'parentId' })
 
@@ -176,7 +171,6 @@
 
   const initialForm = (): EquipmentForm => ({
     id: undefined,
-    tenantId: '',
     categoryId: '',
     productionDepartmentId: '',
     locationId: null,
@@ -207,13 +201,11 @@
   })
   const form = reactive<EquipmentForm>(initialForm())
 
-  const inTenant = (items: EquipmentReference[]): EquipmentReference[] =>
-    form.tenantId ? items.filter((item) => item.tenantId === form.tenantId) : []
   const options = (items: EquipmentReference[]) =>
-    inTenant(items).map((item) => ({ label: `${item.name} · ${item.code}`, value: item.id }))
+    items.map((item) => ({ label: `${item.name} · ${item.code}`, value: item.id }))
   const treeOptions = (items: EquipmentReference[]): EquipmentTreeOption[] =>
     referenceTree.listToTree(
-      inTenant(items).map((item) => ({
+      items.map((item) => ({
         id: item.id,
         parentId: item.parentId,
         label: `${item.name} · ${item.code}`,
@@ -224,7 +216,7 @@
   const departmentOptions = computed(() => treeOptions(references.value.departments))
   const locationOptions = computed(() => treeOptions(references.value.locations))
   const workCenterOptions = computed(() =>
-    inTenant(references.value.workCenters)
+    references.value.workCenters
       .filter((item) => item.departmentId === form.productionDepartmentId)
       .map((item) => ({ label: `${item.code} · ${item.name}`, value: item.id }))
   )
@@ -233,7 +225,6 @@
     return [
       {
         id: editingRow.value.responsibleEmployeeId,
-        tenantId: editingRow.value.tenantId,
         employeeNo: '',
         employeeName: editingRow.value.responsibleName,
         employmentStatus: 'active'
@@ -244,17 +235,6 @@
   const formItems = computed<FormItem[]>(() => {
     if (activeTab.value === 'identity')
       return [
-        ...(tenantOptions.value.length > 1
-          ? [
-              {
-                label: '目标租户',
-                key: 'tenantId',
-                type: 'select',
-                options: tenantOptions.value,
-                props: { disabled: Boolean(form.id), filterable: true }
-              } as FormItem
-            ]
-          : []),
         {
           label: '设备编号',
           key: 'equipmentCode',
@@ -420,14 +400,12 @@
   )
 
   const rules: FormRules<Record<string, unknown>> = {
-    tenantId: [{ required: true, message: '请选择目标租户', trigger: 'change' }],
     equipmentName: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
     categoryId: [{ required: true, message: '请选择设备分类', trigger: 'change' }],
     productionDepartmentId: [{ required: true, message: '请选择部门或产线', trigger: 'change' }]
   }
 
   const equipmentInputKeys = [
-    'tenantId',
     'categoryId',
     'productionDepartmentId',
     'locationId',
@@ -481,13 +459,9 @@
   const handleOpen = async (data: EquipmentDialogOpenData): Promise<void> => {
     Object.assign(form, initialForm())
     references.value = data.references
-    tenantOptions.value = data.tenantOptions
     editingRow.value = data.row
     activeTab.value = 'identity'
     if (data.row) Object.assign(form, cloneDeep(data.row))
-    else
-      form.tenantId =
-        data.targetTenantId || (data.tenantOptions.length === 1 ? data.tenantOptions[0].value : '')
     if (data.copy) {
       form.id = undefined
       form.equipmentCode = ''

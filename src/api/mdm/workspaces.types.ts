@@ -2,13 +2,11 @@ import type { ProductionDepartment, ProductionTag, ProductionPerson } from './pr
 
 export interface WorkspaceAudit {
   id: string
-  tenantId: string
   createBy: string
   createTime: string
   updateTime: string
 }
 export interface WorkspaceQuery {
-  tenantId: string
   current: number
   size: number
   keyword?: string
@@ -90,7 +88,6 @@ export interface WorkCenterReference {
 }
 export interface WorkstationScopeCenter {
   id: string
-  tenantId: string
   departmentId: string
   code: string
   name: string
@@ -98,14 +95,12 @@ export interface WorkstationScopeCenter {
 }
 export interface WorkstationResponsiblePerson {
   id: string
-  tenantId: string
   name: string
   employeeNo: string
   jobTitle: string
   enabled: boolean
 }
 export interface WorkstationInput {
-  tenantId: string
   workstationCode: string
   workstationName: string
   departmentId: string
@@ -116,12 +111,11 @@ export interface WorkstationInput {
   remark: string
 }
 export interface Workstation extends WorkstationInput, WorkspaceAudit {
-  department: { id: string; tenantId: string; code: string; name: string } | null
-  workCenter: { id: string; tenantId: string; code: string; name: string } | null
+  department: { id: string; code: string; name: string } | null
+  workCenter: { id: string; code: string; name: string } | null
   responsiblePerson: WorkstationResponsiblePerson | null
 }
 export interface WorkstationQuery {
-  tenantId?: string | null
   workCenterId: string
   keyword?: string
   enabled?: boolean
@@ -141,7 +135,6 @@ export interface CommonWorkCenter {
 }
 export interface PersonnelWorkCenterConfig {
   id: string
-  tenantId: string
   departmentId: string
   department: { id: string; name: string; code: string }
   name: string
@@ -179,7 +172,6 @@ export interface CenterDevice extends CenterDeviceInput, WorkspaceAudit {
   equipment: { id: string; equipmentCode: string; equipmentName: string } | null
 }
 export interface ProcessRouteInput {
-  tenantId: string
   materialId: string
   code: string
   name: string
@@ -307,7 +299,6 @@ export interface ProcessRouteReference {
   id: string
   code: string
   name: string
-  tenantId?: string
   specification?: string
   unitId?: string | null
   unit?: string

@@ -107,7 +107,6 @@
   const detail = reactive<BusinessTypeDetailData>({
     record: {
       id: '',
-      tenantId: '',
       documentTypeId: '',
       businessTypeCode: '',
       businessTypeName: '',
@@ -165,11 +164,6 @@
     },
     { key: 'enabled', label: '状态', field: 'record.enabled' },
     { key: 'sortOrder', label: '排序', field: 'record.sortOrder' },
-    {
-      key: 'tenantName',
-      label: '所属租户',
-      value: (data: BusinessTypeDetailData) => data.record.tenant?.tenantName
-    },
     { key: 'remark', label: '备注', field: 'record.remark', span: 2 }
   ]
   const auditItems: ArtDescriptionItem<BusinessTypeDetailData>[] = [

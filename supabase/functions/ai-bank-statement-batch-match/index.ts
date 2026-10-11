@@ -121,10 +121,10 @@ Deno.serve(async (req) => {
     })
     const { data: appUser } = await admin
       .from('sys_user')
-      .select('tenant_id,user_email,status')
+      .select('user_email,status')
       .eq('auth_user_id', authData.user.id)
       .maybeSingle()
-    if (!appUser?.tenant_id || appUser.status === '0')
+    if (!appUser?.user_email || appUser.status === '0')
       return json({ code: 'forbidden', message: '当前账号无权使用批量流水匹配' }, 403)
     const body = await req.json()
 
@@ -156,12 +156,10 @@ Deno.serve(async (req) => {
       admin
         .from('mdm_customer')
         .select('id,customer_name')
-        .eq('tenant_id', appUser.tenant_id)
         .limit(2000),
       admin
         .from('mdm_carrier')
         .select('id,company_name')
-        .eq('tenant_id', appUser.tenant_id)
         .limit(2000),
       authClient.rpc('tms_list_customer_statement_allocatable_secure', {
         p_customer_id: null,
@@ -179,7 +177,6 @@ Deno.serve(async (req) => {
       admin
         .from('ai_ocr_quality_threshold')
         .select('review_confidence_threshold')
-        .eq('tenant_id', appUser.tenant_id)
         .eq('feature', 'bank_statement_batch_match')
         .maybeSingle()
     ])
@@ -262,7 +259,6 @@ Deno.serve(async (req) => {
       .from('ai_run')
       .insert({
         auth_user_id: authData.user.id,
-        tenant_id: appUser.tenant_id,
         feature: 'bank_statement_batch_match',
         model: mappingResult.model,
         prompt_version: 'v1',
@@ -286,7 +282,6 @@ Deno.serve(async (req) => {
       .insert({
         ai_run_id: run.id,
         auth_user_id: authData.user.id,
-        tenant_id: appUser.tenant_id,
         feature: 'bank_statement_batch_match',
         artifact_type: 'tms_bank_statement_batch',
         proposed_payload: { mapping: mappingResult.mapping, rows: normalizedRows },

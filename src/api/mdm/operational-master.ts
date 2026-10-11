@@ -99,7 +99,6 @@ export async function fetchOperationalMaster(
     .order('update_time', { ascending: false })
     .range((params.current - 1) * params.size, params.current * params.size - 1)
 
-  if (params.tenantId) query = query.eq('tenant_id', params.tenantId)
   if (params.groupIds?.length) query = query.in('group_id', params.groupIds)
   else if (params.groupId) query = query.eq('group_id', params.groupId)
   if (typeof params.enabled === 'boolean') query = query.eq('enabled', params.enabled)
@@ -159,7 +158,6 @@ export async function deleteOperationalMasters(kind: OperationalMasterKind, ids:
 }
 
 export async function fetchActivityFormulaParameters(
-  tenantId: string,
   purpose: ActivityFormulaPurpose
 ): Promise<ActivityFormulaParameter[]> {
   const { data } = await responseHandle<ActivityFormulaParameter[]>(
@@ -167,7 +165,6 @@ export async function fetchActivityFormulaParameters(
       supabase
         .from('mdm_activity_formula_parameter')
         .select('*')
-        .eq('tenant_id', tenantId)
         .eq('purpose', purpose)
         .order('sort')
         .order('code'),
@@ -231,13 +228,8 @@ export async function deleteMasterGroup(id: string) {
   )
 }
 
-async function fetchReference(
-  table: string,
-  columns: string,
-  tenantId?: string
-): Promise<MasterReferenceOption[]> {
-  let query = supabase.from(table).select(columns)
-  if (tenantId) query = query.eq('tenant_id', tenantId)
+async function fetchReference(table: string, columns: string): Promise<MasterReferenceOption[]> {
+  const query = supabase.from(table).select(columns)
   const { data } = await responseHandle<MasterReferenceOption[]>(() => query, {
     ...readOptions,
     showErrorMessage: false
@@ -264,27 +256,20 @@ async function fetchMenuReferences(): Promise<MasterReferenceOption[]> {
     return {
       id: item.id,
       code: item.name,
-      name: typeof meta.title === 'string' ? meta.title : item.name,
-      tenantId: ''
+      name: typeof meta.title === 'string' ? meta.title : item.name
     }
   })
 }
 
-export async function fetchOperationalMasterReferences(
-  tenantId?: string
-): Promise<OperationalMasterReferences> {
+export async function fetchOperationalMasterReferences(): Promise<OperationalMasterReferences> {
   const [customers, employees, departments, workCenters, personnel, units, menus] =
     await Promise.all([
-      fetchReference(
-        'mdm_customer',
-        'id,tenant_id,code:customer_code,name:customer_name',
-        tenantId
-      ),
-      fetchReference('mdm_employee', 'id,tenant_id,code:employee_no,name:employee_name', tenantId),
-      fetchReference('mdm_production_department', 'id,tenant_id,parent_id,code,name', tenantId),
-      fetchReference('mdm_work_center', 'id,tenant_id,department_id,code,name', tenantId),
-      fetchReference('mdm_production_personnel', 'id,tenant_id,code:employee_no,name', tenantId),
-      fetchReference('mdm_unit_of_measure', 'id,tenant_id,code:unit_code,name:unit_name', tenantId),
+      fetchReference('mdm_customer', 'id,code:customer_code,name:customer_name'),
+      fetchReference('mdm_employee', 'id,code:employee_no,name:employee_name'),
+      fetchReference('mdm_production_department', 'id,parent_id,code,name'),
+      fetchReference('mdm_work_center', 'id,department_id,code,name'),
+      fetchReference('mdm_production_personnel', 'id,code:employee_no,name'),
+      fetchReference('mdm_unit_of_measure', 'id,code:unit_code,name:unit_name'),
       fetchMenuReferences()
     ])
   return { customers, employees, departments, workCenters, personnel, units, menus }

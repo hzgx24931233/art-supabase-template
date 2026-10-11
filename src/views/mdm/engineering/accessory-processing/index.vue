@@ -352,22 +352,6 @@
             :show-reset="false"
             :show-submit="false"
           >
-            <template #tenantId>
-              <ElSelect
-                v-model="manual.tenantId"
-                filterable
-                class="w-full"
-                placeholder="选择所属租户"
-                @change="onManualTenantChanged"
-              >
-                <ElOption
-                  v-for="tenant in tenantOptions"
-                  :key="tenant.id"
-                  :label="tenant.tenantName || tenant.tenantCode"
-                  :value="tenant.id"
-                />
-              </ElSelect>
-            </template>
             <template #projectId>
               <div class="flex min-w-0 gap-2">
                 <ElSelect
@@ -384,10 +368,7 @@
                     :label="`${project.projectName} · ${project.projectCode}`"
                   />
                 </ElSelect>
-                <ElButton
-                  v-auth="'MdmSalesProject:Add'"
-                  :disabled="!manual.tenantId"
-                  @click="openProjectDialog('manual')"
+                <ElButton v-auth="'MdmSalesProject:Add'" @click="openProjectDialog('manual')"
                   >新建</ElButton
                 >
               </div>
@@ -652,7 +633,6 @@
   import { useWorkspaceFocus } from '@/hooks/core/useWorkspaceFocus'
   import { useAuth } from '@/hooks/core/useAuth'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import { getFriendlySupabaseErrorMessage } from '@/utils/supabase'
   import { normalizeNullableText } from '@/utils/form/normalize'
   import type { ColumnOption } from '@/types/component'
@@ -710,7 +690,6 @@
     children?: ProjectNode[]
   }
   interface ManualModel extends AccessoryProcessingItem {
-    tenantId: string
     projectName: string
     drawingName: string
     projectId: string | null
@@ -722,8 +701,7 @@
   const { focusMode } = useWorkspaceFocus()
   const { hasAuth } = useAuth()
   const userStore = useUserStore()
-  const { isPlatformSuper, getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId, tenantOptions } = storeToRefs(useTenantScopeStore())
+  const { getDictMap } = storeToRefs(userStore)
   const route = useRoute()
   const targetListId = computed(() =>
     route.query.fromMasterDelete === '1' &&
@@ -780,7 +758,6 @@
   const orderRows = ref<AccessoryRow[]>([])
   const projectTarget = ref<'manual' | 'material' | 'order'>('manual')
   const options = reactive<{
-    tenantId: string
     projects: AccessoryProjectOption[]
     customers: AccessoryCustomerOption[]
     categories: MaterialCategory[]
@@ -788,7 +765,6 @@
     units: UnitOfMeasure[]
     codeRules: MaterialCodeRule[]
   }>({
-    tenantId: '',
     projects: [],
     customers: [],
     categories: [],
@@ -797,7 +773,6 @@
     codeRules: []
   })
   const manual = reactive<ManualModel>({
-    tenantId: '',
     projectName: '',
     drawingName: '',
     projectId: null,
@@ -880,13 +855,12 @@
   const projectTree = computed<ProjectNode[]>(() => {
     const projects = new Map<string, ProjectNode>()
     for (const list of lists.value) {
-      const key = `${list.tenantId}:${list.projectId || list.projectName}`
+      const key = `${list.projectId || list.projectName}`
       let project = projects.get(key)
       if (!project) {
-        const tenant = tenantOptions.value.find((item) => item.id === list.tenantId)
         project = {
           id: `project:${key}`,
-          label: `${isPlatformSuper.value && !effectiveTenantId.value ? `${tenant?.tenantName || '租户'} · ` : ''}${list.project?.projectName || list.projectName || '未关联项目'}`,
+          label: list.project?.projectName || list.projectName || '未关联项目',
           kind: 'project',
           count: 0,
           listIds: [],
@@ -994,9 +968,6 @@
   ]
 
   const manualItems = computed<FormItem[]>(() => [
-    ...(isPlatformSuper.value && !effectiveTenantId.value && manualMode.value !== 'edit'
-      ? [{ key: 'tenantId', label: '目标租户', type: 'slot' as const, span: 12 }]
-      : []),
     ...(manualMode.value === 'edit'
       ? []
       : [
@@ -1165,10 +1136,7 @@
     loading.value = true
     error.value = ''
     try {
-      lists.value = await fetchAccessoryLists(
-        effectiveTenantId.value,
-        targetListId.value || undefined
-      )
+      lists.value = await fetchAccessoryLists(targetListId.value || undefined)
       // MES 未同库部署时联查会自动降级，页面据此隐藏工单相关列与动作
       mesWorkOrderTracking.value = isMesWorkOrderTrackingAvailable()
       clearSelectedRows()
@@ -1178,8 +1146,9 @@
       loading.value = false
     }
   }
-  async function loadOptions(tenantId: string): Promise<void> {
-    options.tenantId = tenantId
+  let optionsRequestVersion = 0
+  async function loadOptions(): Promise<void> {
+    const requestVersion = ++optionsRequestVersion
     Object.assign(options, {
       projects: [],
       customers: [],
@@ -1188,17 +1157,16 @@
       units: [],
       codeRules: []
     })
-    if (!tenantId) return
     try {
       const [projects, customers, categories, types, units, codeRules] = await Promise.all([
-        fetchAccessoryProjects(tenantId),
-        fetchAccessoryCustomers(tenantId),
-        fetchMaterialCategories(tenantId),
-        fetchMaterialReferenceOptions<MaterialType>('material-type', tenantId),
-        fetchMaterialReferenceOptions<UnitOfMeasure>('unit-of-measure', tenantId),
-        fetchMaterialReferenceOptions<MaterialCodeRule>('code-rule', tenantId)
+        fetchAccessoryProjects(),
+        fetchAccessoryCustomers(),
+        fetchMaterialCategories(),
+        fetchMaterialReferenceOptions<MaterialType>('material-type'),
+        fetchMaterialReferenceOptions<UnitOfMeasure>('unit-of-measure'),
+        fetchMaterialReferenceOptions<MaterialCodeRule>('code-rule')
       ])
-      if (options.tenantId !== tenantId) return
+      if (requestVersion !== optionsRequestVersion) return
       Object.assign(options, {
         projects,
         customers,
@@ -1278,7 +1246,6 @@
   }
   function resetManual(): void {
     Object.assign(manual, {
-      tenantId: effectiveTenantId.value || '',
       projectName: '',
       drawingName: '',
       projectId: null,
@@ -1310,7 +1277,6 @@
     if (row) {
       Object.assign(manual, {
         ...row,
-        tenantId: row.list.tenantId,
         projectName: row.list.projectName,
         drawingName: row.list.drawingName,
         projectId: row.list.projectId,
@@ -1329,24 +1295,13 @@
       loadingText: '正在加载物料选项…',
       onOpen: async (_data, api) => {
         try {
-          await loadOptions(manual.tenantId)
+          await loadOptions()
         } finally {
           api.setLoading(false)
         }
       },
       onConfirm: saveManual
     })
-  }
-  function onManualTenantChanged(tenantId: string): void {
-    manual.projectId = null
-    manual.customerId = null
-    manual.materialTypeId = null
-    manual.baseUnitId = null
-    manual.categoryId = null
-    manual.codeRuleId = null
-    manual.sketchPath = null
-    manual.imageUrls = []
-    void loadOptions(tenantId)
   }
   function manualItem(): AccessoryProcessingItem {
     return {
@@ -1372,7 +1327,6 @@
     try {
       await manualFormRef.value?.validate()
       if (
-        !manual.tenantId ||
         !manual.name.trim() ||
         manual.lengthM <= 0 ||
         manual.quantity < 1 ||
@@ -1394,7 +1348,6 @@
         await saveAccessoryDraft({
           mode: manualMode.value === 'copy' ? 'Copy' : 'Add',
           sourceItemId: manualMode.value === 'copy' ? editingRow.value?.id : undefined,
-          tenantId: manual.tenantId,
           sourcePath: null,
           sourceName: '',
           projectName: manual.projectName.trim(),
@@ -1541,7 +1494,7 @@
 
   async function deleteSelected(): Promise<void> {
     const rows = [...selectedRows.value]
-    if (!rows.length || deleteBusy.value || !sameTenant(rows)) return
+    if (!rows.length || deleteBusy.value) return
     deleteBusy.value = true
     const codedCount = rows.filter((row) => row.materialId).length
     try {
@@ -1571,13 +1524,7 @@
   }
   async function resetSelectedCodes(): Promise<void> {
     const rows = [...selectedRows.value]
-    if (
-      !rows.length ||
-      deleteBusy.value ||
-      rows.some((row) => !row.materialId) ||
-      !sameTenant(rows)
-    )
-      return
+    if (!rows.length || deleteBusy.value || rows.some((row) => !row.materialId)) return
     deleteBusy.value = true
     try {
       if (await inspectDeleteReferences(rows, 'codes')) return
@@ -1600,18 +1547,13 @@
       deleteBusy.value = false
     }
   }
-  function sameTenant(rows: AccessoryRow[]): boolean {
-    if (uniq(rows.map((row) => row.list.tenantId)).length === 1) return true
-    ElMessage.warning('请按租户分别处理所选加工件')
-    return false
-  }
   async function openMaterialDialog(): Promise<void> {
     const rows = selectedRows.value.filter((row) => !row.materialId)
     if (rows.length !== selectedRows.value.length) {
       ElMessage.warning('请只选择待编码的加工件，已编码记录无需重复生成')
       return
     }
-    if (!rows.length || !sameTenant(rows)) return
+    if (!rows.length) return
     const missingWidth = rows.find((row) => !row.widthMm || row.widthMm <= 0)
     if (missingWidth) {
       ElMessage.warning(`“${missingWidth.name}”缺少展宽，请先编辑展宽（mm）再生成编码`)
@@ -1637,7 +1579,7 @@
       loadingText: '正在加载物料选项…',
       onOpen: async (_data, api) => {
         try {
-          await loadOptions(rows[0].list.tenantId)
+          await loadOptions()
           materialConfig.materialTypeId =
             options.types.find((item) => item.typeName === '半成品')?.id || ''
           materialConfig.categoryId =
@@ -1681,7 +1623,7 @@
   }
   async function convertBom(): Promise<void> {
     const rows = selectedRows.value
-    if (!rows.length || conversionBusy.value || !sameTenant(rows)) return
+    if (!rows.length || conversionBusy.value) return
     const selectedLists = uniqBy(
       rows.map((row) => row.list),
       (list) => list.id
@@ -1733,7 +1675,7 @@
       ElMessage.warning('请只选择已编码且尚未转工单的加工件')
       return
     }
-    if (!rows.length || !sameTenant(rows)) return
+    if (!rows.length) return
     const missingWidth = rows.find((row) => !row.widthMm || row.widthMm <= 0)
     if (missingWidth) {
       ElMessage.warning(`“${missingWidth.name}”缺少展宽，需删除编码、补齐展宽后重新编码`)
@@ -1761,7 +1703,7 @@
       loadingText: '正在加载项目选项…',
       onOpen: async (_data, api) => {
         try {
-          await loadOptions(rows[0].list.tenantId)
+          await loadOptions()
         } finally {
           api.setLoading(false)
         }
@@ -1807,22 +1749,20 @@
       subtitle: '项目会写入 MDM 销售主数据，并自动回填到当前表单。',
       confirmText: '创建并回填',
       onConfirm: async () => {
-        const tenantId = target === 'manual' ? manual.tenantId : targetList?.tenantId
         try {
           await projectFormRef.value?.validate()
-          if (!tenantId || !projectDraft.projectName.trim() || !projectDraft.customerId) {
+          if (!projectDraft.projectName.trim() || !projectDraft.customerId) {
             ElMessage.warning('请填写项目名称和客户')
             return false
           }
           const id = await saveOperationalMaster('project', {
-            tenantId,
             projectName: projectDraft.projectName.trim(),
             customerId: projectDraft.customerId,
             enabled: true,
             source: 'manual'
           })
           if (!id) throw new Error('项目已保存，但暂时无法取得项目编号，请刷新后选择')
-          await loadOptions(tenantId)
+          await loadOptions()
           if (projectTarget.value === 'manual') manual.projectId = id
           else if (projectTarget.value === 'material') materialConfig.projectId = id
           else workOrderConfig.projectId = id
@@ -1855,10 +1795,6 @@
     selectedNodeId.value = ''
     codeFilter.value = 'all'
     page.value = 1
-    void loadLists()
-  })
-  watch(effectiveTenantId, () => {
-    selectedNodeId.value = ''
     void loadLists()
   })
   onMounted(() => {

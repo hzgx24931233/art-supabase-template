@@ -73,15 +73,14 @@
                 check-strictly
                 default-expand-all
                 filterable
-                :disabled="!form.tenantId"
-                empty-text="当前租户尚未建立分类"
+                empty-text="尚未建立文档分类"
                 class="w-full"
-                :placeholder="form.tenantId ? '请选择启用的文档分类' : '请先选择目标租户'"
+                placeholder="请选择启用的文档分类"
               />
-              <p v-if="form.tenantId && !scopedCategories.length" role="status">
+              <p v-if="!scopedCategories.length" role="status">
                 <ArtSvgIcon
                   icon="ri:information-line"
-                />当前租户暂无分类，请先关闭弹窗并在左侧新建。
+                />暂无可用的文档分类，请先关闭弹窗并在左侧新建。
               </p>
             </div>
           </template>
@@ -91,8 +90,6 @@
               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,image/*"
               title="选择 ESOP 附件"
               tip="推荐 PDF；支持常见文档、表格、演示稿与图片，单个文件不超过 20 MB"
-              :disabled="!form.tenantId"
-              :resource-tenant-id="form.tenantId"
               :file-name="form.attachmentName"
               @resource-change="handleAttachmentChange"
             />
@@ -158,7 +155,6 @@
 
 <script setup lang="ts">
   import dayjs from 'dayjs'
-  import { ElMessage } from 'element-plus'
   import type { FormRules } from 'element-plus'
   import ArtDialog from '@/components/core/dialogs/art-dialog/index.vue'
   import type { ArtDialogExpose } from '@/components/core/dialogs/art-dialog/types'
@@ -184,8 +180,6 @@
     categoryId?: string
     categories: EsopCategory[]
     references: EsopReferenceOptions
-    tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
   }
   interface FormExpose {
     validate: () => Promise<boolean>
@@ -200,7 +194,6 @@
   const activeTab = ref<'document' | 'scope'>('document')
   const categories = shallowRef<EsopCategory[]>([])
   const references = shallowRef<EsopReferenceOptions>({ materials: [], routes: [] })
-  const tenantOptions = ref<Array<{ label: string; value: string }>>([])
   const treeProps = { label: 'categoryName', children: 'children', disabled: 'disabled' }
   const categoryTreeUtils = new TreeUtils({
     idKey: 'id',
@@ -209,7 +202,6 @@
     deepClone: false
   })
   const initial = (): EsopDocumentInput => ({
-    tenantId: '',
     categoryId: '',
     documentCode: '',
     documentName: '',
@@ -227,32 +219,16 @@
   const form = reactive<EsopDocumentInput>(initial())
   const scopedCategories = computed(() =>
     categoryTreeUtils.mapTree(
-      categoryTreeUtils.listToTree(
-        categoryTreeUtils
-          .treeToList(categories.value)
-          .filter((node) => node.tenantId === form.tenantId)
-      ),
+      categoryTreeUtils.listToTree(categoryTreeUtils.treeToList(categories.value)),
       (node) => ({ ...node, disabled: node.status !== 'enabled' })
     )
   )
   const scopedReferences = computed<EsopReferenceOptions>(() => ({
-    materials: references.value.materials.filter((item) => item.tenantId === form.tenantId),
-    routes: references.value.routes.filter((item) => item.tenantId === form.tenantId)
+    materials: references.value.materials,
+    routes: references.value.routes
   }))
   const scopeCount = computed(() => form.materialIds.length + form.routeIds.length)
   const documentItems = computed<FormItem[]>(() => [
-    {
-      label: '目标租户',
-      key: 'tenantId',
-      type: 'select',
-      span: 24,
-      options: tenantOptions.value,
-      props: {
-        disabled: Boolean(form.id),
-        filterable: true,
-        placeholder: '请选择本次维护的数据归属租户'
-      }
-    },
     {
       label: '文档编号',
       key: 'documentCode',
@@ -305,7 +281,6 @@
     { label: '适用工艺路线', key: 'routeIds', type: 'text', span: 24 }
   ]
   const rules: FormRules<EsopDocumentInput> = {
-    tenantId: [{ required: true, message: '请选择目标租户', trigger: 'change' }],
     documentCode: [
       { required: true, message: '请输入文档编号', trigger: 'blur' },
       {
@@ -322,14 +297,6 @@
   const handleAttachmentChange = (resources: Api.DataCenter.Resources.ResourceListItem[]): void => {
     const resource = resources[0]
     if (!resource) return
-    if (resource.tenantId !== form.tenantId) {
-      form.attachmentUrl = ''
-      form.attachmentName = ''
-      form.attachmentType = ''
-      form.attachmentSize = undefined
-      ElMessage.warning('附件不属于当前目标租户，请重新选择')
-      return
-    }
     form.attachmentUrl = resource.url ?? ''
     form.attachmentName =
       resource.originName || decodeURIComponent(resource.url?.split('/').pop() || 'ESOP附件')
@@ -361,13 +328,10 @@
     activeTab.value = 'document'
     categories.value = data.categories
     references.value = data.references
-    tenantOptions.value = data.tenantOptions
-    form.tenantId = data.row?.tenantId || data.tenantId
     form.categoryId = data.categoryId || ''
     if (data.row) {
       Object.assign(form, {
         id: data.mode === 'edit' ? data.row.id : undefined,
-        tenantId: data.row.tenantId,
         categoryId: data.row.categoryId,
         documentCode: data.mode === 'copy' ? '' : data.row.documentCode,
         documentName:
@@ -398,19 +362,6 @@
       onConfirm: submit
     })
   }
-  watch(
-    () => form.tenantId,
-    (value, previous) => {
-      if (value === previous || !previous) return
-      form.categoryId = ''
-      form.materialIds = []
-      form.routeIds = []
-      form.attachmentUrl = ''
-      form.attachmentName = ''
-      form.attachmentType = ''
-      form.attachmentSize = undefined
-    }
-  )
   defineExpose({ handleOpen })
 </script>
 

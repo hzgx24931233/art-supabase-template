@@ -220,7 +220,6 @@
   interface ManagedApiParams extends ManagedSearchModel {
     page?: number
     pageSize?: number
-    tenantId?: string
   }
 
   interface MockApiResponse {
@@ -293,9 +292,7 @@
     priority: 'all',
     clientOnly: '仅前端字段，excludeParams 会移除'
   })
-  const managedApiParams = {
-    tenantId: 'demo-tenant'
-  }
+  const managedApiParams = {}
 
   const eventLogs = ref<EventLogItem[]>([])
   const selectedRows = shallowRef<DemoOrder[]>([])

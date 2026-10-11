@@ -8,7 +8,6 @@ export interface BomWritePayload {
 export const buildBomWritePayload = (payload: BomInput): BomWritePayload => ({
   header: {
     id: payload.id,
-    tenantId: payload.tenantId,
     bomCode: payload.bomCode,
     materialId: payload.materialId,
     processRouteId: payload.processRouteId,

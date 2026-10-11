@@ -25,14 +25,13 @@ const writeOptions = {
   errorMessage: '组件类型保存失败，请检查编码、行业分组和当前权限'
 }
 
-export async function fetchComponentIndustryGroups(tenantId?: string | null) {
-  let query = supabase
+export async function fetchComponentIndustryGroups() {
+  const query = supabase
     .from('mdm_master_group')
-    .select('id,tenant_id,parent_id,code,name,sort,enabled,remark')
+    .select('id,parent_id,code,name,sort,enabled,remark')
     .eq('domain', 'component-type')
     .order('sort')
     .order('code')
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   const { data } = await responseHandle<ComponentIndustryGroup[]>(() => query, readOptions)
   return data ?? []
 }
@@ -68,7 +67,6 @@ export async function fetchComponentTypes(
     })
     .order('sort_order')
     .order('component_type_code')
-  if (params.tenantId) query = query.eq('tenant_id', params.tenantId)
   if (params.keyword?.trim())
     query = query.or(
       buildOrIlikeFilter(
@@ -87,14 +85,13 @@ export async function fetchComponentTypes(
   return { data: data ?? [], total: total ?? 0 }
 }
 
-export async function fetchComponentTypeOptions(tenantId?: string | null) {
-  let query = supabase
+export async function fetchComponentTypeOptions() {
+  const query = supabase
     .from('mdm_component_type')
     .select(
-      'id,tenant_id,group_id,component_type_code,component_type_name,sort_order,enabled,text_color,tag_style,remark'
+      'id,group_id,component_type_code,component_type_name,sort_order,enabled,text_color,tag_style,remark'
     )
     .order('sort_order')
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   const { data } = await responseHandle<ComponentTypeRecord[]>(() => query, readOptions)
   return data ?? []
 }

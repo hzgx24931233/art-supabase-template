@@ -59,7 +59,6 @@
     type FormItemOption
   } from '@/components/core/forms/art-form/index.vue'
   import ArtEntitySummary from '@/components/core/surfaces/art-entity-summary/index.vue'
-  import { useTenantScopeFormPolicy } from '@/hooks/core/useTenantScopeFormPolicy'
   import { useUserStore } from '@/store/modules/user'
   import TreeUtils from '@/utils/tree'
   import type {
@@ -95,8 +94,6 @@
     record?: BusinessTypeRecord
     selectedMenuIds?: string[]
     menuTree: BusinessTypeMenuNode[]
-    tenantOptions: Array<{ label: string; value: string }>
-    effectiveTenantId?: string | null
   }
 
   interface FormExpose {
@@ -110,7 +107,6 @@
     mode: DialogMode
     menuTree: SelectableMenuNode[]
     selectedMenuIds?: string[]
-    tenantOptions: Array<{ label: string; value: string }>
     documentTypes: BusinessTypeDocumentReference[]
     items: ComputedRef<FormItem[]>
     rules: ComputedRef<FormRules<BusinessTypeFormModel>>
@@ -122,7 +118,6 @@
   const treeUtils = new TreeUtils({ idKey: 'id', parentKey: 'parentId', childrenKey: 'children' })
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { shouldExposeTenantField } = useTenantScopeFormPolicy()
   const presetColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399']
 
   const booleanOptions = computed(() =>
@@ -137,34 +132,9 @@
     mode: 'add',
     menuTree: [],
     selectedMenuIds: undefined,
-    tenantOptions: [],
     documentTypes: [],
     items: computed<FormItem[]>(() => {
-      const tenantItems: FormItem[] = shouldExposeTenantField.value
-        ? [
-            { label: '数据归属', key: 'tenantSection', type: 'divider', span: 24 },
-            {
-              label: '所属租户',
-              key: 'tenantId',
-              type: 'select',
-              span: 24,
-              options: form.tenantOptions,
-              props: {
-                filterable: true,
-                disabled: form.mode !== 'add',
-                placeholder: '请选择本条业务类型所属租户',
-                onChange: handleTenantChange
-              },
-              description:
-                form.mode === 'add'
-                  ? '在全部租户工作区新增时，必须明确数据归属。'
-                  : '编辑或复制时沿用原记录租户，避免跨租户复制主数据。'
-            }
-          ]
-        : []
-
       return [
-        ...tenantItems,
         { label: '归属与类型标识', key: 'identitySection', type: 'divider', span: 24 },
         {
           label: '所属单据类型',
@@ -174,7 +144,6 @@
           api: (params) => fetchBusinessTypeDocumentOptions(normalizeOptionQuery(params)),
           immediate: false,
           beforeFetch: () => ({
-            tenantId: form.data.tenantId,
             menuIds: form.selectedMenuIds,
             enabled: form.mode === 'edit' ? undefined : true
           }),
@@ -191,11 +160,10 @@
           props: {
             clearable: true,
             filterable: true,
-            disabled: !form.data.tenantId,
             placeholder: '请选择单据类型',
             onChange: handleDocumentTypeChange
           },
-          description: '仅显示当前功能范围和租户内可用的单据类型。'
+          description: '仅显示当前功能范围内可用的单据类型。'
         },
         {
           label: '所属菜单功能',
@@ -225,7 +193,7 @@
             clearable: true,
             placeholder: '例如：OUTSOURCE_RECEIPT_RETURN'
           },
-          description: '租户内唯一，保存时自动转换为大写。'
+          description: '保存时自动转换为大写。'
         },
         {
           label: '业务类型名称',
@@ -252,7 +220,6 @@
           api: (params) => fetchBusinessTypeOptions(normalizeOptionQuery(params)),
           immediate: false,
           beforeFetch: () => ({
-            tenantId: form.data.tenantId,
             excludeId: form.data.id,
             enabled: true
           }),
@@ -264,7 +231,6 @@
           props: {
             clearable: true,
             filterable: true,
-            disabled: !form.data.tenantId,
             placeholder: '可选，默认为空'
           },
           description: '用于退货、冲销等需要追溯原业务口径的场景。'
@@ -346,9 +312,6 @@
       ]
     }),
     rules: computed<FormRules<BusinessTypeFormModel>>(() => ({
-      tenantId: [
-        { required: shouldExposeTenantField.value, message: '请选择所属租户', trigger: 'change' }
-      ],
       documentTypeId: [{ required: true, message: '请选择所属单据类型', trigger: 'change' }],
       menuId: [{ required: true, message: '请先选择所属单据类型', trigger: 'change' }],
       businessTypeCode: [
@@ -398,7 +361,6 @@
   const normalizeOptionQuery = (params: FormItemApiParams) => {
     const source = params ?? {}
     return {
-      tenantId: typeof source.tenantId === 'string' ? source.tenantId : undefined,
       menuIds: Array.isArray(source.menuIds)
         ? source.menuIds.filter((item): item is string => typeof item === 'string')
         : undefined,
@@ -408,30 +370,15 @@
   }
 
   const refreshSuggestedSort = async (): Promise<void> => {
-    if (form.mode === 'edit' || !form.data.documentTypeId || !form.data.tenantId) return
-    form.data.sortOrder = await fetchNextBusinessTypeSort(
-      form.data.documentTypeId,
-      form.data.tenantId
-    )
+    if (form.mode === 'edit' || !form.data.documentTypeId) return
+    form.data.sortOrder = await fetchNextBusinessTypeSort(form.data.documentTypeId)
   }
 
   const reloadReferenceOptions = async (): Promise<void> => {
-    if (!form.data.tenantId) return
     await Promise.all([
       formRef.value?.reloadOptions('documentTypeId'),
       formRef.value?.reloadOptions('sourceBusinessTypeId')
     ])
-  }
-
-  const handleTenantChange = (): void => {
-    Object.assign(form.data, {
-      documentTypeId: '',
-      menuId: '',
-      sourceBusinessTypeId: null,
-      sortOrder: 10
-    })
-    form.documentTypes = []
-    void reloadReferenceOptions()
   }
 
   const handleDocumentTypeChange = (documentTypeId?: string): void => {
@@ -458,7 +405,6 @@
     form.mode = data.mode
     form.menuTree = buildMenuTree(data.menuTree)
     form.selectedMenuIds = data.selectedMenuIds
-    form.tenantOptions = data.tenantOptions
     form.documentTypes = data.record?.documentType ? [data.record.documentType] : []
 
     if (data.mode === 'edit' && data.record) {
@@ -472,7 +418,7 @@
       form.data = createBusinessTypeCopyModel(data.record)
       return
     }
-    form.data = createBusinessTypeFormModel({ tenantId: data.effectiveTenantId ?? undefined })
+    form.data = createBusinessTypeFormModel()
   }
 
   const handleSubmit = async (): Promise<boolean> => {
@@ -489,7 +435,7 @@
         await copyBusinessType(form.data.sourceId, buildBusinessTypeUpdateInput(form.data))
         emit('success', 'add')
       } else {
-        await createBusinessType(buildBusinessTypeInput(form.data, shouldExposeTenantField.value))
+        await createBusinessType(buildBusinessTypeInput(form.data))
         emit('success', 'add')
       }
       return true

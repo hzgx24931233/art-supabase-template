@@ -30,10 +30,6 @@
   import ArtForm, { type FormItem } from '@/components/core/forms/art-form/index.vue'
   import { saveNotificationChannel } from '@/api/notification-reminder'
 
-  interface Props {
-    tenantId: string
-  }
-
   interface ChannelForm {
     enabled: boolean
     providerCode: string
@@ -47,13 +43,11 @@
     signSecret: string
   }
 
-  const props = defineProps<Props>()
   const emit = defineEmits<{ success: [] }>()
   const dialogRef = ref<ArtDialogExpose<Api.NotificationReminder.ChannelConfig>>()
   const formRef = ref<{ validate: () => Promise<boolean>; clearValidate: () => void }>()
   const channel = reactive<Api.NotificationReminder.ChannelConfig>({
     id: '',
-    tenantId: '',
     channelCode: 'in_app',
     providerCode: 'builtin',
     enabled: true,
@@ -238,7 +232,6 @@
 
     try {
       await saveNotificationChannel({
-        tenantId: props.tenantId,
         channelCode: channel.channelCode,
         providerCode: form.providerCode,
         enabled: channel.channelCode === 'in_app' ? true : form.enabled,

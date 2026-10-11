@@ -23,8 +23,6 @@ async function installRouteFixtures(
     entries.forEach(({ name, value }) => localStorage.setItem(name, value))
   }, storedEntries)
 
-  const tenantId = '7529f951-938e-4e2c-ac0d-316c136ae1f9'
-  const tenant = { id: tenantId, tenant_code: 'DEMO', tenant_name: '示例租户' }
   const root = {
     id: 'system-root',
     parentId: null,
@@ -192,13 +190,10 @@ async function installRouteFixtures(
         user_email: 'route@example.invalid',
         user_type: '1',
         user_roles: ['R_SUPER'],
-        status: '1',
-        tenant_id: tenantId,
-        tenant
+        status: '1'
       }
     })
   )
-  await page.route('**/rest/v1/sys_tenant?*', (route) => route.fulfill({ json: [tenant] }))
   await page.route('**/rest/v1/rpc/current_is_super', (route) => route.fulfill({ json: true }))
   await page.route('**/rest/v1/rpc/get_accessible_applications', (route) =>
     route.fulfill({

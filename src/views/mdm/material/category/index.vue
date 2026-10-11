@@ -59,8 +59,6 @@
   import { ElTag } from 'element-plus'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { resolveTenantWorkspaceId } from '@/utils/tenant-scope-context'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import BusinessWorkspaceHeader, {
@@ -96,10 +94,6 @@
   const { confirmDelete } = useArtFeedback()
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId } = storeToRefs(useTenantScopeStore())
-  const tenantId = computed(() =>
-    resolveTenantWorkspaceId(effectiveTenantId.value, userStore.getUserInfo.tenantId)
-  )
   const tableRef = ref<ArtTableQueryExpose>()
   const dialogRef = ref<DialogExpose>()
   const records = ref<MaterialCategory[]>([])
@@ -114,7 +108,7 @@
     {
       label: '分类总数',
       value: records.value.length,
-      description: '当前租户分类',
+      description: '当前分类主干',
       icon: 'ri:node-tree'
     },
     {
@@ -157,7 +151,6 @@
       categories: records.value,
       materialTypes: materialTypes.value,
       sites: sites.value,
-      tenantId: row?.tenantId || tenantId.value,
       parentId
     })
   const openChildDialog = (parentId?: string): void => openDialog(undefined, false, parentId)
@@ -322,9 +315,9 @@
     treeError.value = ''
     try {
       const [categoryRecords, typeRecords, siteRecords] = await Promise.all([
-        fetchMaterialCategories(tenantId.value),
-        fetchMaterialReferenceOptions<MaterialType>('material-type', tenantId.value),
-        fetchMaterialSiteOptions(tenantId.value)
+        fetchMaterialCategories(),
+        fetchMaterialReferenceOptions<MaterialType>('material-type'),
+        fetchMaterialSiteOptions()
       ])
       records.value = categoryRecords
       materialTypes.value = typeRecords

@@ -27,7 +27,7 @@
             <p>{{ activeTabDescription }}</p>
           </div>
           <ElTag :type="activeTab === 'global' ? 'warning' : 'primary'" effect="plain" round>
-            {{ activeTab === 'global' ? '平台超管全局视角' : '数据按当前租户隔离' }}
+            {{ activeTab === 'global' ? '平台超管全局视角' : '我的待办视角' }}
           </ElTag>
         </header>
       </template>
@@ -61,7 +61,7 @@
           <div class="workflow-workbench__override-guidance">
             <ArtSvgIcon icon="ri:shield-user-line" />
             <span>
-              仅用于跨租户应急代办。每次通过或驳回都必须填写干预原因，并记录实际操作人与原审批人。
+              仅用于应急代办。每次通过或驳回都必须填写干预原因，并记录实际操作人与原审批人。
             </span>
           </div>
           <ArtTableQuery
@@ -209,7 +209,7 @@
     handleOpen: (task: Task) => Promise<void>
   }
   interface DelegationDialogExpose {
-    handleOpen: (userId: string, tenantId: string) => Promise<void>
+    handleOpen: (userId: string) => Promise<void>
   }
   interface TableGroup<TSearch, TRow> {
     searchQuery: TSearch
@@ -483,17 +483,6 @@
       const personalColumns = pendingTable.columnsFactory()
       return [
         personalColumns[0],
-        {
-          prop: 'tenant',
-          label: '所属租户',
-          minWidth: 150,
-          formatter: (row) => (
-            <div class="workflow-workbench__tenant-cell">
-              <strong>{row.tenant?.tenantName || '--'}</strong>
-              <small>{row.tenant?.tenantCode || '--'}</small>
-            </div>
-          )
-        },
         personalColumns[1],
         {
           prop: 'assigneeNames',
@@ -760,7 +749,7 @@
     () =>
       ({
         pending: '优先处理临近时限和已超时的任务。',
-        global: '跨租户查看全部有效待办，并在必要时执行有原因、有审计的代审批。',
+        global: '查看全部有效待办，并在必要时执行有原因、有审计的代审批。',
         handled: '回顾我做出的审批决定与意见。',
         initiated: '跟踪我发起的所有审批流程。'
       })[activeTab.value]
@@ -775,10 +764,7 @@
   }
   async function openDelegation(): Promise<void> {
     await loadDelegationDialog()
-    await delegationDialogRef.value?.handleOpen(
-      requireUserId(),
-      String(getUserInfo.value.tenantId || '')
-    )
+    await delegationDialogRef.value?.handleOpen(requireUserId())
   }
   function fetchPendingData(params: TaskTableParams) {
     const { from, to } = pageInfoHandler(params)
@@ -1135,7 +1121,6 @@
     }
 
     :deep(.workflow-workbench__business-cell),
-    :deep(.workflow-workbench__tenant-cell),
     :deep(.workflow-workbench__assignee-cell) {
       display: grid;
       gap: 3px;
@@ -1144,8 +1129,6 @@
 
     :deep(.workflow-workbench__business-cell strong),
     :deep(.workflow-workbench__business-cell small),
-    :deep(.workflow-workbench__tenant-cell strong),
-    :deep(.workflow-workbench__tenant-cell small),
     :deep(.workflow-workbench__assignee-cell strong),
     :deep(.workflow-workbench__assignee-cell small) {
       overflow: hidden;
@@ -1154,7 +1137,6 @@
     }
 
     :deep(.workflow-workbench__business-cell small),
-    :deep(.workflow-workbench__tenant-cell small),
     :deep(.workflow-workbench__assignee-cell small) {
       font-size: 12px;
       color: var(--art-gray-600);

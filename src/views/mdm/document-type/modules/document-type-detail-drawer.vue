@@ -119,7 +119,6 @@
   const detail = reactive<DocumentTypeDetailData>({
     record: {
       id: '',
-      tenantId: '',
       menuId: '',
       documentTypeCode: '',
       documentTypeName: '',
@@ -159,11 +158,6 @@
       value: (data: DocumentTypeDetailData) => data.record.packingThicknessFieldKey || '—'
     },
     { key: 'sortOrder', label: '排序', field: 'record.sortOrder' },
-    {
-      key: 'tenantName',
-      label: '所属租户',
-      value: (data: DocumentTypeDetailData) => data.record.tenant?.tenantName
-    },
     { key: 'remark', label: '备注', field: 'record.remark', span: 2 }
   ]
   const auditItems: ArtDescriptionItem<DocumentTypeDetailData>[] = [

@@ -35,11 +35,6 @@ const writeOptions = {
   errorMessage: '保存失败，请检查类型编号、菜单归属和当前权限'
 }
 
-const documentTypeSelect = `
-  *,
-  tenant:sys_tenant!mdm_document_type_tenant_id_fkey(tenant_code, tenant_name)
-`
-
 function toDocumentTypeRow(input: DocumentTypeWriteInput | DocumentTypeUpdateInput) {
   const { extensionFields, ...header } = input
   return { ...keysToSnakeDeep(header), extension_fields: extensionFields }
@@ -49,10 +44,10 @@ export async function fetchDocumentTypeList(
   params: DocumentTypeQuery,
   options?: { signal?: AbortSignal }
 ) {
-  const { current, size, keyword = '', tenantId, menuIds, enabled, isDefault } = params
+  const { current, size, keyword = '', menuIds, enabled, isDefault } = params
   let query = supabase
     .from('mdm_document_type')
-    .select(documentTypeSelect, { count: 'exact' })
+    .select('*', { count: 'exact' })
     .order('sort_order', { ascending: true })
     .order('document_type_name', { ascending: true })
     .range((current - 1) * size, current * size - 1)
@@ -60,7 +55,6 @@ export async function fetchDocumentTypeList(
   query = applyFilters(
     query,
     [
-      { col: 'tenant_id', op: 'eq', val: tenantId },
       { col: 'enabled', op: 'eq', val: enabled },
       { col: 'is_default', op: 'eq', val: isDefault }
     ],
@@ -81,11 +75,10 @@ export async function fetchDocumentTypeList(
   return { data: data ?? [], total: total ?? 0, current, size }
 }
 
-export async function fetchDocumentTypeStats(tenantId?: string | null): Promise<DocumentTypeStats> {
-  let query = supabase
+export async function fetchDocumentTypeStats(): Promise<DocumentTypeStats> {
+  const query = supabase
     .from('mdm_document_type')
-    .select('id,tenant_id,menu_id,enabled,is_default,update_time')
-  if (tenantId) query = query.eq('tenant_id', tenantId)
+    .select('id,menu_id,enabled,is_default,update_time')
 
   const { data } = await responseHandle<DocumentTypeRecord[]>(() => query, readOptions)
   const rows = data ?? []
@@ -99,7 +92,6 @@ export async function fetchDocumentTypeStats(tenantId?: string | null): Promise<
     enabled: rows.filter((row) => row.enabled).length,
     defaults: rows.filter((row) => row.isDefault).length,
     menuCount: Object.keys(menuCounts).length,
-    tenantCount: new Set(rows.map((row) => row.tenantId)).size,
     menuCounts,
     lastUpdateTime: rows
       .map((row) => row.updateTime ?? '')
@@ -129,14 +121,13 @@ export async function fetchDocumentTypeMenuTree(): Promise<DocumentTypeMenuNode[
   return treeUtils.listToTree((data ?? []).filter((menu) => menu.meta?.isEnable !== false))
 }
 
-export async function fetchNextDocumentTypeSort(menuId: string, tenantId?: string | null) {
-  let query = supabase
+export async function fetchNextDocumentTypeSort(menuId: string) {
+  const query = supabase
     .from('mdm_document_type')
     .select('sort_order')
     .eq('menu_id', menuId)
     .order('sort_order', { ascending: false })
     .limit(1)
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   const { data } = await responseHandle<Array<{ sortOrder: number }>>(() => query, {
     ...readOptions,
     showErrorMessage: false
@@ -204,7 +195,6 @@ export async function exportDocumentTypes(
   const { data } = await responseHandle<DocumentTypeExportRecord[]>(
     () =>
       supabase.rpc('export_mdm_document_types', {
-        p_tenant_id: params.tenantId ?? null,
         p_menu_ids: params.menuIds?.length ? params.menuIds : null,
         p_keyword: normalizeNullableText(params.keyword),
         p_enabled: params.enabled ?? null,

@@ -8,7 +8,6 @@ export type AiPromptStatus = 'draft' | 'published' | 'archived'
 
 export interface AiPromptTemplate {
   id: string
-  tenantId: string
   feature: string
   version: string
   name: string
@@ -28,7 +27,6 @@ export interface AiPromptTemplate {
 export interface AiPromptSearchParams {
   current: number
   size: number
-  tenantId: string
   feature?: string
   status?: AiPromptStatus | ''
   keyword?: string
@@ -55,7 +53,6 @@ export async function fetchAiPromptList(params: AiPromptSearchParams) {
   let query = supabase
     .from('ai_prompt_template')
     .select('*', { count: 'exact' })
-    .eq('tenant_id', params.tenantId)
     .order('feature', { ascending: true })
     .order('update_time', { ascending: false })
     .range(from, to)

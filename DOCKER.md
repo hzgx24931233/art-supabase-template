@@ -202,11 +202,10 @@ COPY --from=builder /app/dist /usr/share/nginx/html/art-supabase-pro
   docker build --build-arg VITE_API_URL=/api -t art-supabase-pro:1.0.0 .
   ```
   注意当前代码里 axios 层只用于拉取 `${BASE_URL}data/pca-code.json`，`VITE_API_URL` 在 Supabase 模式下几乎是空配置。
-- **不要把 `VITE_SUPABASE_URL` 改成 `/api` 或其它相对地址**，会让平台「全部租户」读写范围静默失效：
-  - `src/utils/tenant-scope-context.ts` 的 `normalizePlatformTenantReadUrl` 用 `new URL(requestUrl)` 解析（相对地址会抛错并被 catch 吞掉，租户过滤不再归一化）；
-  - 同文件 `shouldAttachTenantScopeHeader` 要求 pathname 以 `/rest/v1` 开头，`/api/rest/v1` 不匹配，tenant-scope 请求头不再注入；
+- **不要把 `VITE_SUPABASE_URL` 改成 `/api` 或其它相对地址**，Supabase 基址必须是绝对地址：
+  - `src/plugins/supabase.ts` 把 `VITE_SUPABASE_URL` 原样传给 `createClient`，相对地址不是合法的 Supabase 端点，REST / Auth / Storage / Real-time 请求都会失败；
   - `src/api/auth.ts` 用 `new URL('/functions/v1/oauth-provider-bridge/feishu/qr-prepare', projectUrl)` 生成飞书扫码地址，相对基址会直接抛错。
-- 因此 `/api` 反代定位为「同源网关入口」，而不是让前端直连 Supabase 的替代方案。若将来要统一走同源网关（隐藏项目 ref、避免跨域），需要把 Supabase 基址改成绝对的同源前缀（例如 `https://<域名>/sb`）**并同步修改上述前缀判断逻辑**，属于代码改动，需单独评估。
+- 因此 `/api` 反代定位为「同源网关入口」，而不是让前端直连 Supabase 的替代方案。若将来要统一走同源网关（隐藏项目 ref、避免跨域），需要把 Supabase 基址改成绝对的同源前缀（例如 `https://<域名>/sb`）并让 nginx 反代该前缀，属于代码改动，需单独评估。
 
 ### 6.4 登录 / OAuth 回调地址
 

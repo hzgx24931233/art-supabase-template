@@ -150,8 +150,6 @@ declare namespace Api {
     /** 用户列表项 */
     interface UserListItem {
       id?: string
-      tenantId?: string
-      tenant?: Pick<TenantListItem, 'tenantCode' | 'tenantName' | 'builtinType'>
       organizationId?: string | null
       organization?: Pick<
         OrganizationListItem,
@@ -162,7 +160,6 @@ declare namespace Api {
       /** HR 模块提供的人事档案引用（子仓未接入时为空） */
       hrEmployee?: {
         id: string
-        tenantId?: string
         organizationId?: string | null
         employeeNo: string
         employeeName: string
@@ -205,7 +202,6 @@ declare namespace Api {
       Pick<
         UserListItem,
         | 'id'
-        | 'tenantId'
         | 'organizationId'
         | 'accountIdentityType'
         | 'userName'
@@ -228,8 +224,6 @@ declare namespace Api {
 
     interface RoleListItem {
       id?: string
-      tenantId?: string
-      tenant?: Pick<TenantListItem, 'tenantCode' | 'tenantName' | 'builtinType'>
       organizationId?: string | null
       organization?: Pick<
         OrganizationListItem,
@@ -252,7 +246,6 @@ declare namespace Api {
       Pick<
         RoleListItem,
         | 'roleId'
-        | 'tenantId'
         | 'organizationId'
         | 'roleName'
         | 'roleCode'
@@ -314,7 +307,6 @@ declare namespace Api {
 
     interface OrganizationMember {
       id: string
-      tenantId?: string
       organizationId?: string | null
       organization?: Pick<
         OrganizationListItem,
@@ -347,8 +339,6 @@ declare namespace Api {
 
     interface OrganizationListItem {
       id?: string
-      tenantId?: string
-      tenant?: Pick<TenantListItem, 'tenantCode' | 'tenantName'>
       parentId?: string | null
       organizationCode: string
       organizationName: string
@@ -380,8 +370,6 @@ declare namespace Api {
     type OrganizationScopeFilterItem = Pick<
       OrganizationListItem,
       | 'id'
-      | 'tenantId'
-      | 'tenant'
       | 'parentId'
       | 'organizationCode'
       | 'organizationName'
@@ -395,7 +383,7 @@ declare namespace Api {
     }
 
     type OrganizationSearchParams = Partial<
-      Pick<OrganizationListItem, 'tenantId' | 'organizationType' | 'status'> & {
+      Pick<OrganizationListItem, 'organizationType' | 'status'> & {
         keyword: string
         recordId: string
       }
@@ -403,7 +391,6 @@ declare namespace Api {
 
     type OrganizationSavePayload = Pick<
       OrganizationListItem,
-      | 'tenantId'
       | 'parentId'
       | 'organizationCode'
       | 'organizationName'
@@ -417,34 +404,10 @@ declare namespace Api {
       | 'description'
     > & { id?: string }
 
-    /** 租户列表项 */
-    type TenantBuiltinType = 'platform' | 'public_register'
-
-    interface TenantListItem {
-      id?: string
-      tenantCode: string
-      tenantName: string
-      builtinType?: TenantBuiltinType | null
-      status?: Api.Common.EnableStatus
-      serviceStartDate?: string | null
-      serviceEndDate?: string | null
-      remark?: string
-      createBy?: string
-      createTime?: string
-      updateBy?: string
-      updateTime?: string
-    }
-
-    /** 租户搜索参数 */
-    type TenantSearchParams = Partial<
-      Pick<TenantListItem, 'tenantCode' | 'tenantName' | 'status'> & Api.Common.CommonSearchParams
-    >
-
     type SystemParamType = 'single_text' | 'multi_text' | 'number' | 'boolean' | 'json'
 
     interface SystemParamItem {
       id?: string
-      tenantId?: string
       paramName: string
       paramKey: string
       groupCode: string
@@ -494,7 +457,6 @@ declare namespace Api {
     interface DocumentNumberCounterItem {
       id?: string
       ruleId: string
-      tenantId: string
       ruleVersion: number
       periodKey: string
       currentValue: number
@@ -503,8 +465,6 @@ declare namespace Api {
 
     interface DocumentNumberRuleItem {
       id?: string
-      tenantId: string
-      tenant?: Pick<TenantListItem, 'tenantCode' | 'tenantName'> | null
       ruleKey: string
       ruleName: string
       category: DocumentNumberCategory
@@ -549,7 +509,7 @@ declare namespace Api {
     }
 
     type DocumentNumberRuleSearchParams = Partial<
-      Pick<DocumentNumberRuleItem, 'tenantId' | 'category' | 'autoEnabled'> &
+      Pick<DocumentNumberRuleItem, 'category' | 'autoEnabled'> &
         Api.Common.CommonSearchParams & {
           keyword?: string
           ruleKeys?: string[]
@@ -562,7 +522,6 @@ declare namespace Api {
     >
 
     interface DocumentNumberRuleCreatePayload {
-      tenantIds: string[]
       scene: DocumentNumberSceneItem
       autoEnabled: boolean
       template: string
@@ -582,7 +541,6 @@ declare namespace Api {
       total: number
       automatic: number
       manual: number
-      tenantCount: number
       categoryCounts: Record<DocumentNumberCategory, number>
       lastUpdateTime?: string
     }
@@ -609,7 +567,6 @@ declare namespace Api {
 
     interface WebsiteConfigItem {
       id?: string
-      tenantId?: string
       paramMeta?: WebsiteConfigParamMeta
       siteName: string
       siteShortName?: string | null
@@ -670,7 +627,6 @@ declare namespace Api {
 
     interface GeofenceConfigItem {
       id?: string
-      tenantId?: string
       enabled: boolean
       loadingRadiusM: number
       unloadingRadiusM: number
@@ -690,7 +646,6 @@ declare namespace Api {
     /** 数据字典列表项 */
     interface DictListItem {
       id?: string
-      tenantId?: string
       typeId?: string
       parentId?: string | null
       cascadeParentId?: string | null
@@ -717,7 +672,6 @@ declare namespace Api {
 
     interface DictTypeItem {
       id?: string
-      tenantId?: string
       parentId?: string | null
       cascadeParentTypeId?: string | null
       cascadeParentType?: Pick<DictTypeItem, 'id' | 'name' | 'code'> | null
@@ -736,7 +690,6 @@ declare namespace Api {
     namespace Resources {
       interface Args {
         btn?: Button
-        targetTenantId?: string
         handleGetResourceList?: () => void | Promise<void>
         onProgress?: (progress: UploadProgress) => void
         [key: string]: unknown
@@ -764,7 +717,7 @@ declare namespace Api {
       /** 用户搜索参数 */
       type ResourceSearchParams = Partial<
         Pick<ResourceListItem, 'originName' | 'suffix'> & Api.Common.CommonSearchParams
-      > & { tenantId?: string }
+      >
 
       interface Button {
         name: string
@@ -778,7 +731,6 @@ declare namespace Api {
 
       interface ResourceListItem {
         id?: number
-        tenantId?: string
         storageMode?: number
         originName?: string
         objectName?: string

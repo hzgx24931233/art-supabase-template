@@ -185,7 +185,6 @@
 
   interface ReferenceFormModel {
     id?: string
-    tenantId: string
     unitCode: string
     unitName: string
     symbol: string
@@ -220,7 +219,6 @@
     kind: MaterialReferenceKind
     row?: MaterialReferenceRecord
     copy?: boolean
-    tenantId: string
   }
   interface FormExpose {
     validate: () => Promise<boolean>
@@ -236,7 +234,6 @@
   const unitOptions = ref<UnitOfMeasure[]>([])
   const initialForm = (): ReferenceFormModel => ({
     id: undefined,
-    tenantId: '',
     unitCode: '',
     unitName: '',
     symbol: '',
@@ -687,7 +684,6 @@
   }
   const payloadForKind = (): Partial<MaterialReferenceRecord> => {
     const shared = {
-      tenantId: form.model.tenantId,
       status: form.model.status,
       sort: Number(form.model.sort),
       remark: form.model.remark.trim()
@@ -754,7 +750,6 @@
   const handleOpen = async (data: ReferenceDialogOpenData): Promise<void> => {
     Object.assign(form.model, initialForm())
     currentKind.value = data.kind
-    form.model.tenantId = data.row?.tenantId || data.tenantId
     unitOptions.value = []
     if (data.row) Object.assign(form.model, cloneDeep(data.row))
     if (data.copy) {
@@ -776,17 +771,15 @@
         currentKind.value === 'material-type'
           ? 'min(62vh, calc(100vh - 220px))'
           : 'min(72vh, calc(100vh - 200px))',
-      loading: data.kind === 'unit-of-measure' && Boolean(form.model.tenantId),
+      loading: data.kind === 'unit-of-measure',
       loadingText: '正在加载计量单位…',
       onConfirm: handleSubmit,
       onOpen: async (_openData, api) => {
         formRef.value?.clearValidate()
         try {
-          if (data.kind === 'unit-of-measure' && form.model.tenantId)
-            unitOptions.value = await fetchMaterialReferenceOptions<UnitOfMeasure>(
-              'unit-of-measure',
-              form.model.tenantId
-            )
+          if (data.kind === 'unit-of-measure')
+            unitOptions.value =
+              await fetchMaterialReferenceOptions<UnitOfMeasure>('unit-of-measure')
         } catch {
           ElMessage.warning('计量单位加载失败，请关闭弹窗后重试')
         } finally {
@@ -795,18 +788,6 @@
       }
     })
   }
-  watch(
-    () => form.model.tenantId,
-    async (value, previous) => {
-      if (value === previous || currentKind.value !== 'unit-of-measure') return
-      unitOptions.value = value
-        ? await fetchMaterialReferenceOptions<UnitOfMeasure>('unit-of-measure', value)
-        : []
-      if (!unitOptions.value.some((unit) => unit.id === form.model.baseUnitId)) {
-        form.model.baseUnitId = null
-      }
-    }
-  )
   defineExpose({ handleOpen })
 </script>
 

@@ -78,7 +78,7 @@ const missingEntries = sourceEntries.filter(
 )
 if (missingEntries.length) {
   const marker =
-    '// These files use platform-super only for cross-tenant context or controlled writes where explicitly required.'
+    '// These files use platform-super only for organization-wide scope or controlled writes where explicitly required.'
   const current = read(auditPath)
   if (!current.includes(marker)) throw new Error('未找到 platformSuperAllowlist 注释锚点')
   writeFileSync(auditPath, current.replace(marker, `${missingEntries.join('\n')}\n${marker}`))

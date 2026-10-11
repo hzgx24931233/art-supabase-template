@@ -500,7 +500,6 @@
     const group = groupOptions.value.find((item) => item.value === raw.groupCode)
     const payload = omit(raw, [
       'extendConfigText',
-      'tenantId',
       'createBy',
       'createTime',
       'updateBy',

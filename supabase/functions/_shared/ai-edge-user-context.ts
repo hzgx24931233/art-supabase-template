@@ -74,7 +74,7 @@ export async function authorizeAiEdgeAppUser(
 ): Promise<AuthorizedAiEdgeUserContext | AiEdgeContextFailure> {
   const { data, error } = await authenticated.admin
     .from('sys_user')
-    .select('tenant_id,user_email,status')
+    .select('user_email,status')
     .eq('auth_user_id', authenticated.user.id)
     .maybeSingle()
   if (error || !isActiveAiEdgeAppUser(data)) {

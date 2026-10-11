@@ -31,7 +31,7 @@ export interface AiPlannerCapabilities {
   protocol: 'openai_compatible'
   structuredOutput: boolean
   access: {
-    mode: 'platform_write' | 'tenant_read_only'
+    mode: 'platform_write'
     canManageWorkflow: boolean
   }
   repositorySnapshot: AiPlannerRepositorySnapshot

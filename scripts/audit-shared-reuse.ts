@@ -25,7 +25,6 @@ const canonicalDeclarations = new Map<string, string>([
   ['normalizeNullableText', 'src/utils/form/normalize.ts'],
   ['normalizeNullableNumber', 'src/utils/form/normalize.ts'],
   ['normalizeStringList', 'src/utils/form/normalize.ts'],
-  ['formatTenantLabel', 'src/utils/tenant-display.ts'],
   ['formatCnyCurrencyValue', 'src/utils/ui/format.ts'],
   ['formatDateTimeValue', 'src/utils/ui/format.ts'],
   ['formatPercentValue', 'src/utils/ui/format.ts'],

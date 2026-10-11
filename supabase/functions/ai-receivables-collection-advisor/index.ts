@@ -70,12 +70,11 @@ Deno.serve(async (request) => {
       .from('ai_run')
       .insert({
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         feature: FEATURE,
         model: RULE_VERSION,
         prompt_version: RULE_VERSION,
         metadata: {
-          scope: 'tenant_receivables',
+          scope: 'receivables',
           rowLimit: ROW_LIMIT,
           decisionMode: 'advisory_only',
           automaticFinancialWrite: false,
@@ -100,7 +99,7 @@ Deno.serve(async (request) => {
         latency_ms: Date.now() - startedAt,
         finished_at: new Date().toISOString(),
         metadata: {
-          scope: 'tenant_receivables',
+          scope: 'receivables',
           decisionMode: 'advisory_only',
           automaticFinancialWrite: false,
           paymentTermSource: 'unavailable',

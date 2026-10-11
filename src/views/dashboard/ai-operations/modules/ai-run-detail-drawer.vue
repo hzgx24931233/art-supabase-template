@@ -435,8 +435,13 @@
     return priority === 'P0' ? 'danger' : priority === 'P1' ? 'warning' : 'info'
   }
 
+  const DIAGNOSIS_OWNER_LABELS: Record<AiDiagnosisOwner, string> = {
+    platform: '平台处理',
+    provider: '服务商处理'
+  }
+
   function ownerLabel(owner: AiDiagnosisOwner): string {
-    return { platform: '平台处理', tenant: '租户处理', provider: '服务商处理' }[owner]
+    return DIAGNOSIS_OWNER_LABELS[owner]
   }
 
   function formatDuration(value?: number | null): string {

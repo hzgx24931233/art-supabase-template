@@ -9,7 +9,6 @@ import {
 
 const source: BusinessTypeRecord = {
   id: 'source-id',
-  tenantId: 'tenant-id',
   documentTypeId: 'document-type-id',
   businessTypeCode: 'OUTSOURCE_RETURN',
   businessTypeName: '委外入库退回',
@@ -25,7 +24,6 @@ const source: BusinessTypeRecord = {
   enabled: true,
   documentType: {
     id: 'document-type-id',
-    tenantId: 'tenant-id',
     menuId: 'menu-id',
     documentTypeCode: 'OUTSOURCE_RECEIPT',
     documentTypeName: '委外入库单',
@@ -45,7 +43,6 @@ test('copy model keeps business rules but clears unique code and default state',
 
 test('write payload normalizes nullable and non-nullable fields', () => {
   const model = createBusinessTypeFormModel({
-    tenantId: 'tenant-id',
     documentTypeId: 'document-type-id',
     businessTypeCode: '  sale_return  ',
     businessTypeName: '  销售退货  ',
@@ -55,7 +52,7 @@ test('write payload normalizes nullable and non-nullable fields', () => {
     remark: '  客户退货  ',
     textColor: '#409eff'
   })
-  const payload = buildBusinessTypeInput(model, true)
+  const payload = buildBusinessTypeInput(model)
   assert.equal(payload.businessTypeCode, 'SALE_RETURN')
   assert.equal(payload.businessTypeName, '销售退货')
   assert.equal(payload.sourceBusinessTypeId, null)
@@ -63,4 +60,19 @@ test('write payload normalizes nullable and non-nullable fields', () => {
   assert.equal(payload.ownerType, 'customer')
   assert.equal(payload.remark, '客户退货')
   assert.equal(payload.textColor, '#409EFF')
+  assert.deepEqual(Object.keys(payload).sort(), [
+    'businessTypeCode',
+    'businessTypeName',
+    'documentTypeId',
+    'enabled',
+    'inventoryAccounting',
+    'inventoryDirection',
+    'isDefault',
+    'ownerType',
+    'remark',
+    'sortOrder',
+    'sourceBusinessTypeId',
+    'tagStyle',
+    'textColor'
+  ])
 })

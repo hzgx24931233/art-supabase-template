@@ -28,7 +28,6 @@ const SYS_USER_COLUMNS = new Set([
   'user_type',
   'remark',
   'avatar',
-  'tenant_id',
   'organization_id',
   'account_identity_type',
   'hr_employee_id'
@@ -44,8 +43,6 @@ type CallerProfile = {
   id: string
   auth_user_id: string
   user_email: string
-  tenant_id: string
-  tenant_builtin_type: string | null
   user_roles: string[]
   builtin_roles: string[]
   status: string | null
@@ -115,9 +112,7 @@ async function getCallerProfile(callerAuthUserId: string | null): Promise<Caller
   if (!callerAuthUserId) return null
   const { data, error } = await supabaseDB
     .from('sys_user')
-    .select(
-      'id, auth_user_id, user_email, tenant_id, user_roles, status, sys_tenant:tenant_id(builtin_type)'
-    )
+    .select('id, auth_user_id, user_email, user_roles, status')
     .eq('auth_user_id', callerAuthUserId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -125,13 +120,11 @@ async function getCallerProfile(callerAuthUserId: string | null): Promise<Caller
     if (error) console.error('getCallerProfile error', error.message)
     return null
   }
-  const tenant = Array.isArray(data.sys_tenant) ? data.sys_tenant[0] : data.sys_tenant
   const roleCodes = data.user_roles || []
   const { data: builtinRoleRows } = roleCodes.length
     ? await supabaseDB
         .from('sys_role')
         .select('builtin_type')
-        .eq('tenant_id', data.tenant_id)
         .in('role_code', roleCodes)
         .not('builtin_type', 'is', null)
     : { data: [] }
@@ -141,8 +134,6 @@ async function getCallerProfile(callerAuthUserId: string | null): Promise<Caller
     user_email: String(data.user_email || '')
       .toLowerCase()
       .trim(),
-    tenant_id: data.tenant_id,
-    tenant_builtin_type: tenant?.builtin_type ?? null,
     user_roles: roleCodes,
     builtin_roles: (builtinRoleRows || []).map((role) => role.builtin_type).filter(Boolean),
     status: data.status ?? null
@@ -150,10 +141,7 @@ async function getCallerProfile(callerAuthUserId: string | null): Promise<Caller
 }
 function isPlatformSuper(profile: CallerProfile | null) {
   return Boolean(
-    profile &&
-    profile.tenant_builtin_type === 'platform' &&
-    profile.builtin_roles.includes('platform_super') &&
-    profile.status === '1'
+    profile && profile.builtin_roles.includes('platform_super') && profile.status === '1'
   )
 }
 
@@ -161,12 +149,10 @@ async function isProtectedPlatformSuperUser(snapshot: Record<string, unknown>): 
   const roleCodes = Array.isArray(snapshot.user_roles)
     ? snapshot.user_roles.filter((role): role is string => typeof role === 'string')
     : []
-  const tenantId = typeof snapshot.tenant_id === 'string' ? snapshot.tenant_id : ''
-  if (!roleCodes.length || !tenantId) return false
+  if (!roleCodes.length) return false
   const { data } = await supabaseDB
     .from('sys_role')
     .select('id')
-    .eq('tenant_id', tenantId)
     .eq('builtin_type', 'platform_super')
     .in('role_code', roleCodes)
     .limit(1)
@@ -186,35 +172,18 @@ async function hasPermission(
   }
   return data === true
 }
-async function canAccessTargetUser(
-  id: string,
-  profile: CallerProfile | null,
-  callerIsSuper: boolean
-) {
-  if (callerIsSuper) return true
-  if (!profile) return false
-  const { data, error } = await supabaseDB
-    .from('sys_user')
-    .select('tenant_id')
-    .eq('id', id)
-    .maybeSingle()
-  if (error || !data) return false
-  return data.tenant_id === profile.tenant_id
-}
 async function validateEmployeeLink(
   employeeId: unknown,
-  tenantId: unknown,
   targetUserId?: string
 ): Promise<string | null> {
   if (employeeId === null || employeeId === undefined || employeeId === '') return null
-  if (typeof employeeId !== 'string' || typeof tenantId !== 'string') return '员工档案关联信息无效'
+  if (typeof employeeId !== 'string') return '员工档案关联信息无效'
   const { data: employee, error: employeeError } = await supabaseDB
     .from('mdm_employee')
-    .select('id, tenant_id, employment_status')
+    .select('id, employment_status')
     .eq('id', employeeId)
     .maybeSingle()
   if (employeeError || !employee) return '所选员工档案不存在或不可用'
-  if (employee.tenant_id !== tenantId) return '不能关联当前租户之外的员工档案'
   if (!['probation', 'active'].includes(employee.employment_status))
     return '仅可为试用期或在职员工开通账号'
 
@@ -234,29 +203,19 @@ async function validateAccountIdentityLink(
     employeeId: unknown
     remark: unknown
   },
-  tenantId: unknown,
   callerIsSuper: boolean,
   targetUserId?: string
 ): Promise<string | null> {
-  if (typeof tenantId !== 'string' || !tenantId) return '账号所属租户信息无效'
-  const { data: tenant, error: tenantError } = await supabaseDB
-    .from('sys_tenant')
-    .select('builtin_type')
-    .eq('id', tenantId)
-    .maybeSingle()
-  if (tenantError || !tenant) return '账号所属租户不存在或不可用'
-
   const policyError = validateUserAccountIdentity({
     identityType: input.identityType,
     employeeId: input.employeeId,
     remark: input.remark,
-    tenantBuiltinType: tenant.builtin_type,
     callerIsPlatformSuper: callerIsSuper
   })
   if (policyError) return policyError
 
   return input.identityType === 'employee'
-    ? await validateEmployeeLink(input.employeeId, tenantId, targetUserId)
+    ? await validateEmployeeLink(input.employeeId, targetUserId)
     : null
 }
 function getFriendlyErrorMessage(error: unknown, action: string): string {
@@ -384,16 +343,12 @@ Deno.serve(async (req: Request) => {
           headers: corsHeaders(origin)
         })
       const cleanedAppUserData = cleanAppUserData(appUserData)
-      const targetTenantId = callerIsSuper
-        ? String(cleanedAppUserData.tenant_id || callerProfile.tenant_id)
-        : callerProfile.tenant_id
       const employeeLinkError = await validateAccountIdentityLink(
         {
           identityType: cleanedAppUserData.account_identity_type,
           employeeId: cleanedAppUserData.hr_employee_id,
           remark: cleanedAppUserData.remark
         },
-        targetTenantId,
         callerIsSuper
       )
       if (employeeLinkError)
@@ -454,8 +409,7 @@ Deno.serve(async (req: Request) => {
         auth_user_id: authUserId,
         user_email: emailFromBody,
         status: normalizedStatus,
-        create_by: callerEmail,
-        tenant_id: targetTenantId
+        create_by: callerEmail
       }
       const { data: created, error: insertErr } = await supabaseDB
         .from('sys_user')
@@ -481,11 +435,6 @@ Deno.serve(async (req: Request) => {
           status: 400,
           headers: corsHeaders(origin)
         })
-      if (!(await canAccessTargetUser(id, callerProfile, callerIsSuper)))
-        return new Response(JSON.stringify({ ok: false, error: '不能编辑当前租户之外的用户' }), {
-          status: 403,
-          headers: corsHeaders(origin)
-        })
       const normalizedAppUserData = cleanAppUserData(app_user_data)
       const cleanedAppUserData: Record<string, unknown> =
         action === 'assign_roles'
@@ -499,19 +448,10 @@ Deno.serve(async (req: Request) => {
           headers: corsHeaders(origin)
         })
       }
-      if (
-        !callerIsSuper &&
-        cleanedAppUserData.tenant_id &&
-        cleanedAppUserData.tenant_id !== callerProfile?.tenant_id
-      )
-        return new Response(JSON.stringify({ ok: false, error: '不能把用户分配到当前租户之外' }), {
-          status: 403,
-          headers: corsHeaders(origin)
-        })
       if (action === 'update') {
         const { data: existingUser, error: existingUserError } = await supabaseDB
           .from('sys_user')
-          .select('tenant_id, account_identity_type, hr_employee_id, remark')
+          .select('account_identity_type, hr_employee_id, remark')
           .eq('id', id)
           .maybeSingle()
         if (existingUserError || !existingUser)
@@ -519,9 +459,6 @@ Deno.serve(async (req: Request) => {
             status: 404,
             headers: corsHeaders(origin)
           })
-        const targetTenantId = String(
-          cleanedAppUserData.tenant_id || existingUser.tenant_id || callerProfile?.tenant_id || ''
-        )
         const employeeLinkError = await validateAccountIdentityLink(
           {
             identityType:
@@ -536,7 +473,6 @@ Deno.serve(async (req: Request) => {
               ? cleanedAppUserData.remark
               : existingUser.remark
           },
-          targetTenantId,
           callerIsSuper,
           id
         )
@@ -607,11 +543,6 @@ Deno.serve(async (req: Request) => {
       if (!id)
         return new Response(JSON.stringify({ ok: false, error: 'id required' }), {
           status: 400,
-          headers: corsHeaders(origin)
-        })
-      if (!(await canAccessTargetUser(id, callerProfile, callerIsSuper)))
-        return new Response(JSON.stringify({ ok: false, error: '不能注销当前租户之外的用户' }), {
-          status: 403,
           headers: corsHeaders(origin)
         })
       const { data: snapshot } = await supabaseDB.from('sys_user').select('*').eq('id', id).single()

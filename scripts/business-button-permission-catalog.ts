@@ -1014,10 +1014,6 @@ export const systemButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] = [
     ]
   },
   {
-    menuName: 'Tenant',
-    buttons: [button('Add', '新增租户'), button('Edit', '编辑租户'), button('Delete', '停用租户')]
-  },
-  {
     menuName: 'SystemParam',
     buttons: [
       button('Add', '新增参数', 'System:SystemParam:Add'),

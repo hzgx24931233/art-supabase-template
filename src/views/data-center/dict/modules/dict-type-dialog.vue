@@ -313,7 +313,6 @@
       const payload = normalizePayload(
         omit(toRaw(form.data), [
           'children',
-          'tenantId',
           'createBy',
           'createTime',
           'updateBy',

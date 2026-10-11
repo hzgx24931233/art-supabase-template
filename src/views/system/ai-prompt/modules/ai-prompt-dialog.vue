@@ -259,7 +259,6 @@
     if (!row) return
     const base = cloneDeep(
       omit(row, [
-        'tenantId',
         'metadata',
         'status',
         'publishedAt',

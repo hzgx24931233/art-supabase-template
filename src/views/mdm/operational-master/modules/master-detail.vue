@@ -43,7 +43,6 @@
     record: OperationalMasterRecord
     groups: MasterGroup[]
     references: OperationalMasterReferences
-    tenantOptions: Array<{ label: string; value: string }>
   }>()
 
   function referenceLabel(items: MasterReferenceOption[], id: unknown): string {
@@ -89,13 +88,6 @@
   }
 
   const primaryItems = computed<ArtDescriptionItem<OperationalMasterRecord>[]>(() => [
-    {
-      key: 'tenantId',
-      label: '所属租户',
-      field: 'tenantId',
-      formatter: (value) =>
-        props.tenantOptions.find((item) => item.value === value)?.label || '当前租户'
-    },
     ...props.config.fields
       .filter((field) => !['remark'].includes(String(field.key)))
       .map(toDescriptionItem)

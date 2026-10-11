@@ -51,10 +51,7 @@ const DEFAULT_LOADING_CONFIG = {
   customClass: 'art-loading-fix art-global-loading'
 } as const
 
-interface LoadingInstance {
-  close: () => void
-  $el?: HTMLElement
-}
+type LoadingInstance = ReturnType<typeof ElLoading.service>
 
 let loadingInstance: LoadingInstance | null = null
 

@@ -5,7 +5,6 @@ import { buildOperationalMasterWriteInput } from '@/views/mdm/operational-master
 
 const customerModel: OperationalMasterRecord & { addressPicker: string } = {
   id: '',
-  tenantId: '11111111-1111-4111-8111-111111111111',
   customerCode: ' DEMO_CUSTOMER ',
   customerName: ' 示例客户 ',
   groupId: '22222222-2222-4222-8222-222222222222',
@@ -107,7 +106,6 @@ test('operation write payload converts blank optional UUID fields to null', () =
   const payload = buildOperationalMasterWriteInput(
     {
       id: '',
-      tenantId: '11111111-1111-4111-8111-111111111111',
       code: ' dddd ',
       name: ' 示例工序 ',
       mnemonic: '',
@@ -142,7 +140,6 @@ test('new project payload leaves the monthly project code to the database', () =
   const payload = buildOperationalMasterWriteInput(
     {
       id: '',
-      tenantId: '11111111-1111-4111-8111-111111111111',
       projectCode: 'SHOULD_NOT_BE_WRITTEN',
       projectName: ' 月度编号测试项目 ',
       customerId: '22222222-2222-4222-8222-222222222222',

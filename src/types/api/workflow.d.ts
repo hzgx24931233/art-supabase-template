@@ -124,7 +124,6 @@ declare namespace Api {
       createTime: string
       updateBy?: string | null
       updateTime: string
-      tenantId: string
     }
 
     interface WorkflowDefinitionRecord {
@@ -141,8 +140,6 @@ declare namespace Api {
       createTime: string
       updateBy?: string | null
       updateTime: string
-      tenantId: string
-      tenant?: WorkflowTenantOption
       versions?: WorkflowVersionRecord[]
     }
 
@@ -151,7 +148,6 @@ declare namespace Api {
       businessType?: string
       businessTypes?: string[]
       status?: DefinitionStatus | ''
-      tenantId?: string
       from?: number
       to?: number
     }
@@ -163,7 +159,6 @@ declare namespace Api {
       businessType: string
       description?: string | null
       changeNote?: string | null
-      tenantId?: string
       config: WorkflowConfig
     }
 
@@ -208,14 +203,12 @@ declare namespace Api {
       delegationId?: string | null
       lastAssignedBy?: string | null
       assignmentReason?: string | null
-      tenantId: string
       status: TaskStatus
       handledAt?: string | null
       comment?: string | null
       dueAt?: string | null
       createTime: string
       instance?: WorkflowInstanceRecord
-      tenant?: WorkflowTenantOption
     }
 
     interface WorkflowActionRecord {
@@ -243,7 +236,6 @@ declare namespace Api {
 
     interface WorkflowDelegationRecord {
       id: string
-      tenantId: string
       delegatorUserId: string
       delegateUserId: string
       startsAt: string
@@ -271,7 +263,6 @@ declare namespace Api {
     interface PlatformGlobalWorkflowTaskSearchParams {
       keyword?: string
       businessType?: string
-      tenantId?: string
       from?: number
       to?: number
     }
@@ -393,8 +384,6 @@ declare namespace Api {
     }
 
     interface WorkflowNodeBottleneck {
-      tenantId: string
-      tenantName: string
       definitionId: string
       definitionName: string
       businessType: string
@@ -415,8 +404,6 @@ declare namespace Api {
     }
 
     interface WorkflowApproverWorkload extends WorkflowBottleneckSummary {
-      tenantId: string
-      tenantName: string
       assigneeUserId: string
       assigneeName?: string | null
       approvedCount: number
@@ -447,8 +434,6 @@ declare namespace Api {
     interface WorkflowCallbackRecord {
       id: string
       eventNo: number
-      tenantId: string
-      tenantName?: string | null
       instanceId: string
       businessTitle: string
       businessType: string
@@ -483,16 +468,6 @@ declare namespace Api {
       id: string
       roleCode: string
       roleName: string
-    }
-
-    interface WorkflowTenantOption {
-      id: string
-      tenantCode: string
-      tenantName: string
-    }
-
-    interface WorkflowOptionSearchParams {
-      tenantId?: string
     }
   }
 }

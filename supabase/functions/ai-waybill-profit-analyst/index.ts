@@ -53,12 +53,11 @@ Deno.serve(async (request) => {
       .from('ai_run')
       .insert({
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         feature: FEATURE,
         model: RULE_VERSION,
         prompt_version: RULE_VERSION,
         metadata: {
-          scope: 'tenant_portfolio',
+          scope: 'portfolio',
           rowLimit: 300,
           decisionMode: 'advisory_only',
           automaticFinancialWrite: false
@@ -79,7 +78,7 @@ Deno.serve(async (request) => {
         latency_ms: Date.now() - startedAt,
         finished_at: new Date().toISOString(),
         metadata: {
-          scope: 'tenant_portfolio',
+          scope: 'portfolio',
           decisionMode: 'advisory_only',
           automaticFinancialWrite: false,
           riskLevel: assessment.riskLevel,

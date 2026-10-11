@@ -231,7 +231,7 @@ export type AiDiagnosisSeverity = 'low' | 'medium' | 'high' | 'critical'
 export type AiDiagnosisCategory =
   'provider' | 'configuration' | 'prompt' | 'tool' | 'data' | 'performance' | 'unknown'
 export type AiDiagnosisPriority = 'P0' | 'P1' | 'P2'
-export type AiDiagnosisOwner = 'platform' | 'tenant' | 'provider'
+export type AiDiagnosisOwner = 'platform' | 'provider'
 
 export interface AiDiagnosisRootCause {
   title: string

@@ -22,7 +22,6 @@ test('uses the selected department and descendants for the employee selector', (
 test('uses the selected employee department while preserving the left-tree fallback', () => {
   const employee = {
     id: 'person-1',
-    tenantId: 'tenant-1',
     organizationId: 'line-b',
     employeeName: '王师傅',
     employeeNo: 'EMP001',

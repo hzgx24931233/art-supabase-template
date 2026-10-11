@@ -7,7 +7,6 @@ const { supabase, responseHandle } = useSupabase()
 
 const DEFINITION_SELECT = `
   *,
-  tenant:sys_tenant!wf_definition_tenant_id_fkey(id, tenant_code, tenant_name),
   versions:wf_version!wf_version_definition_id_fkey(*)
 `
 
@@ -47,7 +46,7 @@ type WorkflowDefinitionListParams = Api.Workflow.WorkflowDefinitionSearchParams 
 }
 
 export async function fetchWorkflowDefinitionList(params: WorkflowDefinitionListParams) {
-  const { from = 0, to = 9, keyword, businessType, businessTypes, status, tenantId } = params
+  const { from = 0, to = 9, keyword, businessType, businessTypes, status } = params
   let query = supabase
     .from('wf_definition')
     .select(DEFINITION_SELECT, { count: 'exact' })
@@ -58,7 +57,6 @@ export async function fetchWorkflowDefinitionList(params: WorkflowDefinitionList
   if (businessTypes?.length) query = query.in('business_type', businessTypes)
   else if (businessType) query = query.eq('business_type', businessType)
   if (status) query = query.eq('status', status)
-  if (tenantId) query = query.eq('tenant_id', tenantId)
 
   return await responseHandle<Api.Workflow.WorkflowDefinitionRecord[]>(() => query, {
     showErrorMessage: true
@@ -105,35 +103,27 @@ export async function deleteWorkflowDefinition(id: string) {
   )
 }
 
-export async function fetchWorkflowUserOptions(
-  params: Api.Workflow.WorkflowOptionSearchParams = {}
-) {
-  const { tenantId } = params
-  let query = supabase
+export async function fetchWorkflowUserOptions() {
+  const query = supabase
     .from('sys_user')
     .select('id, user_name, nick_name, user_email, avatar')
     .eq('status', '1')
     .is('deleted_at', null)
     .order('user_name')
     .limit(1000)
-  if (tenantId) query = query.eq('tenant_id', tenantId)
 
   return await responseHandle<Api.Workflow.WorkflowUserOption[]>(() => query, {
     showErrorMessage: true
   })
 }
 
-export async function fetchWorkflowRoleOptions(
-  params: Api.Workflow.WorkflowOptionSearchParams = {}
-) {
-  const { tenantId } = params
-  let query = supabase
+export async function fetchWorkflowRoleOptions() {
+  const query = supabase
     .from('sys_role')
     .select('id, role_code, role_name')
     .eq('enabled', true)
     .order('role_name')
     .limit(500)
-  if (tenantId) query = query.eq('tenant_id', tenantId)
 
   return await responseHandle<Api.Workflow.WorkflowRoleOption[]>(() => query, {
     showErrorMessage: true
@@ -236,13 +226,12 @@ export async function fetchPendingWorkflowTasks(params: Api.Workflow.WorkflowTas
 export async function fetchPlatformGlobalPendingWorkflowTasks(
   params: Api.Workflow.PlatformGlobalWorkflowTaskSearchParams
 ) {
-  const { from = 0, to = 19, keyword, businessType, tenantId } = params
+  const { from = 0, to = 19, keyword, businessType } = params
   return await responseHandle<Api.Workflow.WorkflowNodeTaskPage>(
     () =>
       supabase.rpc('search_platform_global_pending_workflow_tasks', {
         p_keyword: normalizeNullableText(keyword),
         p_business_type: businessType || null,
-        p_tenant_id: tenantId || null,
         p_from: from,
         p_to: to
       }),

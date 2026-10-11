@@ -62,8 +62,7 @@
 <script setup lang="tsx">
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   const { confirmAction } = useArtFeedback()
-  import { ref, reactive, computed, watch } from 'vue'
-  import { storeToRefs } from 'pinia'
+  import { ref, reactive, computed } from 'vue'
   import { ElButton, ElMessage } from 'element-plus'
   import { uniq } from 'lodash-es'
   import type { ColumnOption } from '@/types'
@@ -78,9 +77,6 @@
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
-  import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { resolveTenantWriteTargetId } from '@/utils/tenant-scope-context'
   import { useAuth } from '@/hooks/core/useAuth'
   import { exportExcel } from '@/utils/file'
   import {
@@ -111,12 +107,6 @@
   import DefaultsDialog from './modules/defaults-dialog.vue'
   import QrDialog from './modules/qr-dialog.vue'
   defineOptions({ name: 'MdmWorkCenter' })
-  const user = useUserStore()
-  const tenantScopeStore = useTenantScopeStore()
-  const { effectiveTenantId, isAllTenants, tenantOptions } = storeToRefs(tenantScopeStore)
-  const tenantNames = computed(() =>
-    Object.fromEntries(tenantOptions.value.map((tenant) => [tenant.id, tenant.tenantName]))
-  )
   const { hasAuth } = useAuth()
   const tableRef = ref<ArtTableQueryExpose>()
   const centerDialog = ref<InstanceType<typeof CenterDialog>>()
@@ -149,7 +139,7 @@
     {
       label: '生产部门',
       value: scope.departments.length,
-      description: isAllTenants.value ? '全部租户组织层级' : '当前租户组织层级',
+      description: '生产组织层级',
       icon: 'ri:node-tree',
       loading: scope.loading
     },
@@ -182,8 +172,7 @@
     scope.loading = true
     scope.error = ''
     try {
-      await tenantScopeStore.loadTenantOptions()
-      const rows = await fetchProductionDepartments(effectiveTenantId.value)
+      const rows = await fetchProductionDepartments()
       if (version !== loadVersion) return
       scope.departments = rows
       await refresh()
@@ -198,10 +187,7 @@
     await tableRef.value?.getData()
   }
   const fetchRows = (p: WorkspaceQuery, o?: { signal?: AbortSignal }) =>
-    fetchWorkCenters(
-      { ...p, tenantId: effectiveTenantId.value || '', departmentIds: departmentIds() },
-      o
-    )
+    fetchWorkCenters({ ...p, departmentIds: departmentIds() }, o)
   const onSuccess: ArtTableQueryProps['onSuccess'] = async (rows, response) => {
     table.rows = rows as WorkCenter[]
     table.total = Number(response.total ?? rows.length)
@@ -277,11 +263,7 @@
             >
               {r.name}
             </ElButton>
-            <small title={r.code}>
-              {isAllTenants.value
-                ? `${tenantNames.value[r.tenantId] || r.tenantId} · ${r.code}`
-                : r.code}
-            </small>
+            <small title={r.code}>{r.code}</small>
           </span>
         </div>
       )
@@ -385,7 +367,7 @@
   async function allRows(limit = 10000) {
     const rows: WorkCenter[] = []
     for (let current = 1; current <= Math.ceil(limit / 1000); current++) {
-      const result = await fetchRows({ ...table.search, tenantId: '', current, size: 1000 })
+      const result = await fetchRows({ ...table.search, current, size: 1000 })
       if (result.total > limit) throw new Error(`最多导出 ${limit} 条，请缩小部门范围`)
       rows.push(...result.data)
       if (rows.length >= result.total) break
@@ -398,7 +380,6 @@
       const people = await fetchCenterPeople(uniq(rows.flatMap((r) => r.personIds)))
       await exportExcel({
         data: rows.map((r) => ({
-          tenantName: tenantNames.value[r.tenantId] || r.tenantId,
           code: r.code,
           name: r.name,
           department: r.department?.code,
@@ -418,7 +399,6 @@
           )
         })),
         columns: [
-          ...(isAllTenants.value ? [{ key: 'tenantName', title: '所属租户' }] : []),
           ...Object.entries({
             code: '工作中心',
             name: '名称',
@@ -456,36 +436,22 @@
         ElMessage.warning('每次可导入 1 至 1000 行')
         return
       }
-      const targetTenantId = resolveTenantWriteTargetId({
-        explicitTenantId: effectiveTenantId.value || selectedDepartment.value?.tenantId,
-        actorTenantId: user.info.tenantId,
-        isPlatformSuper: user.isPlatformSuper
-      })
       const [references, defaults] = await Promise.all([
         fetchCenterImportReferences(
           uniq(rows.map((r) => String(r['主工序位'] || '').trim()).filter(Boolean)),
-          uniq(rows.flatMap((r) => splitStaffNumbers(r['人员工号']))),
-          targetTenantId
+          uniq(rows.flatMap((r) => splitStaffNumbers(r['人员工号'])))
         ),
-        fetchCenterDefaults(targetTenantId)
+        fetchCenterDefaults()
       ])
-      const inputs = parseCenterImport(
-        rows,
-        {
-          ...references,
-          departments: scope.departments.filter(
-            (department) => department.tenantId === targetTenantId
-          ),
-          defaults: defaults || createCenterPolicy()
-        },
-        targetTenantId
-      )
+      const inputs = parseCenterImport(rows, {
+        ...references,
+        departments: scope.departments,
+        defaults: defaults || createCenterPolicy()
+      })
       await importWorkCenters(inputs)
       await refresh()
     } catch (error) {
       if (error instanceof Error && error.message.startsWith('第 ')) ElMessage.error(error.message)
-      else if (error instanceof Error && error.message === '请先选择目标租户')
-        ElMessage.warning(error.message)
       else ElMessage.error('导入失败，请检查表头、编码唯一性和产线归属')
     }
   }
@@ -504,16 +470,7 @@
       label: '设置',
       permission: 'MdmWorkCenter:Configure',
       onClick: () => {
-        try {
-          const targetTenantId = resolveTenantWriteTargetId({
-            explicitTenantId: effectiveTenantId.value || selectedDepartment.value?.tenantId,
-            actorTenantId: user.info.tenantId,
-            isPlatformSuper: user.isPlatformSuper
-          })
-          void defaultsDialog.value?.handleOpen(targetTenantId)
-        } catch {
-          ElMessage.warning('请先选择目标租户或左侧部门后再配置默认值')
-        }
+        void defaultsDialog.value?.handleOpen()
       }
     }
   ]
@@ -527,13 +484,5 @@
       }
     }
   ]
-  watch(
-    effectiveTenantId,
-    () => {
-      scope.departments = []
-      scope.selected = ''
-      void loadDepartments()
-    },
-    { immediate: true }
-  )
+  onMounted(() => void loadDepartments())
 </script>

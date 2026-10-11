@@ -56,14 +56,12 @@ test('parameter search uses the shared filter and preserves punctuation in the U
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
   // The real parser is covered above. Keep the UI case independent of remote
-  // profile/menu latency and avoid placing tenant identity in visual evidence.
+  // profile/menu latency and avoid placing account identity in visual evidence.
   await page.route('**/rest/v1/sys_user?*', (route) =>
     route.fulfill({
       json: {
         id: '00000000-0000-4000-8000-000000000001',
         user_name: '搜索回归账号',
-        tenant_id: '00000000-0000-4000-8000-000000000002',
-        tenant: { tenant_code: 'test', tenant_name: '测试租户' },
         status: '1'
       }
     })

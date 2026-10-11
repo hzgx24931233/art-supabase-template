@@ -281,8 +281,6 @@
   import dayjs from 'dayjs'
   import { uniqBy } from 'lodash-es'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { storeToRefs } from 'pinia'
   import { useAuth } from '@/hooks/core/useAuth'
   import BusinessTableRowActions from '@/components/business/business-table-row-actions/index.vue'
   import {
@@ -310,8 +308,6 @@
   import { calendarDayTypes } from './modules/calendar-day-types'
   import CalendarDayTypeDialog from './modules/calendar-day-type-dialog.vue'
   defineOptions({ name: 'MdmFactoryCalendar' })
-  const tenantScopeStore = useTenantScopeStore()
-  const { effectiveTenantId } = storeToRefs(tenantScopeStore)
   const { hasAuth } = useAuth()
   const { confirmAction } = useArtFeedback()
   const patternDialog = ref<InstanceType<typeof PatternDialog>>()
@@ -421,8 +417,7 @@
     scope.loading = true
     scope.error = ''
     try {
-      await tenantScopeStore.loadTenantOptions()
-      const rows = await fetchProductionDepartments(effectiveTenantId.value)
+      const rows = await fetchProductionDepartments()
       if (request !== departmentRequest) return
       scope.departments = rows
       if (!rows.some((d) => d.id === scope.selected)) {
@@ -442,8 +437,7 @@
   }
   async function loadCalendar() {
     const request = ++calendarRequest
-    const selectedTenantId = selectedDepartment.value?.tenantId
-    if (!scope.selected || !selectedTenantId || !hasAuth('MdmFactoryCalendar:View')) {
+    if (!scope.selected || !hasAuth('MdmFactoryCalendar:View')) {
       Object.assign(calendar, {
         patterns: [],
         days: [],
@@ -464,20 +458,10 @@
     try {
       const [patterns, visibleDays, upcomingDays, reminder, daySettings, schedules] =
         await Promise.all([
-          fetchShiftPatterns(selectedTenantId, scope.selected),
-          fetchProductionCalendar(
-            selectedTenantId,
-            scope.selected,
-            start,
-            monthEnd.format('YYYY-MM-DD')
-          ),
-          fetchProductionCalendar(
-            selectedTenantId,
-            scope.selected,
-            today,
-            reminderEnd.format('YYYY-MM-DD')
-          ),
-          fetchCalendarReminder(selectedTenantId, scope.selected),
+          fetchShiftPatterns(scope.selected),
+          fetchProductionCalendar(scope.selected, start, monthEnd.format('YYYY-MM-DD')),
+          fetchProductionCalendar(scope.selected, today, reminderEnd.format('YYYY-MM-DD')),
+          fetchCalendarReminder(scope.selected),
           fetchProductionCalendarDaySettings(scope.selected, start, monthEnd.format('YYYY-MM-DD')),
           hasAuth('MdmShiftScheduling:View')
             ? fetchShiftSchedules({
@@ -565,15 +549,7 @@
     calendar.selectedDates = []
     void loadCalendar()
   })
-  watch(
-    effectiveTenantId,
-    () => {
-      scope.selected = ''
-      scope.departments = []
-      void loadDepartments()
-    },
-    { immediate: true }
-  )
+  onMounted(() => void loadDepartments())
 </script>
 <style scoped lang="scss">
   .production-calendar {

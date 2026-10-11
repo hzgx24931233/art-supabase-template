@@ -555,7 +555,6 @@ async function executeTool(
 async function listConversationHistory(
   admin: SupabaseClient,
   userId: string,
-  tenantId: string,
   query: string,
   limit: number
 ): Promise<Record<string, unknown>> {
@@ -563,7 +562,6 @@ async function listConversationHistory(
     .from('ai_conversation')
     .select('id,title,context,create_time,update_time')
     .eq('auth_user_id', userId)
-    .eq('tenant_id', tenantId)
     .eq('context->>assistantMode', 'project')
     .order('update_time', { ascending: false })
     .limit(limit)
@@ -618,7 +616,6 @@ async function listConversationHistory(
 async function getConversationHistory(
   admin: SupabaseClient,
   userId: string,
-  tenantId: string,
   conversationId: string
 ): Promise<Record<string, unknown> | null> {
   const { data: conversation, error } = await admin
@@ -626,7 +623,6 @@ async function getConversationHistory(
     .select('id,title,context,create_time,update_time')
     .eq('id', conversationId)
     .eq('auth_user_id', userId)
-    .eq('tenant_id', tenantId)
     .eq('context->>assistantMode', 'project')
     .maybeSingle()
   if (error) throw error
@@ -657,7 +653,6 @@ async function writeToolAudit(
   payload: {
     runId: string
     userId: string
-    tenantId: string
     email: string
     name: ToolName
     args: Record<string, unknown>
@@ -669,7 +664,6 @@ async function writeToolAudit(
   const { error } = await admin.from('ai_tool_call').insert({
     run_id: payload.runId,
     auth_user_id: payload.userId,
-    tenant_id: payload.tenantId,
     tool_name: payload.name,
     arguments: payload.args,
     status: payload.status,
@@ -820,7 +814,6 @@ Deno.serve(async (req) => {
         command_tag: executionResult?.command_tag ?? 'COMMENT',
         row_count: executionResult?.row_count ?? 0,
         duration_ms: executionResult?.duration_ms ?? Date.now() - startedWriteAt,
-        tenant_id: appUser.tenant_id,
         create_by: appUser.user_email,
         update_by: appUser.user_email
       })
@@ -852,7 +845,6 @@ Deno.serve(async (req) => {
       const { error } = await admin.from('ai_feedback').upsert({
         run_id: body.runId,
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         rating: body.rating,
         comment: textValue(body.comment).slice(0, 1000) || null,
         create_by: appUser.user_email,
@@ -866,7 +858,6 @@ Deno.serve(async (req) => {
       const data = await listConversationHistory(
         admin,
         user.id,
-        appUser.tenant_id,
         textValue(body.query).slice(0, 80),
         integerValue(body.limit, 30, 1, 50)
       )
@@ -878,7 +869,7 @@ Deno.serve(async (req) => {
       if (!conversationId) {
         return json({ code: 'invalid_input', message: 'Conversation ID is required' }, 400)
       }
-      const data = await getConversationHistory(admin, user.id, appUser.tenant_id, conversationId)
+      const data = await getConversationHistory(admin, user.id, conversationId)
       if (!data) return json({ code: 'not_found', message: 'Conversation was not found' }, 404)
       return json(data)
     }
@@ -894,7 +885,6 @@ Deno.serve(async (req) => {
         .update({ title, update_time: new Date().toISOString(), update_by: appUser.user_email })
         .eq('id', conversationId)
         .eq('auth_user_id', user.id)
-        .eq('tenant_id', appUser.tenant_id)
         .eq('context->>assistantMode', 'project')
         .select('id,title')
         .maybeSingle()
@@ -921,7 +911,7 @@ Deno.serve(async (req) => {
     if (!latestUserMessage) return json({ code: 'invalid_input', message: '请输入问题' }, 400)
 
     const sharedModel = Deno.env.get('AI_MODEL') || Deno.env.get('OPENAI_MODEL') || 'gpt-4.1-mini'
-    const runtimeConfig = await loadAiRuntimeConfig(admin, appUser.tenant_id, FEATURE, {
+    const runtimeConfig = await loadAiRuntimeConfig(admin, FEATURE, {
       enabled: true,
       provider: 'openai_compatible',
       model: Deno.env.get('AI_PROJECT_ASSISTANT_MODEL') || sharedModel,
@@ -942,7 +932,7 @@ Deno.serve(async (req) => {
     if (!providerEndpoints.length) {
       return json({ code: 'missing_secret', message: 'AI provider is not configured' }, 500)
     }
-    const publishedPrompt = await loadPublishedAiPrompt(admin, appUser.tenant_id, FEATURE, {
+    const publishedPrompt = await loadPublishedAiPrompt(admin, FEATURE, {
       content: DEFAULT_PROMPT,
       version: runtimeConfig.promptVersion
     })
@@ -966,13 +956,12 @@ Deno.serve(async (req) => {
     let conversationId = textValue(body.conversationId)
     if (conversationId) {
       const { data: ownedConversation } = await admin.from('ai_conversation').select('id')
-        .eq('id', conversationId).eq('auth_user_id', user.id).eq('tenant_id', appUser.tenant_id).maybeSingle()
+        .eq('id', conversationId).eq('auth_user_id', user.id).maybeSingle()
       if (!ownedConversation) return json({ code: 'not_found', message: 'Conversation was not found' }, 404)
       await admin.from('ai_conversation').update({ context: conversationContext, update_by: appUser.user_email }).eq('id', conversationId)
     } else {
       const { data, error } = await admin.from('ai_conversation').insert({
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         title: latestUserMessage.content.replace(/\s+/g, ' ').slice(0, 40),
         context: conversationContext,
         create_by: appUser.user_email,
@@ -986,7 +975,6 @@ Deno.serve(async (req) => {
     const { data: run, error: runError } = await admin.from('ai_run').insert({
       conversation_id: conversationId,
       auth_user_id: user.id,
-      tenant_id: appUser.tenant_id,
       feature: FEATURE,
       model: resolvedModel,
       prompt_version: publishedPrompt.version,
@@ -1000,7 +988,6 @@ Deno.serve(async (req) => {
     const { error: userMessageError } = await admin.from('ai_message').insert({
       conversation_id: conversationId,
       auth_user_id: user.id,
-      tenant_id: appUser.tenant_id,
       role: 'user',
       content: latestUserMessage.content,
       create_by: appUser.user_email,
@@ -1053,7 +1040,7 @@ Deno.serve(async (req) => {
           const latencyMs = Date.now() - started
           executedTools.push({ name: call.function.name, status: 'succeeded', latencyMs })
           await writeToolAudit(admin, {
-            runId, userId: user.id, tenantId: appUser.tenant_id, email: appUser.user_email,
+            runId, userId: user.id, email: appUser.user_email,
             name: call.function.name, args, status: 'succeeded', latencyMs
           })
           providerMessages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result).slice(0, 24_000) })
@@ -1062,7 +1049,7 @@ Deno.serve(async (req) => {
           const latencyMs = Date.now() - started
           executedTools.push({ name: call.function.name, status: 'failed', latencyMs })
           await writeToolAudit(admin, {
-            runId, userId: user.id, tenantId: appUser.tenant_id, email: appUser.user_email,
+            runId, userId: user.id, email: appUser.user_email,
             name: call.function.name, args, status: 'failed', error: message, latencyMs
           })
           providerMessages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify({ error: message }) })
@@ -1086,7 +1073,6 @@ Deno.serve(async (req) => {
     const { error: assistantMessageError } = await admin.from('ai_message').insert({
       conversation_id: conversationId,
       auth_user_id: user.id,
-      tenant_id: appUser.tenant_id,
       role: 'assistant',
       content,
       usage: { inputTokens, outputTokens },

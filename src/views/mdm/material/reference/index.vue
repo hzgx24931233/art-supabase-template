@@ -39,8 +39,6 @@
   import { cloneDeep } from 'lodash-es'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { resolveTenantWorkspaceId } from '@/utils/tenant-scope-context'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import BusinessTableWorkspaceActions from '@/components/business/business-table-workspace-actions/index.vue'
@@ -81,8 +79,7 @@
     icon: string
     tags: BusinessWorkspaceTag[]
   }
-  type TableParams = Omit<MaterialReferenceQuery, 'tenantId'> &
-    Pick<Api.Common.PaginationParams, 'current' | 'size'>
+  type TableParams = MaterialReferenceQuery & Pick<Api.Common.PaginationParams, 'current' | 'size'>
   const route = useRoute()
   const configs: Record<string, ReferenceConfig> = {
     'unit-of-measure': {
@@ -172,10 +169,6 @@
   const { confirmDelete } = useArtFeedback()
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId } = storeToRefs(useTenantScopeStore())
-  const tenantId = computed(() =>
-    resolveTenantWorkspaceId(effectiveTenantId.value, userStore.getUserInfo.tenantId)
-  )
   void userStore.ensureDictLoaded('commonEnabledStatus')
   const tableRef = ref<ArtTableQueryExpose>()
   const dialogRef = ref<DialogExpose>()
@@ -184,7 +177,7 @@
     {
       label: '主档总数',
       value: overview.total,
-      description: '当前租户定义',
+      description: '当前主档定义',
       icon: config.value.icon
     },
     {
@@ -206,8 +199,7 @@
     void dialogRef.value?.handleOpen({
       kind: config.value.kind,
       row: row ? cloneDeep(row) : undefined,
-      copy,
-      tenantId: row?.tenantId || tenantId.value
+      copy
     })
   const permission = (action: string): string => `${config.value.routeName}:${action}`
   const table = reactive({
@@ -470,10 +462,7 @@
     return shared
   }
   const fetchData = async (params: TableParams) => {
-    const result = await fetchMaterialReferences(config.value.kind, {
-      ...params,
-      tenantId: tenantId.value
-    })
+    const result = await fetchMaterialReferences(config.value.kind, params)
     overview.total = result.total
     overview.enabled = result.data.filter((row) => row.status === 'enabled').length
     return { records: result.data, total: result.total }

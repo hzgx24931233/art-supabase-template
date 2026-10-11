@@ -6,7 +6,6 @@ import { buildBomWritePayload } from '@/api/mdm/bom-write-payload'
 test('BOM write payload excludes joined records and audit-only fields', () => {
   const payload = {
     id: 'bom-1',
-    tenantId: 'tenant-1',
     bomCode: 'BOM-0001',
     materialId: 'material-1',
     processRouteId: 'route-1',
@@ -51,7 +50,6 @@ test('BOM write payload excludes joined records and audit-only fields', () => {
 
   assert.deepEqual(Object.keys(result.header), [
     'id',
-    'tenantId',
     'bomCode',
     'materialId',
     'processRouteId',

@@ -108,7 +108,6 @@
   import type { ColumnOption } from '@/types'
   import { useAuth } from '@/hooks/core/useAuth'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import { useUserStore } from '@/store/modules/user'
   import { formatWithDayjs } from '@/utils/time'
   import TreeUtils from '@/utils/tree'
@@ -179,10 +178,7 @@
   const isDesktopMenuLayout = useMediaQuery('(min-width: 1201px)')
   const treeUtils = new TreeUtils({ idKey: 'id', parentKey: 'parentId', childrenKey: 'children' })
   const userStore = useUserStore()
-  const tenantScopeStore = useTenantScopeStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId, isAllTenants, scopeLabel, tenantOptions } =
-    storeToRefs(tenantScopeStore)
   const { hasAuth, hasAnyAuth } = useAuth()
   const { confirmDelete } = useArtFeedback()
   const canManage = computed(() =>
@@ -193,7 +189,6 @@
       'MdmDocumentType:Delete'
     ])
   )
-  const showTenantColumn = computed(() => isAllTenants.value)
 
   const menu: UnwrapNestedRefs<MenuGroup> = reactive<MenuGroup>({
     tree: [],
@@ -206,14 +201,13 @@
       enabled: 0,
       defaults: 0,
       menuCount: 0,
-      tenantCount: 0,
       menuCounts: {}
     },
     metrics: computed(() => [
       {
         label: '类型总数',
         value: overview.stats.total,
-        description: '当前租户与菜单范围内的主数据',
+        description: '当前菜单范围内的主数据',
         icon: 'ri:file-list-3-line',
         tone: 'primary'
       },
@@ -246,7 +240,6 @@
       label: canManage.value ? '已授权维护' : '安全只读视图',
       type: canManage.value ? 'primary' : 'info'
     },
-    { label: `数据范围：${scopeLabel.value}`, type: 'success' },
     { label: `最近更新：${formatWithDayjs(overview.stats.lastUpdateTime) || '-'}` }
   ])
   const workspaceMetrics = computed(() => overview.metrics)
@@ -323,17 +316,10 @@
           { key: 'sortOrder', title: '排序' },
           { key: 'textColor', title: '文字颜色' },
           { key: 'tagStyle', title: '标签样式' },
-          { key: 'statusLabel', title: '状态' },
-          ...(showTenantColumn.value
-            ? [
-                { key: 'tenantName', title: '所属租户' },
-                { key: 'tenantCode', title: '租户编码' }
-              ]
-            : [])
+          { key: 'statusLabel', title: '状态' }
         ],
         exportApi: async ({ searchParams, maxRows }) => {
           const rows = await exportDocumentTypes({
-            tenantId: effectiveTenantId.value,
             menuIds: selectedMenuIds.value,
             keyword: String(searchParams.keyword ?? ''),
             enabled: typeof searchParams.enabled === 'boolean' ? searchParams.enabled : undefined,
@@ -376,7 +362,6 @@
     fetchDocumentTypeList(
       {
         ...params,
-        tenantId: effectiveTenantId.value,
         menuIds: selectedMenuIds.value
       },
       options
@@ -431,21 +416,6 @@
         </div>
       )
     },
-    ...(showTenantColumn.value
-      ? [
-          {
-            prop: 'tenant',
-            label: '所属租户',
-            minWidth: 154,
-            formatter: (row: DocumentTypeRecord) => (
-              <div class="document-type-tenant-cell">
-                <strong>{row.tenant?.tenantName || '--'}</strong>
-                <small>{row.tenant?.tenantCode || '--'}</small>
-              </div>
-            )
-          } satisfies ColumnOption<DocumentTypeRecord>
-        ]
-      : []),
     {
       prop: 'tagStyle',
       label: '标签预览',
@@ -533,12 +503,7 @@
       mode,
       record,
       selectedMenuId: menu.selectedId,
-      menuTree: menu.tree,
-      tenantOptions: tenantOptions.value.map((tenant) => ({
-        label: `${tenant.tenantName}（${tenant.tenantCode}）`,
-        value: tenant.id
-      })),
-      effectiveTenantId: effectiveTenantId.value
+      menuTree: menu.tree
     })
   }
 
@@ -557,7 +522,7 @@
   }
 
   const loadStats = async (): Promise<void> => {
-    Object.assign(overview.stats, await fetchDocumentTypeStats(effectiveTenantId.value))
+    Object.assign(overview.stats, await fetchDocumentTypeStats())
   }
 
   const loadMenuTree = async (): Promise<void> => {
@@ -613,12 +578,7 @@
   const initialize = async (): Promise<void> => {
     menu.loading = true
     try {
-      await Promise.all([
-        userStore.ensureDictLoaded('commonBoolean'),
-        tenantScopeStore.loadTenantOptions(),
-        loadMenuTree(),
-        loadStats()
-      ])
+      await Promise.all([userStore.ensureDictLoaded('commonBoolean'), loadMenuTree(), loadStats()])
       await tableRef.value?.getData()
     } finally {
       menu.loading = false
@@ -626,7 +586,6 @@
   }
 
   onMounted(() => void initialize())
-  watch(effectiveTenantId, () => void refreshContext())
 </script>
 
 <style scoped lang="scss">
@@ -773,7 +732,6 @@
     }
 
     :deep(.document-type-menu-cell),
-    :deep(.document-type-tenant-cell),
     :deep(.document-type-update-cell) {
       display: grid;
       min-width: 0;
@@ -793,8 +751,7 @@
       }
     }
 
-    :deep(.document-type-menu-cell strong),
-    :deep(.document-type-tenant-cell strong) {
+    :deep(.document-type-menu-cell strong) {
       color: var(--el-text-color-primary);
     }
   }

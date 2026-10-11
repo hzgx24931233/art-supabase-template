@@ -48,7 +48,6 @@
           <div class="website-wordmark-settings__picker">
             <ArtUploadImage
               :model-value="lightUrl"
-              :resource-tenant-id="resourceTenantId"
               title="选择浅色菜单字图"
               width="100%"
               :height="150"
@@ -74,7 +73,6 @@
           <div class="website-wordmark-settings__picker">
             <ArtUploadImage
               :model-value="darkUrl"
-              :resource-tenant-id="resourceTenantId"
               title="选择深色菜单字图"
               width="100%"
               :height="150"
@@ -105,7 +103,6 @@
     lightUrl?: string | null
     darkUrl?: string | null
     siteName: string
-    resourceTenantId: string
     disabled?: boolean
   }>()
 
@@ -143,7 +140,6 @@
     theme: Api.SystemManage.WebsiteWordmarkTheme
   ): Promise<string> => {
     const [resource] = await uploadAttachment(file, {
-      targetTenantId: props.resourceTenantId,
       remark: `${siteName}菜单品牌字图（${theme === 'light' ? '浅色菜单' : '深色菜单'}）`
     })
     if (!resource?.url) throw new Error('品牌字图已生成，但未获得资源地址')

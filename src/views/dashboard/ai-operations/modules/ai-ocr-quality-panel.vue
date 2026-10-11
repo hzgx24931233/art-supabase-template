@@ -242,7 +242,7 @@
   async function applyRecommendation(item: AiOcrFeatureQuality) {
     try {
       const reason = await promptReason(
-        `将 ${item.label} 的复核阈值从 ${item.threshold.toFixed(1)}% 调整为 ${item.recommendedThreshold.toFixed(1)}%。该配置会影响所有启用租户，请填写变更原因。`,
+        `将 ${item.label} 的复核阈值从 ${item.threshold.toFixed(1)}% 调整为 ${item.recommendedThreshold.toFixed(1)}%，请填写变更原因。`,
         '应用 OCR 质量建议',
         {
           confirmButtonText: '确认应用',

@@ -2,17 +2,8 @@ declare namespace Api {
   namespace NotificationReminder {
     type ChannelCode = 'in_app' | 'email' | 'sms' | 'dingtalk' | 'wecom'
     type ModuleCode = 'system' | 'fms'
-    type RecipientStrategy = 'tenant_admins' | 'owner_then_roles'
+    type RecipientStrategy = 'owner_then_roles'
     type TestStatus = 'pending' | 'delivered' | 'failed'
-
-    interface WorkspaceTenant {
-      id: string
-      tenantCode: string
-      tenantName: string
-      serviceStartDate?: string | null
-      serviceEndDate?: string | null
-      status: Api.Common.EnableStatus
-    }
 
     interface Scenario {
       id: string
@@ -25,7 +16,6 @@ declare namespace Api {
 
     interface Rule {
       id?: string
-      tenantId: string
       scenarioId: string
       scenarioCode?: string
       scenarioName?: string
@@ -44,7 +34,6 @@ declare namespace Api {
 
     interface ChannelConfig {
       id: string
-      tenantId: string
       channelCode: ChannelCode
       providerCode: string
       enabled: boolean
@@ -66,7 +55,6 @@ declare namespace Api {
     }
 
     interface Workspace {
-      tenant: WorkspaceTenant
       scenarios: Scenario[]
       rules: Rule[]
       channels: ChannelConfig[]
@@ -74,7 +62,6 @@ declare namespace Api {
     }
 
     interface SaveChannelPayload {
-      tenantId: string
       channelCode: ChannelCode
       providerCode: string
       enabled: boolean

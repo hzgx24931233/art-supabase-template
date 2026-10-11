@@ -7,12 +7,9 @@
       class="role-page__overview"
       eyebrow="ACCESS GOVERNANCE"
       title="角色与权限"
-      description="按租户维护职责角色与菜单访问边界，让权限配置清晰、可追踪、可审计。"
+      description="维护职责角色与菜单访问边界，让权限配置清晰、可追踪、可审计。"
       icon="ri:shield-user-line"
-      :tags="[
-        { label: '权限按租户隔离', type: 'success', effect: 'light' },
-        { label: '遵循最小权限原则', type: 'primary', effect: 'plain' }
-      ]"
+      :tags="[{ label: '遵循最小权限原则', type: 'primary', effect: 'plain' }]"
       :metrics="workspaceMetrics"
     >
       <template #actions>
@@ -30,7 +27,6 @@
               :loading="organizationFilterLoading"
               :selected-key="selectedOrganizationKey"
               :include-descendants="includeDescendantOrganizations"
-              :global-scope="isAllTenants"
               @select="handleOrganizationSelect"
               @refresh="handleOrganizationRefresh"
               @update:include-descendants="handleIncludeDescendantsChange"
@@ -89,7 +85,6 @@
         :loading="organizationFilterLoading"
         :selected-key="selectedOrganizationKey"
         :include-descendants="includeDescendantOrganizations"
-        :global-scope="isAllTenants"
         @select="handleOrganizationSelect"
         @refresh="handleOrganizationRefresh"
         @update:include-descendants="handleIncludeDescendantsChange"
@@ -127,7 +122,6 @@
     ArtTableQueryTableProps
   } from '@/components/core/tables/art-table-query/index.vue'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import TreeUtils from '@/utils/tree'
   import OrganizationScopeFilter from '../shared/organization-scope-filter.vue'
   import MasterDataDeleteGuard, {
@@ -161,7 +155,6 @@
 
   const showSearchBar = ref(false)
   const { getDictMap, isPlatformSuper } = storeToRefs(useUserStore())
-  const { effectiveTenantId, isAllTenants } = storeToRefs(useTenantScopeStore())
   const ALL_ORGANIZATIONS_KEY = '__all_organizations__'
   const UNASSIGNED_ORGANIZATION_KEY = '__unassigned_organization__'
   const organizationTreeUtils = new TreeUtils({
@@ -174,7 +167,6 @@
   const isDesktopOrganizationLayout = useMediaQuery('(min-width: 1201px)')
   const organizationTree = ref<OrganizationFilterItem[]>([])
   const organizationFilterLoading = ref(false)
-  const selectedTenantId = computed(() => effectiveTenantId.value ?? '')
   const selectedOrganizationKey = ref(ALL_ORGANIZATIONS_KEY)
   const includeDescendantOrganizations = ref(true)
   const selectedOrganization = computed(() =>
@@ -376,18 +368,6 @@
             ])
         },
         {
-          prop: 'tenant',
-          label: '所属租户',
-          minWidth: 180,
-          formatter: (row: RoleListItem) =>
-            h('div', { class: 'role-tenant-cell' }, [
-              h('strong', { title: row.tenant?.tenantName }, row.tenant?.tenantName || '当前租户'),
-              row.tenant?.tenantCode
-                ? h('span', { title: row.tenant.tenantCode }, row.tenant.tenantCode)
-                : null
-            ])
-        },
-        {
           prop: 'organization',
           label: '适用组织',
           minWidth: 180,
@@ -548,7 +528,6 @@
       searchParams as RoleSearchParams
     const { from, to } = pageInfoHandler(pagination)
     return await fetchGetRoleList({
-      tenantId: selectedTenantId.value || undefined,
       organizationIds: selectedOrganizationIds.value,
       organizationUnassigned: selectedOrganizationKey.value === UNASSIGNED_ORGANIZATION_KEY,
       roleName,
@@ -566,9 +545,7 @@
   const loadOrganizationTree = async (): Promise<void> => {
     organizationFilterLoading.value = true
     try {
-      const response = await fetchGetRoleOrganizationTree({
-        tenantId: selectedTenantId.value || undefined
-      })
+      const response = await fetchGetRoleOrganizationTree()
       organizationTree.value = response.data ?? []
 
       if (
@@ -797,7 +774,6 @@
       }
     }
 
-    :deep(.role-tenant-cell),
     :deep(.role-organization-cell),
     :deep(.role-created-cell) {
       display: grid;

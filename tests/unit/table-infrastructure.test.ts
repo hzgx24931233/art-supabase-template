@@ -60,20 +60,14 @@ test('cache tags are stable for reordered and structured filters and match exact
   assert.equal(cache.clearPagination(), 1)
 })
 
-test('cache keys isolate otherwise identical queries by tenant and permission scope', () => {
+test('cache keys deduplicate identical queries and isolate different filter payloads', () => {
   const cache = new TableCache<number>()
-  cache.set({ tenantId: 'tenant-a', permissionScope: 'tenant', current: 1 }, [1], {})
-  cache.set({ tenantId: null, permissionScope: 'platform-all', current: 1 }, [2], {})
+  cache.set({ current: 1, filter: { status: 'open' } }, [1], {})
+  cache.set({ current: 1, filter: { status: 'closed' } }, [2], {})
 
-  assert.deepEqual(
-    cache.get({ tenantId: 'tenant-a', permissionScope: 'tenant', current: 1 })?.data,
-    [1]
-  )
-  assert.deepEqual(
-    cache.get({ tenantId: null, permissionScope: 'platform-all', current: 1 })?.data,
-    [2]
-  )
-  assert.equal(cache.get({ tenantId: 'tenant-b', permissionScope: 'tenant', current: 1 }), null)
+  assert.deepEqual(cache.get({ current: 1, filter: { status: 'open' } })?.data, [1])
+  assert.deepEqual(cache.get({ current: 1, filter: { status: 'closed' } })?.data, [2])
+  assert.equal(cache.get({ current: 1, filter: { status: 'archived' } }), null)
 })
 
 test('response adapter handles null and preserves explicit empty lists and totals', () => {

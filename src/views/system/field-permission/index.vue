@@ -45,14 +45,6 @@
         </div>
       </template>
 
-      <div v-if="isAllTenants" class="field-permission-page__scope-preview" role="status">
-        <span aria-hidden="true"><ArtSvgIcon icon="ri:information-2-line" /></span>
-        <div>
-          <strong>全部租户模式下展示平台租户预览</strong>
-          <p>当前读取“{{ activeTenantLabel }}”的字段目录；如需修改授权，请先在顶部选择具体租户。</p>
-        </div>
-      </div>
-
       <div class="field-permission-page__selectors">
         <label>
           <span class="field-permission-page__selector-label">
@@ -324,8 +316,8 @@
         </ElButton>
       </template>
       <span v-else class="field-permission-page__readonly-state">
-        <ArtSvgIcon :icon="isAllTenants ? 'ri:building-4-line' : 'ri:lock-2-line'" />
-        {{ isAllTenants ? '选择具体租户后可维护' : '需要“维护字段权限”按钮权限' }}
+        <ArtSvgIcon icon="ri:lock-2-line" />
+        需要“维护字段权限”按钮权限
       </span>
     </ArtStickyActionBar>
   </div>
@@ -352,10 +344,7 @@
   import { fetchGetRoleList, fetchGetUserList } from '@/api/system-manage'
   import { useAuth } from '@/hooks/core/useAuth'
   import { useDictionaryOptions } from '@/hooks/core/useDictionaryOptions'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { useUserStore } from '@/store/modules/user'
   import { formatWithDayjs } from '@/utils/time'
-  import { resolveTenantWorkspaceId } from '@/utils/tenant-scope-context'
   import { getFieldPermissionAuditChanges } from './modules/field-permission-audit'
 
   defineOptions({ name: 'FieldPermission' })
@@ -387,13 +376,7 @@
     icon: string
   }
 
-  const userStore = useUserStore()
-  const { effectiveTenantId, isAllTenants } = storeToRefs(useTenantScopeStore())
   const { hasAuth } = useAuth()
-  const activeTenantId = computed(() =>
-    resolveTenantWorkspaceId(effectiveTenantId.value, userStore.getUserInfo.tenantId)
-  )
-  const activeTenantLabel = computed(() => (isAllTenants.value ? '平台运营租户' : '当前所选租户'))
 
   const page = reactive<PageGroup>({
     loading: false,
@@ -459,11 +442,11 @@
     () =>
       subjectOptions.value.find((option) => option.value === selectedSubjectId.value)?.label || '--'
   )
-  const isReadOnly = computed(() => isAllTenants.value || !hasAuth('System:FieldPermission:Manage'))
+  const isReadOnly = computed(() => !hasAuth('System:FieldPermission:Manage'))
   const workspaceTags = computed<BusinessWorkspaceTag[]>(() => [
     {
-      label: isAllTenants.value ? '平台租户预览' : '租户内隔离',
-      type: isAllTenants.value ? 'warning' : 'primary',
+      label: '表单级独立授权',
+      type: 'primary',
       effect: 'plain'
     },
     {
@@ -512,13 +495,6 @@
     ]
   })
   const actionState = computed(() => {
-    if (isAllTenants.value) {
-      return {
-        icon: 'ri:building-4-line',
-        title: '当前为平台租户只读预览',
-        description: '请先在顶部切换到具体租户，再维护该租户的字段授权。'
-      }
-    }
     if (isReadOnly.value) {
       return {
         icon: 'ri:eye-line',
@@ -686,26 +662,19 @@
     page.loading = true
     page.error = null
     try {
-      const tenantId = activeTenantId.value
-      if (!tenantId) throw new Error('当前账号未绑定可用租户，无法加载字段权限')
-
       const [resourceResult, roleResult, userResult] = await Promise.all([
         fetchFieldPermissionResources(),
-        fetchGetRoleList({ tenantId, enabled: true, from: 0, to: 999 }),
-        fetchGetUserList({ tenantId, status: '1', from: 0, to: 999 })
+        fetchGetRoleList({ enabled: true, from: 0, to: 999 }),
+        fetchGetUserList({ status: '1', from: 0, to: 999 })
       ])
 
       const catalogError = resourceResult.error ?? roleResult.error ?? userResult.error
       if (catalogError) throw catalogError
       const roles = Array.isArray(roleResult.data)
-        ? (roleResult.data as Api.SystemManage.RoleListItem[]).filter(
-            (role) => !role.tenantId || role.tenantId === tenantId
-          )
+        ? (roleResult.data as Api.SystemManage.RoleListItem[])
         : []
       const users = Array.isArray(userResult.data)
-        ? (userResult.data as Api.SystemManage.UserListItem[]).filter(
-            (user) => !user.tenantId || user.tenantId === tenantId
-          )
+        ? (userResult.data as Api.SystemManage.UserListItem[])
         : []
       resources.value = resourceResult.data ?? []
       roleOptions.value = roles
@@ -729,7 +698,7 @@
       }
       await loadConfiguration()
     } catch (error) {
-      page.error = new Error('字段权限目录加载失败，请检查租户与菜单权限后重试。', {
+      page.error = new Error('字段权限目录加载失败，请检查菜单权限后重试。', {
         cause: error
       })
     } finally {
@@ -792,7 +761,7 @@
     else await loadCatalog()
   }
 
-  const reloadTenantWorkspace = async (): Promise<void> => {
+  const reloadWorkspace = async (): Promise<void> => {
     configuration.value = null
     auditLogs.value = []
     permissionDraft.value = {}
@@ -802,7 +771,7 @@
     await loadCatalog()
   }
 
-  watch(activeTenantId, () => void reloadTenantWorkspace(), { immediate: true })
+  onMounted(() => void reloadWorkspace())
 </script>
 
 <style scoped lang="scss">
@@ -919,41 +888,6 @@
           font-weight: 600;
           color: var(--art-text-gray-600);
         }
-      }
-    }
-
-    &__scope-preview {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      padding: 10px 12px;
-      margin-top: 14px;
-      color: var(--el-color-warning-dark-2);
-      background: color-mix(in srgb, var(--el-color-warning) 8%, var(--default-box-color));
-      border: 1px solid color-mix(in srgb, var(--el-color-warning) 24%, transparent);
-      border-radius: var(--art-control-radius);
-
-      > span {
-        display: grid;
-        flex: 0 0 30px;
-        place-items: center;
-        width: 30px;
-        height: 30px;
-        color: var(--el-color-warning-dark-2);
-        background: color-mix(in srgb, var(--el-color-warning) 14%, var(--default-box-color));
-        border-radius: 9px;
-      }
-
-      strong {
-        display: block;
-        font-size: 13px;
-        font-weight: 650;
-      }
-
-      p {
-        margin: 2px 0 0;
-        font-size: 12px;
-        color: var(--art-text-gray-600);
       }
     }
 

@@ -47,7 +47,6 @@ test('SQL console keeps Monaco limited to the workers it actually uses', () => {
 test('application shell imports focused system APIs instead of the management barrel', () => {
   const shellSources = [
     '../../src/router/core/MenuProcessor.ts',
-    '../../src/store/modules/tenantScope.ts',
     '../../src/hooks/core/useWebsiteConfig.ts',
     '../../src/hooks/core/system-param/read-system-param.ts',
     '../../src/utils/application-navigation.ts'
@@ -59,7 +58,6 @@ test('application shell imports focused system APIs instead of the management ba
 
   const combinedSource = shellSources.join('\n')
   assert.match(combinedSource, /system-manage\/application-access/)
-  assert.match(combinedSource, /system-manage\/tenant/)
   assert.match(combinedSource, /system-manage\/system-param/)
   assert.match(combinedSource, /system-manage\/website-config/)
 })

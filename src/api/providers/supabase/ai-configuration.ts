@@ -6,8 +6,6 @@ const { supabase, keysToSnakeDeep, responseHandle } = useSupabase()
 
 export interface AiFeatureConfig {
   id: string
-  tenantId: string
-  sourceTenantId: string
   inherited: boolean
   feature: string
   enabled: boolean

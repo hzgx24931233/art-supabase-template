@@ -9,7 +9,6 @@ import {
 
 const source: DocumentTypeRecord = {
   id: 'source-id',
-  tenantId: 'tenant-id',
   menuId: 'menu-id',
   documentTypeCode: 'ORDER',
   documentTypeName: '运输订单',
@@ -29,7 +28,6 @@ test('copy model keeps presentation but clears the unique code and default state
   const copy = createDocumentTypeCopyModel(source)
 
   assert.equal(copy.sourceId, source.id)
-  assert.equal(copy.tenantId, source.tenantId)
   assert.equal(copy.documentTypeCode, '')
   assert.equal(copy.documentTypeName, '运输订单（副本）')
   assert.equal(copy.isDefault, false)
@@ -37,9 +35,8 @@ test('copy model keeps presentation but clears the unique code and default state
   assert.deepEqual(copy.allowedIssueWarehouseTypes, source.allowedIssueWarehouseTypes)
 })
 
-test('write payload normalizes text and only includes tenant when required', () => {
+test('write payload normalizes text and keeps only the writable fields', () => {
   const model = createDocumentTypeFormModel({
-    tenantId: 'tenant-id',
     menuId: 'menu-id',
     documentTypeCode: '  order_return  ',
     documentTypeName: '  退货单  ',
@@ -47,14 +44,26 @@ test('write payload normalizes text and only includes tenant when required', () 
     textColor: '#409eff'
   })
 
-  const tenantPayload = buildDocumentTypeInput(model, true)
-  const ordinaryPayload = buildDocumentTypeInput(model, false)
+  const payload = buildDocumentTypeInput(model)
 
-  assert.equal(tenantPayload.documentTypeCode, 'ORDER_RETURN')
-  assert.equal(tenantPayload.documentTypeName, '退货单')
-  assert.equal(tenantPayload.remark, '退货业务')
-  assert.equal(tenantPayload.textColor, '#409EFF')
-  assert.equal(tenantPayload.tenantId, 'tenant-id')
-  assert.equal('tenantId' in ordinaryPayload, false)
-  assert.deepEqual(tenantPayload.allowedIssueWarehouseTypes, ['raw_material'])
+  assert.equal(payload.documentTypeCode, 'ORDER_RETURN')
+  assert.equal(payload.documentTypeName, '退货单')
+  assert.equal(payload.remark, '退货业务')
+  assert.equal(payload.textColor, '#409EFF')
+  assert.deepEqual(payload.allowedIssueWarehouseTypes, ['raw_material'])
+  assert.deepEqual(Object.keys(payload).sort(), [
+    'allowedIssueWarehouseTypes',
+    'documentTypeCode',
+    'documentTypeName',
+    'enabled',
+    'extensionFields',
+    'isDefault',
+    'menuId',
+    'packingEnabled',
+    'packingThicknessFieldKey',
+    'remark',
+    'sortOrder',
+    'tagStyle',
+    'textColor'
+  ])
 })

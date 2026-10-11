@@ -29,7 +29,7 @@ export function useDictionaryOptions<T extends string | number | boolean = strin
             value: mapValue ? mapValue(item.value) : (item.value as T)
           }))
       )
-      // 登录初始化或切换租户会清空字典缓存。此时重新加载当前页面仍在使用的字典。
+      // 登录初始化会清空字典缓存。此时重新加载当前页面仍在使用的字典。
       if (!items) {
         void userStore.ensureDictLoaded(code).catch(() => {
           ElMessage({ type: 'error', message: '字典选项加载失败，请刷新页面重试', grouping: true })

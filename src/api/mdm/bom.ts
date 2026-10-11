@@ -36,7 +36,7 @@ const writeOptions = {
 export async function fetchBoms(params: BomQuery, options?: { signal?: AbortSignal }) {
   let materialIds: string[] = []
   if (params.keyword) {
-    let materialQuery = supabase
+    const materialQuery = supabase
       .from('mdm_material')
       .select('id')
       .or(
@@ -46,19 +46,17 @@ export async function fetchBoms(params: BomQuery, options?: { signal?: AbortSign
         )
       )
       .limit(200)
-    if (params.tenantId) materialQuery = materialQuery.eq('tenant_id', params.tenantId)
     const { data } = await responseHandle<Array<{ id: string }>>(() => materialQuery, readOptions)
     materialIds = (data ?? []).map((row) => row.id)
   }
   let query = supabase
     .from('mdm_bom')
     .select(
-      '*,group:mdm_master_group!mdm_bom_group_fkey(id,code,name),material:mdm_material!mdm_bom_material_fkey(id,tenant_id,material_code,material_name,specification_model,drawing_no,description,material_source,special_purchase_type,base_unit_id,production_unit_id,default_warehouse_id,material_issue_method,backflush_method,over_issue_control_method,baseUnit:mdm_unit_of_measure!mdm_material_base_unit_fkey(id,unit_code,unit_name,symbol),productionUnit:mdm_unit_of_measure!mdm_material_production_unit_id_fkey(id,unit_code,unit_name,symbol),defaultWarehouse:mdm_warehouse!mdm_material_default_warehouse_fkey(id,warehouse_code,warehouse_name)),processRoute:mdm_process_route!mdm_bom_process_route_fkey(id,tenant_id,material_id,code,name,version,is_default,enabled),baseUnit:mdm_unit_of_measure!mdm_bom_unit_fkey(id,unit_code,unit_name,symbol),items:mdm_bom_item(id,tenant_id,bom_id,component_material_id,component_type_id,sequence_no,quantity,unit_id,scrap_rate,mrp_enabled,default_issue_warehouse_id,issue_method,backflush_method,over_issue_control_method,project_text,position_no,process_route_step_id,operation_name,effective_from,effective_to,remark,componentType:mdm_component_type!mdm_bom_item_component_type_fk(id,component_type_code,component_type_name,tag_style,text_color),component:mdm_material!mdm_bom_item_material_fkey(id,tenant_id,material_code,material_name,specification_model,drawing_no,description,material_source,special_purchase_type,base_unit_id,auxiliary_unit_id,auxiliary_unit_2_id,unit_conversions,production_unit_id,default_warehouse_id,material_issue_method,backflush_method,over_issue_control_method,baseUnit:mdm_unit_of_measure!mdm_material_base_unit_fkey(id,unit_code,unit_name,symbol),productionUnit:mdm_unit_of_measure!mdm_material_production_unit_id_fkey(id,unit_code,unit_name,symbol),defaultWarehouse:mdm_warehouse!mdm_material_default_warehouse_fkey(id,warehouse_code,warehouse_name)),processRouteStep:mdm_process_route_step!mdm_bom_item_process_route_step_fkey(id,tenant_id,route_id,code,name,sort,work_center_id,work_center_ids,workCenter:mdm_work_center!mdm_process_route_step_tenant_id_work_center_id_fkey(id,code,name),sequence:mdm_process_route_sequence!mdm_process_route_step_sequence_fk(id,sequence_no,sequence_type)),unit:mdm_unit_of_measure!mdm_bom_item_unit_fkey(id,unit_code,unit_name,symbol),defaultIssueWarehouse:mdm_warehouse!mdm_bom_item_default_issue_warehouse_fkey(id,warehouse_code,warehouse_name))',
+      '*,group:mdm_master_group!mdm_bom_group_fkey(id,code,name),material:mdm_material!mdm_bom_material_fkey(id,material_code,material_name,specification_model,drawing_no,description,material_source,special_purchase_type,base_unit_id,production_unit_id,default_warehouse_id,material_issue_method,backflush_method,over_issue_control_method,baseUnit:mdm_unit_of_measure!mdm_material_base_unit_fkey(id,unit_code,unit_name,symbol),productionUnit:mdm_unit_of_measure!mdm_material_production_unit_id_fkey(id,unit_code,unit_name,symbol),defaultWarehouse:mdm_warehouse!mdm_material_default_warehouse_fkey(id,warehouse_code,warehouse_name)),processRoute:mdm_process_route!mdm_bom_process_route_fkey(id,material_id,code,name,version,is_default,enabled),baseUnit:mdm_unit_of_measure!mdm_bom_unit_fkey(id,unit_code,unit_name,symbol),items:mdm_bom_item(id,bom_id,component_material_id,component_type_id,sequence_no,quantity,unit_id,scrap_rate,mrp_enabled,default_issue_warehouse_id,issue_method,backflush_method,over_issue_control_method,project_text,position_no,process_route_step_id,operation_name,effective_from,effective_to,remark,componentType:mdm_component_type!mdm_bom_item_component_type_fk(id,component_type_code,component_type_name,tag_style,text_color),component:mdm_material!mdm_bom_item_material_fkey(id,material_code,material_name,specification_model,drawing_no,description,material_source,special_purchase_type,base_unit_id,auxiliary_unit_id,auxiliary_unit_2_id,unit_conversions,production_unit_id,default_warehouse_id,material_issue_method,backflush_method,over_issue_control_method,baseUnit:mdm_unit_of_measure!mdm_material_base_unit_fkey(id,unit_code,unit_name,symbol),productionUnit:mdm_unit_of_measure!mdm_material_production_unit_id_fkey(id,unit_code,unit_name,symbol),defaultWarehouse:mdm_warehouse!mdm_material_default_warehouse_fkey(id,warehouse_code,warehouse_name)),processRouteStep:mdm_process_route_step!mdm_bom_item_process_route_step_fkey(id,route_id,code,name,sort,work_center_id,work_center_ids,workCenter:mdm_work_center(id,code,name),sequence:mdm_process_route_sequence!mdm_process_route_step_sequence_fk(id,sequence_no,sequence_type)),unit:mdm_unit_of_measure!mdm_bom_item_unit_fkey(id,unit_code,unit_name,symbol),defaultIssueWarehouse:mdm_warehouse!mdm_bom_item_default_issue_warehouse_fkey(id,warehouse_code,warehouse_name))',
       { count: 'exact' }
     )
     .order('sort')
     .order('update_time', { ascending: false })
-  if (params.tenantId) query = query.eq('tenant_id', params.tenantId)
   if (params.id) query = query.eq('id', params.id)
   if (params.keyword) {
     const baseFilter = buildOrIlikeFilter(['bom_code', 'version', 'description'], params.keyword)
@@ -92,13 +90,12 @@ export async function fetchBoms(params: BomQuery, options?: { signal?: AbortSign
   return { data: rows, total: total ?? 0, current: params.current, size: params.size }
 }
 
-export async function fetchBomGroups(tenantId?: string | null): Promise<BomGroup[]> {
-  let query = supabase
+export async function fetchBomGroups(): Promise<BomGroup[]> {
+  const query = supabase
     .from('mdm_master_group')
-    .select('id,tenant_id,code,name,parent_id,sort,enabled,remark')
+    .select('id,code,name,parent_id,sort,enabled,remark')
     .eq('domain', 'bom')
     .order('sort')
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   const { data } = await responseHandle<BomGroup[]>(() => query, readOptions)
   return data ?? []
 }
@@ -134,16 +131,12 @@ export async function saveBom(payload: BomInput): Promise<string> {
   return data ?? ''
 }
 
-export async function fetchBomProcessRoutes(
-  tenantId: string,
-  materialId: string
-): Promise<BomProcessRouteOption[]> {
+export async function fetchBomProcessRoutes(materialId: string): Promise<BomProcessRouteOption[]> {
   const { data } = await responseHandle<BomProcessRouteOption[]>(
     () =>
       supabase
         .from('mdm_process_route')
-        .select('id,tenant_id,material_id,code,name,version,is_default,enabled')
-        .eq('tenant_id', tenantId)
+        .select('id,material_id,code,name,version,is_default,enabled')
         .eq('material_id', materialId)
         .eq('enabled', true)
         .order('is_default', { ascending: false })
@@ -154,7 +147,6 @@ export async function fetchBomProcessRoutes(
 }
 
 export async function fetchBomProcessRouteSteps(
-  tenantId: string,
   routeId: string
 ): Promise<BomProcessRouteStepOption[]> {
   const { data } = await responseHandle<BomProcessRouteStepOption[]>(
@@ -162,9 +154,8 @@ export async function fetchBomProcessRouteSteps(
       supabase
         .from('mdm_process_route_step')
         .select(
-          'id,tenant_id,route_id,code,name,sort,work_center_id,work_center_ids,workCenter:mdm_work_center!mdm_process_route_step_tenant_id_work_center_id_fkey(id,code,name),sequence:mdm_process_route_sequence!mdm_process_route_step_sequence_fk(id,sequence_no,sequence_type)'
+          'id,route_id,code,name,sort,work_center_id,work_center_ids,workCenter:mdm_work_center(id,code,name),sequence:mdm_process_route_sequence!mdm_process_route_step_sequence_fk(id,sequence_no,sequence_type)'
         )
-        .eq('tenant_id', tenantId)
         .eq('route_id', routeId)
         .order('sort')
         .order('code'),

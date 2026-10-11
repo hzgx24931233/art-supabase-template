@@ -28,7 +28,7 @@ Use `src/components/business` for components reused across pages that understand
 
 Examples:
 
-- `ArtEmployeeSelect`: tenant-scoped employee lookup and employee identity display.
+- `ArtEmployeeSelect`: employee lookup with permission-enforced search and employee identity display.
 - `BusinessWorkspaceHeader`: shared business workspace identity and overview metrics.
 - Business record links, history, and permission-aware action surfaces.
 

@@ -47,204 +47,26 @@ const permissionPattern =
   /['"`]((?:System|Workflow|Tms|Finance|Hr|Mdm|Pmis|Smis|Scm|Wms|Ctm|Vehicle|Insurance|Parts|PartsCategory|Supplier)[A-Za-z0-9]*(?::[A-Za-z][A-Za-z0-9]*)+)['"`]/g
 const platformSuperPattern = /isPlatformSuper|平台超级管理员|仅平台|platform super administrator/i
 
-// These files use platform-super only for cross-tenant context or controlled writes where explicitly required.
+// These files use platform-super only for organization-wide scope or controlled writes where explicitly required.
 // Adding a file here requires an explicit security rationale; normal business maintenance is forbidden.
 const platformSuperAllowlist = new Map<string, string>([
-  [
-    'modules/art-supabase-fms/src/views/account-set/index.vue',
-    'cross-tenant account-set selector and tenant columns'
-  ],
-  [
-    'modules/art-supabase-fms/src/views/expense-item/index.vue',
-    'cross-tenant expense-item selector and tenant columns'
-  ],
   [
     'modules/art-supabase-fms/src/views/cash-transaction/modules/cash-bank-batch-import-dialog.vue',
     'controlled AI batch write'
   ],
   [
-    'modules/art-supabase-hr/src/views/personnel/employee-roster/index.vue',
-    'cross-tenant employee selector'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/employee-profile/index.vue',
-    'cross-tenant employee context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/position/index.vue',
-    'cross-tenant position selector and tenant columns'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/position/modules/position-dialog.vue',
-    'cross-tenant position tenant assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/absence/index.vue',
-    'cross-tenant absence workspace context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/absence/modules/absence-dialog.vue',
-    'cross-tenant absence assignment'
-  ],
-  [
     'modules/art-supabase-hr/src/views/operations/attendance/index.vue',
-    'cross-tenant attendance context and controlled period reopen'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/attendance/modules/attendance-dialog.vue',
-    'cross-tenant attendance assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/benefits/index.vue',
-    'cross-tenant benefits workspace context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/benefits/modules/benefit-record-dialog.vue',
-    'cross-tenant benefit assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/compensation-review/modules/compensation-review-dialog.vue',
-    'cross-tenant compensation-review assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/compensation/index.vue',
-    'cross-tenant compensation context and sensitive columns'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/compensation/modules/compensation-dialog.vue',
-    'cross-tenant compensation assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/contingent-workforce/modules/contingent-workforce-dialog.vue',
-    'cross-tenant contingent-workforce assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/employee-experience/index.vue',
-    'cross-tenant employee-experience context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/employee-experience/modules/experience-action-dialog.vue',
-    'cross-tenant experience-action assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/employee-experience/modules/experience-survey-dialog.vue',
-    'cross-tenant experience-survey assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/employee-relations/index.vue',
-    'cross-tenant employee-relations context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/employee-relations/modules/employee-relation-record-dialog.vue',
-    'cross-tenant employee-relation assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/headcount/index.vue',
-    'cross-tenant workforce-planning context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/headcount/modules/workforce-planning-dialog.vue',
-    'cross-tenant workforce-plan assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/policy-acknowledgement/modules/policy-document-dialog.vue',
-    'cross-tenant policy-document assignment'
+    'controlled reopen of closed attendance periods'
   ],
   [
     'modules/art-supabase-hr/src/views/operations/self-service/index.vue',
-    'cross-tenant service-delivery context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/operations/self-service/modules/service-delivery-dialog.vue',
-    'cross-tenant service-delivery assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/compliance/index.vue',
-    'cross-tenant compliance workspace context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/compliance/modules/compliance-record-dialog.vue',
-    'cross-tenant compliance-record assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/job-architecture/index.vue',
-    'cross-tenant job-architecture context and tenant columns'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/job-architecture/modules/job-architecture-dialog.vue',
-    'cross-tenant job-architecture assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/lifecycle/index.vue',
-    'cross-tenant lifecycle workspace context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/lifecycle/modules/lifecycle-dialog.vue',
-    'cross-tenant lifecycle assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/personnel/organization-design/modules/organization-design-dialog.vue',
-    'cross-tenant organization-design assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/recruitment/workbench/index.vue',
-    'cross-tenant recruitment workspace context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/recruitment/workbench/modules/recruitment-dialog.vue',
-    'cross-tenant recruitment assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/talent/development/index.vue',
-    'cross-tenant learning workspace context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/talent/development/modules/learning-dialog.vue',
-    'cross-tenant learning assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/talent/internal-mobility/index.vue',
-    'cross-tenant internal-mobility context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/talent/internal-mobility/modules/internal-mobility-dialog.vue',
-    'cross-tenant internal-opportunity assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/talent/performance/index.vue',
-    'cross-tenant performance workspace context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/talent/performance/modules/performance-dialog.vue',
-    'cross-tenant performance assignment'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/talent/succession/index.vue',
-    'cross-tenant succession workspace context'
-  ],
-  [
-    'modules/art-supabase-hr/src/views/talent/succession/modules/succession-dialog.vue',
-    'cross-tenant succession assignment'
-  ],
-  [
-    'src/views/mdm/engineering/accessory-processing/index.vue',
-    'cross-tenant target selection and tenant labels; accessory actions use button permissions'
-  ],
-  [
-    'src/views/mdm/engineering/accessory-processing/modules/recognition-workspace.vue',
-    'cross-tenant selection and tenant-wide recognition history for platform administrators; saving uses button permissions'
-  ],
-  [
-    'src/views/mdm/production/personnel/index.vue',
-    'cross-tenant personnel and department import target selection; import actions use button permissions'
-  ],
-  [
-    'src/views/mdm/production/work-center/index.vue',
-    'cross-tenant work-center import and default-policy configuration target selection; import and configure actions use button permissions'
+    'organization-wide manager view of service delivery'
   ]
 ])
 
 const sourceReferenceExemptions = new Map<string, string>([
+  // 页面级 View 码由路由 / 服务端边界承担，页面源码不再重复声明
+  ['System:NotificationReminder:View', 'page-route or server-side authorization boundary'],
   // 资产应付页的按钮码由 SCM 采购单据工作区声明；SCM 未接入模板，这里登记为例外
   ['FinanceAssetPayable:Add', 'declared in the SCM module (not part of this template)'],
   [

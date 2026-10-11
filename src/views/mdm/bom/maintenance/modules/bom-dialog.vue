@@ -195,8 +195,6 @@
   export interface BomDialogOpenData {
     row?: BomRecord
     copy?: boolean
-    tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
     units: UnitOfMeasure[]
     loadUnits?: () => Promise<UnitOfMeasure[]>
     groups: BomGroup[]
@@ -214,7 +212,6 @@
   const dialogRef = ref<ArtDialogExpose<BomDialogOpenData>>()
   const formRef = ref<FormExpose>()
   const componentTableRef = ref<ArtTableExpose>()
-  const tenantOptions = ref<Array<{ label: string; value: string }>>([])
   const units = ref<UnitOfMeasure[]>([])
   const groups = ref<BomGroup[]>([])
   const processRoutes = ref<BomProcessRouteOption[]>([])
@@ -234,7 +231,6 @@
   )
   const initialForm = (): BomInput & { status: BomRecord['status'] } => ({
     id: undefined,
-    tenantId: '',
     bomCode: '',
     materialId: '',
     processRouteId: null,
@@ -251,8 +247,7 @@
     items: []
   })
   const form = reactive(initialForm())
-  const tenantId = computed(() => form.tenantId)
-  const scopedUnits = computed(() => units.value.filter((unit) => unit.tenantId === form.tenantId))
+  const scopedUnits = computed(() => units.value)
   const inheritedParentUnitId = computed(() => {
     const parent = selectedParent.value[0]
     return parent?.productionUnitId || parent?.baseUnitId || ''
@@ -266,17 +261,6 @@
     return step ? [step as DataSelectRecord] : []
   })
   const formItems = computed<FormItem[]>(() => [
-    {
-      key: 'tenantId',
-      label: '目标租户',
-      type: 'select',
-      options: tenantOptions.value,
-      props: {
-        disabled: Boolean(form.id),
-        filterable: true,
-        placeholder: '请选择本次维护的数据归属租户'
-      }
-    },
     { key: 'identity', label: 'BOM 身份', type: 'divider', span: 24 },
     { key: 'materialId', label: '父项物料', type: 'slot', span: 16 },
     {
@@ -374,7 +358,6 @@
     }
   ])
   const rules: FormRules<Record<string, unknown>> = {
-    tenantId: [{ required: true, message: '请选择目标租户', trigger: 'change' }],
     materialId: [{ required: true, message: '请选择父项物料', trigger: 'change' }],
     baseUnitId: [
       {
@@ -397,7 +380,6 @@
     fetchMaterialArchives({
       current: params.page,
       size: params.pageSize,
-      tenantId: tenantId.value,
       keyword: params.keyword,
       categoryId: String(params.filters.categoryId || '') || undefined,
       status: 'enabled'
@@ -405,11 +387,7 @@
   let materialCategoryRequestVersion = 0
   const loadMaterialCategories = async (): Promise<void> => {
     const requestVersion = ++materialCategoryRequestVersion
-    if (!form.tenantId) {
-      materialCategories.value = []
-      return
-    }
-    const categories = await fetchMaterialCategories(form.tenantId)
+    const categories = await fetchMaterialCategories()
     if (requestVersion === materialCategoryRequestVersion) materialCategories.value = categories
   }
   const sequenceTypeLabel = (value?: string | null): string =>
@@ -485,13 +463,13 @@
   }
   const loadProcessSteps = async (routeId?: string | null, forceFirst = false): Promise<void> => {
     processSteps.value = []
-    if (!routeId || !form.tenantId) {
+    if (!routeId) {
       normalizeComponentAssignments(forceFirst)
       return
     }
     stepLoading.value = true
     try {
-      const rows = await fetchBomProcessRouteSteps(form.tenantId, routeId)
+      const rows = await fetchBomProcessRouteSteps(routeId)
       processSteps.value = [...rows].sort(
         (left, right) =>
           (left.sequence?.sequenceNo ?? 0) - (right.sequence?.sequenceNo ?? 0) ||
@@ -509,13 +487,13 @@
   ): Promise<void> => {
     processRoutes.value = []
     processSteps.value = []
-    if (!materialId || !form.tenantId) {
+    if (!materialId) {
       form.processRouteId = null
       return
     }
     routeLoading.value = true
     try {
-      processRoutes.value = await fetchBomProcessRoutes(form.tenantId, materialId)
+      processRoutes.value = await fetchBomProcessRoutes(materialId)
       const preferred = processRoutes.value.find((route) => route.id === preferredRouteId)
       form.processRouteId = preferred?.id ?? processRoutes.value[0]?.id ?? null
       await loadProcessSteps(form.processRouteId)
@@ -616,16 +594,14 @@
           placeholder="选择组件类型"
           class="w-full!"
         >
-          {componentTypes.value
-            .filter((item) => item.tenantId === form.tenantId)
-            .map((item) => (
-              <ElOption
-                key={item.id}
-                label={item.componentTypeName}
-                value={item.id}
-                disabled={!item.enabled}
-              />
-            ))}
+          {componentTypes.value.map((item) => (
+            <ElOption
+              key={item.id}
+              label={item.componentTypeName}
+              value={item.id}
+              disabled={!item.enabled}
+            />
+          ))}
         </ElSelect>
       )
     },
@@ -943,7 +919,6 @@
   }
   const handleOpen = async (data: BomDialogOpenData): Promise<void> => {
     Object.assign(form, initialForm())
-    tenantOptions.value = data.tenantOptions
     units.value = data.units
     groups.value = data.groups
     selectedParent.value = data.row?.material ? [data.row.material as MaterialArchive] : []
@@ -954,7 +929,6 @@
     selectedComponentRows.value = []
     batchSelectedStepId.value = undefined
     if (data.row) Object.assign(form, cloneDeep(data.row))
-    form.tenantId = data.row?.tenantId || data.tenantId
     form.effectiveFrom ||= dayjs().format('YYYY-MM-DD')
     form.effectiveTo ||= '9999-12-31'
     form.items.forEach((item) => {
@@ -982,7 +956,7 @@
             }),
             loadProcessRoutes(form.materialId, data.row?.processRouteId),
             loadMaterialCategories(),
-            fetchComponentTypeOptions(form.tenantId).then((rows) => {
+            fetchComponentTypeOptions().then((rows) => {
               componentTypes.value = rows
             })
           ])
@@ -995,24 +969,6 @@
       }
     })
   }
-  watch(
-    () => form.tenantId,
-    (value, previous) => {
-      if (value === previous || !previous) return
-      form.materialId = ''
-      form.processRouteId = null
-      form.baseUnitId = ''
-      form.items = []
-      componentTypes.value = []
-      processRoutes.value = []
-      processSteps.value = []
-      selectedParent.value = []
-      selectedComponents.value = []
-      selectedComponentIds.value = []
-      pickerSelectedComponents.value = []
-      void loadMaterialCategories()
-    }
-  )
   defineExpose({ handleOpen })
 </script>
 

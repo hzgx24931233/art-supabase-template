@@ -91,7 +91,6 @@ export async function fetchMaterialReferences<T extends MaterialReferenceRecord>
   let query = supabase
     .from(table)
     .select(kind === 'attribute-group' ? attributeGroupSelect : '*', { count: 'exact' })
-    .eq('tenant_id', params.tenantId)
     .order('sort')
     .order(
       kind === 'unit-of-measure'
@@ -120,8 +119,7 @@ export async function fetchMaterialReferences<T extends MaterialReferenceRecord>
 }
 
 export async function fetchMaterialReferenceOptions<T extends MaterialReferenceRecord>(
-  kind: MaterialReferenceKind,
-  tenantId: string
+  kind: MaterialReferenceKind
 ) {
   const table = referenceTables[kind]
   const { data } = await responseHandle<Array<T | MaterialAttributeGroupRow>>(
@@ -129,7 +127,6 @@ export async function fetchMaterialReferenceOptions<T extends MaterialReferenceR
       supabase
         .from(table)
         .select(kind === 'attribute-group' ? attributeGroupSelect : '*')
-        .eq('tenant_id', tenantId)
         .eq('status', 'enabled')
         .order('sort'),
     readOptions
@@ -215,13 +212,12 @@ export async function setMaterialReferencesEnabled(
   )
 }
 
-export async function fetchMaterialCategories(tenantId: string): Promise<MaterialCategory[]> {
+export async function fetchMaterialCategories(): Promise<MaterialCategory[]> {
   const { data } = await responseHandle<MaterialCategory[]>(
     () =>
       supabase
         .from('mdm_material_category')
         .select('*,materialType:mdm_material_type(id,type_code,type_name)')
-        .eq('tenant_id', tenantId)
         .order('sort')
         .order('category_name'),
     readOptions
@@ -271,7 +267,6 @@ export async function setMaterialCategoriesEnabled(ids: string[], enabled: boole
 export interface MaterialArchiveQuery {
   current: number
   size: number
-  tenantId: string
   keyword?: string
   categoryId?: string
   categoryIds?: string[]
@@ -289,7 +284,6 @@ export async function fetchMaterialArchives(
       '*,category:mdm_material_category(id,category_code,category_name),materialTypeRef:mdm_material_type(id,type_code,type_name),baseUnit:mdm_unit_of_measure!mdm_material_base_unit_fkey(id,unit_code,unit_name,symbol),productionUnit:mdm_unit_of_measure!mdm_material_production_unit_id_fkey(id,unit_code,unit_name,symbol),auxiliaryUnit:mdm_unit_of_measure!mdm_material_aux_unit_fkey(id,unit_code,unit_name,symbol),auxiliaryUnit2:mdm_unit_of_measure!mdm_material_aux_unit_2_fkey(id,unit_code,unit_name,symbol),attributeGroup:mdm_material_attribute_group!mdm_material_attribute_group_fkey(id,group_code,group_name),materialGroup:mdm_master_group!mdm_material_group_fkey(id,groupCode:code,groupName:name),defaultWarehouse:mdm_warehouse!mdm_material_default_warehouse_fkey(id,warehouse_code,warehouse_name)',
       { count: 'exact' }
     )
-    .eq('tenant_id', params.tenantId)
     .order('sort')
     .order('material_code')
   if (params.keyword)
@@ -365,7 +359,6 @@ export async function generateMaterialCode(params: {
 
 export interface MaterialContextOption {
   id: string
-  tenantId: string
   code?: string
   name: string
   applyBatch?: boolean
@@ -374,15 +367,12 @@ export interface MaterialContextOption {
   businessScopes?: string[]
 }
 
-export async function fetchMaterialGroupOptions(tenantId: string) {
-  const { data } = await responseHandle<
-    Array<{ id: string; tenantId: string; code: string; name: string }>
-  >(
+export async function fetchMaterialGroupOptions() {
+  const { data } = await responseHandle<Array<{ id: string; code: string; name: string }>>(
     () =>
       supabase
         .from('mdm_master_group')
-        .select('id,tenant_id,code,name')
-        .eq('tenant_id', tenantId)
+        .select('id,code,name')
         .eq('domain', 'material')
         .eq('enabled', true)
         .order('sort')
@@ -392,31 +382,25 @@ export async function fetchMaterialGroupOptions(tenantId: string) {
   return (data ?? []).map((item) => ({ ...item }))
 }
 
-export async function fetchMaterialSupplierOptions(tenantId: string) {
+export async function fetchMaterialSupplierOptions() {
   const { data } = await responseHandle<
-    Array<{ id: string; tenantId: string; supplierCode: string; supplierName: string }>
+    Array<{ id: string; supplierCode: string; supplierName: string }>
   >(
     () =>
-      supabase
-        .from('mdm_supplier')
-        .select('id,tenant_id,supplier_code,supplier_name')
-        .eq('tenant_id', tenantId)
-        .order('supplier_code'),
+      supabase.from('mdm_supplier').select('id,supplier_code,supplier_name').order('supplier_code'),
     readOptions
   )
   return (data ?? []).map((item) => ({
     id: item.id,
-    tenantId: item.tenantId,
     code: item.supplierCode,
     name: item.supplierName
   }))
 }
 
-export async function fetchMaterialWarehouseOptions(tenantId: string) {
+export async function fetchMaterialWarehouseOptions() {
   const { data } = await responseHandle<
     Array<{
       id: string
-      tenantId: string
       warehouseCode: string
       warehouseName: string
       warehouseType: string
@@ -426,15 +410,13 @@ export async function fetchMaterialWarehouseOptions(tenantId: string) {
     () =>
       supabase
         .from('mdm_warehouse')
-        .select('id,tenant_id,warehouse_code,warehouse_name,warehouse_type,business_scopes')
-        .eq('tenant_id', tenantId)
+        .select('id,warehouse_code,warehouse_name,warehouse_type,business_scopes')
         .eq('status', 'enabled')
         .order('warehouse_code'),
     readOptions
   )
   return (data ?? []).map((item) => ({
     id: item.id,
-    tenantId: item.tenantId,
     code: item.warehouseCode,
     name: item.warehouseName,
     warehouseType: item.warehouseType,
@@ -442,32 +424,27 @@ export async function fetchMaterialWarehouseOptions(tenantId: string) {
   }))
 }
 
-export async function fetchMaterialOutboundRuleOptions(tenantId: string) {
-  const { data } = await responseHandle<
-    Array<{ id: string; tenantId: string; ruleCode: string; ruleName: string }>
-  >(
+export async function fetchMaterialOutboundRuleOptions() {
+  const { data } = await responseHandle<Array<{ id: string; ruleCode: string; ruleName: string }>>(
     () =>
       supabase
         .from('mdm_outbound_rule')
-        .select('id,tenant_id,rule_code,rule_name')
-        .eq('tenant_id', tenantId)
+        .select('id,rule_code,rule_name')
         .eq('status', 'enabled')
         .order('rule_code'),
     readOptions
   )
   return (data ?? []).map((item) => ({
     id: item.id,
-    tenantId: item.tenantId,
     code: item.ruleCode,
     name: item.ruleName
   }))
 }
 
-export async function fetchMaterialSupplyRuleOptions(tenantId: string) {
+export async function fetchMaterialSupplyRuleOptions() {
   const { data } = await responseHandle<
     Array<{
       id: string
-      tenantId: string
       ruleCode: string
       ruleName: string
       applyBatch: boolean
@@ -477,15 +454,13 @@ export async function fetchMaterialSupplyRuleOptions(tenantId: string) {
     () =>
       supabase
         .from('mdm_supply_chain_code_rule')
-        .select('id,tenant_id,rule_code,rule_name,apply_batch,apply_serial')
-        .eq('tenant_id', tenantId)
+        .select('id,rule_code,rule_name,apply_batch,apply_serial')
         .eq('status', 'enabled')
         .order('rule_code'),
     readOptions
   )
   return (data ?? []).map((item) => ({
     id: item.id,
-    tenantId: item.tenantId,
     code: item.ruleCode,
     name: item.ruleName,
     applyBatch: item.applyBatch,
@@ -493,41 +468,31 @@ export async function fetchMaterialSupplyRuleOptions(tenantId: string) {
   }))
 }
 
-export async function fetchMaterialSiteOptions(tenantId: string): Promise<MaterialContextOption[]> {
-  const { data } = await responseHandle<Array<{ id: string; tenantId: string; siteName: string }>>(
-    () =>
-      supabase
-        .from('mdm_site')
-        .select('id,tenant_id,site_name')
-        .eq('tenant_id', tenantId)
-        .order('sort'),
+export async function fetchMaterialSiteOptions(): Promise<MaterialContextOption[]> {
+  const { data } = await responseHandle<Array<{ id: string; siteName: string }>>(
+    () => supabase.from('mdm_site').select('id,site_name').order('sort'),
     readOptions
   )
   return (data ?? []).map((item) => ({
     id: item.id,
-    tenantId: item.tenantId,
     name: item.siteName
   }))
 }
 
-export async function fetchMaterialStorageOptions(
-  tenantId: string
-): Promise<MaterialContextOption[]> {
+export async function fetchMaterialStorageOptions(): Promise<MaterialContextOption[]> {
   const { data } = await responseHandle<
-    Array<{ id: string; tenantId: string; locationCode: string; locationName: string }>
+    Array<{ id: string; locationCode: string; locationName: string }>
   >(
     () =>
       supabase
         .from('mdm_storage_location')
-        .select('id,tenant_id,location_code,location_name')
-        .eq('tenant_id', tenantId)
+        .select('id,location_code,location_name')
         .eq('status', 'enabled')
         .order('location_code'),
     readOptions
   )
   return (data ?? []).map((item) => ({
     id: item.id,
-    tenantId: item.tenantId,
     code: item.locationCode,
     name: item.locationName
   }))

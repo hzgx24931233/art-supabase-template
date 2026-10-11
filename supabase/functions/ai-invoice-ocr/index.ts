@@ -152,10 +152,10 @@ Deno.serve(async (req) => {
     })
     const { data: appUser, error: appUserError } = await admin
       .from('sys_user')
-      .select('tenant_id,user_email,status')
+      .select('user_email,status')
       .eq('auth_user_id', user.id)
       .maybeSingle()
-    if (appUserError || !appUser?.tenant_id || appUser.status === '0') {
+    if (appUserError || !appUser?.user_email || appUser.status === '0') {
       return json({ code: 'forbidden', message: '当前账号无权使用发票识别' }, 403)
     }
 
@@ -185,7 +185,6 @@ Deno.serve(async (req) => {
         .from('ai_artifact_review')
         .select('id,proposed_payload')
         .eq('id', artifactId)
-        .eq('tenant_id', appUser.tenant_id)
         .eq('auth_user_id', user.id)
         .eq('feature', FEATURE)
         .eq('artifact_type', ARTIFACT_TYPE)
@@ -199,7 +198,6 @@ Deno.serve(async (req) => {
         .from('tms_invoice')
         .select('id')
         .eq('id', entityId)
-        .eq('tenant_id', appUser.tenant_id)
         .maybeSingle()
       if (invoiceError) throw invoiceError
       if (!invoice) return json({ code: 'invoice_not_found', message: '已保存发票不存在' }, 404)
@@ -247,7 +245,7 @@ Deno.serve(async (req) => {
       /\/$/,
       ''
     )
-    const runtimeConfig = await loadAiRuntimeConfig(admin, appUser.tenant_id, FEATURE, {
+    const runtimeConfig = await loadAiRuntimeConfig(admin, FEATURE, {
       enabled: true,
       provider: 'openai_compatible',
       model: getProviderModel(compatibleBaseUrl),
@@ -320,7 +318,7 @@ Deno.serve(async (req) => {
       return json({ code: 'rate_limited', message: 'AI 发票识别次数已达到限额，请稍后重试' }, 429)
     }
 
-    const publishedPrompt = await loadPublishedAiPrompt(admin, appUser.tenant_id, FEATURE, {
+    const publishedPrompt = await loadPublishedAiPrompt(admin, FEATURE, {
       content: DEFAULT_PROMPT,
       version: runtimeConfig.promptVersion
     })
@@ -331,7 +329,6 @@ Deno.serve(async (req) => {
       .from('ai_run')
       .insert({
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         feature: FEATURE,
         model: resolvedModel,
         prompt_version: publishedPrompt.version,
@@ -623,7 +620,6 @@ Deno.serve(async (req) => {
       .insert({
         ai_run_id: run.id,
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         feature: FEATURE,
         artifact_type: ARTIFACT_TYPE,
         proposed_payload: normalized.invoice,

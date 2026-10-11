@@ -395,7 +395,6 @@
           'cascadeParentTypeId',
           'cascadeParentTypeName',
           'children',
-          'tenantId',
           'createBy',
           'createTime',
           'updateBy',

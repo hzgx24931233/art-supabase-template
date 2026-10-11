@@ -3,7 +3,6 @@ export type MaterialSpecialPurchaseType = 'virtual_part' | 'outsourced_part'
 
 export interface MaterialReferenceBase {
   id: string
-  tenantId: string
   status: MdmMaterialStatus
   sort: number
   remark?: string | null
@@ -77,7 +76,6 @@ export type MaterialReferenceKind =
 export interface MaterialReferenceQuery {
   current: number
   size: number
-  tenantId: string
   keyword?: string
   status?: MdmMaterialStatus
 }

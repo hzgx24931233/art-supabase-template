@@ -2,7 +2,6 @@ import type { DialogEmits } from 'element-plus'
 
 export interface Resource {
   id?: number
-  tenantId?: string
   storageMode?: number
   originName?: string
   objectName?: string
@@ -25,8 +24,6 @@ export interface FileType {
 
 // 定义 Props 类型
 export interface ResourcePanelProps {
-  resourceTenantId?: string
-  includePlatformTenant?: boolean
   multiple?: boolean
   limit?: number
   pageSize?: number

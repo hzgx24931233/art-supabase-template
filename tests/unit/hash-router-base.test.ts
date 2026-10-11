@@ -21,10 +21,10 @@ test('preserves query and Hash route under a production subdirectory', () => {
     resolveCanonicalHashRouterUrl('/art-supabase-pro/', {
       origin,
       pathname: '/art-supabase-pro/fms/account-set',
-      search: '?tenant=platform',
+      search: '?from=legacy',
       hash: '#/dashboard/console'
     }),
-    '/art-supabase-pro/?tenant=platform#/dashboard/console'
+    '/art-supabase-pro/?from=legacy#/dashboard/console'
   )
 })
 

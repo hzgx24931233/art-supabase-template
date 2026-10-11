@@ -5,7 +5,6 @@ import { buildMaterialCategoryWriteInput } from '@/views/mdm/material/category/m
 
 const categoryModel: MaterialCategory & { remark: string; temporaryLabel: string } = {
   id: '',
-  tenantId: '11111111-1111-4111-8111-111111111111',
   parentId: null,
   categoryCode: ' FERT ',
   codePrefix: '  FG ',

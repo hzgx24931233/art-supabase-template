@@ -7,7 +7,6 @@ import { normalizeNullableText } from '@/utils/form/normalize'
  */
 export function buildMaterialCategoryWriteInput(model: MaterialCategory): MaterialCategoryInput {
   return {
-    tenantId: model.tenantId,
     parentId: model.parentId || null,
     categoryCode: model.categoryCode.trim(),
     codePrefix: model.codePrefix.trim() || model.categoryCode.trim(),

@@ -25,7 +25,6 @@ async function prepare(page: Page, initialMenuIds: string[] = [menuId(0)]) {
   page.on('pageerror', (error) => pageErrors.push(error.message))
   // Isolate dialog regressions from live identity/menu service latency. The
   // separate virtual-tree integration spec still exercises the real page data.
-  const tenant = { id: 'permission-test-tenant', tenant_code: 'test', tenant_name: '测试租户' }
   await page.route('**/rest/v1/sys_param?*', (route) => route.fulfill({ json: [] }))
   await page.route('**/rest/v1/sys_dictionary?*', (route) => route.fulfill({ json: [] }))
   await page.route('**/rest/v1/sys_user?*', (route) =>
@@ -34,9 +33,7 @@ async function prepare(page: Page, initialMenuIds: string[] = [menuId(0)]) {
         id: 'permission-test-user',
         user_name: '测试用户',
         user_email: 'test@example.invalid',
-        status: '1',
-        tenant_id: tenant.id,
-        tenant
+        status: '1'
       }
     })
   )
@@ -50,7 +47,6 @@ async function prepare(page: Page, initialMenuIds: string[] = [menuId(0)]) {
     })
   )
   await page.route('**/rest/v1/rpc/current_is_super', (route) => route.fulfill({ json: true }))
-  await page.route('**/rest/v1/sys_tenant?*', (route) => route.fulfill({ json: [tenant] }))
   await page.route('**/rest/v1/rpc/get_organization_list_secure', (route) =>
     route.fulfill({ json: [] })
   )
@@ -61,8 +57,6 @@ async function prepare(page: Page, initialMenuIds: string[] = [menuId(0)]) {
         id: `permission-role-${label}`,
         role_name: `测试角色 ${label}`,
         role_code: `TEST_${label}`,
-        tenant_id: tenant.id,
-        tenant,
         enabled: true,
         description: '权限交互测试',
         organization_id: null

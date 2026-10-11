@@ -39,7 +39,6 @@
   const notificationRepeatModeOptions = useDictionaryOptions('notificationRepeatMode')
 
   interface Props {
-    tenantId: string
     scenarios: Api.NotificationReminder.Scenario[]
   }
 
@@ -70,7 +69,6 @@
 
   const createInitialForm = (): RuleForm => ({
     id: undefined,
-    tenantId: props.tenantId,
     scenarioId: props.scenarios[0]?.id ?? '',
     ruleName: '',
     leadDays: 30,
@@ -228,8 +226,6 @@
       span: 24,
       api: fetchGetEnableRoleList,
       immediate: false,
-      params: { tenantId: props.tenantId },
-      shouldFetch: (params) => Boolean(params?.tenantId),
       afterFetch: prepareRoleOptions,
       resultField: 'data',
       labelField: 'roleName',
@@ -242,11 +238,10 @@
         collapseTags: true,
         collapseTagsTooltip: true,
         maxCollapseTags: 3,
-        disabled: !props.tenantId,
-        placeholder: props.tenantId ? '请选择接收提醒的角色' : '请先选择租户',
+        placeholder: '请选择接收提醒的角色',
         loadingText: '正在加载可用角色…',
         noMatchText: '未找到匹配角色',
-        noDataText: '当前租户暂无可用角色'
+        noDataText: '暂无可用角色'
       },
       description: unavailableRoleCodes.value.length
         ? `检测到 ${unavailableRoleCodes.value.length} 个历史角色已失效，请移除后重新选择。`
@@ -284,7 +279,6 @@
     try {
       await saveNotificationRule({
         id: form.id,
-        tenantId: props.tenantId,
         scenarioId: form.scenarioId,
         ruleName: form.ruleName.trim(),
         leadDays: Number(form.leadDays),

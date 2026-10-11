@@ -6,7 +6,6 @@ import {
   normalizeNullableText,
   normalizeStringList
 } from '../../src/utils/form/normalize'
-import { formatTenantLabel } from '../../src/utils/tenant-display'
 import {
   createDateTimeFormatter,
   formatCnyCurrencyValue,
@@ -43,13 +42,4 @@ test('shared UI formatters keep repeated display policies consistent', () => {
   assert.equal(formatMinute('invalid'), '—')
   assert.equal(formatMinute('2026-09-13T08:30:00Z').length, 16)
   assert.equal(createDateTimeFormatter({ format: 'YYYY-MM-DD' })('2026-09-13'), '2026-09-13')
-})
-
-test('tenant labels share one fallback and composition rule', () => {
-  assert.equal(
-    formatTenantLabel({ tenant: { tenantName: ' 亿企 ', tenantCode: ' YQ ' } }),
-    '亿企（YQ）'
-  )
-  assert.equal(formatTenantLabel({ tenantId: 'tenant-id' }), 'tenant-id')
-  assert.equal(formatTenantLabel({}), '未识别租户')
 })

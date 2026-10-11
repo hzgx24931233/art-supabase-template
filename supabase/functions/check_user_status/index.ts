@@ -44,7 +44,7 @@ Deno.serve(async (request: Request) => {
 
     let userQuery = admin
       .from('sys_user')
-      .select('user_email,status,deleted_at,tenant_id,user_roles')
+      .select('user_email,status,deleted_at,user_roles')
     userQuery = email ? userQuery.eq('user_email', email) : userQuery.eq('auth_user_id', authUserId)
     const { data: user, error: userError } = await userQuery.maybeSingle()
 
@@ -77,53 +77,13 @@ Deno.serve(async (request: Request) => {
     const roleCodes = Array.isArray(user.user_roles)
       ? user.user_roles.filter((role): role is string => typeof role === 'string' && role.length > 0)
       : []
-    const [tenantResult, rolesResult] = await Promise.all([
-      admin
-        .from('sys_tenant')
-        .select('status,service_start_date,service_end_date')
-        .eq('id', user.tenant_id)
-        .maybeSingle(),
-      roleCodes.length
-        ? admin
-            .from('sys_role')
-            .select('role_code,enabled')
-            .eq('tenant_id', user.tenant_id)
-            .eq('enabled', true)
-            .in('role_code', roleCodes)
-        : Promise.resolve({ data: [], error: null })
-    ])
-    const { data: tenant, error: tenantError } = tenantResult
-    if (tenantError) return json({ code: 'access_check_failed', error: '租户准入检查失败' }, 500)
-    if (!tenant || tenant.status !== '1') {
-      return json({ allowed: false, code: 'tenant_disabled', error: '所属租户已停用' }, 403)
-    }
-
-    const today = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Shanghai',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(new Date())
-    if (tenant.service_start_date && tenant.service_start_date > today) {
-      return json(
-        {
-          allowed: false,
-          code: 'tenant_not_started',
-          error: `租户服务将于 ${tenant.service_start_date} 启用`
-        },
-        403
-      )
-    }
-    if (tenant.service_end_date && tenant.service_end_date < today) {
-      return json(
-        {
-          allowed: false,
-          code: 'tenant_expired',
-          error: `租户服务已于 ${tenant.service_end_date} 到期，请联系平台续期`
-        },
-        403
-      )
-    }
+    const { data: roles, error: roleError } = roleCodes.length
+      ? await admin
+          .from('sys_role')
+          .select('role_code,enabled')
+          .eq('enabled', true)
+          .in('role_code', roleCodes)
+      : { data: [], error: null }
 
     if (!roleCodes.length) {
       return json(
@@ -132,7 +92,6 @@ Deno.serve(async (request: Request) => {
       )
     }
 
-    const { data: roles, error: roleError } = rolesResult
     if (roleError) return json({ code: 'access_check_failed', error: '角色准入检查失败' }, 500)
 
     const hasActiveRole = Boolean(roles?.length)

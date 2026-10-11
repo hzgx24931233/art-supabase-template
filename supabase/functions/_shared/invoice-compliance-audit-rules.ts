@@ -391,7 +391,7 @@ export function assessInvoiceCompliance(
     signals,
     recommendedActions: uniqueActions,
     limitations: [
-      '本次研判基于系统登记字段、对账关联和同租户重复记录，不替代税务平台查验。',
+      '本次研判基于系统登记字段、对账关联和系统内重复记录，不替代税务平台查验。',
       '附件只检查是否存在，未读取或识别附件票面内容。',
       'AI 审核不会自动修改发票、对账关联或审核状态。'
     ],

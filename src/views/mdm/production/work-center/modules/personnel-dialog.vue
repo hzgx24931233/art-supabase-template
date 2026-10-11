@@ -72,7 +72,7 @@
           :display-fields="['jobTitle', 'employmentStatus']"
           title="选择生产人员"
           search-placeholder="姓名 / 工号"
-          subtitle="从当前租户的人员配置中选择" /></template></ArtForm
+          subtitle="从人员配置中选择" /></template></ArtForm
     ><ElAlert v-if="formError" :title="formError" type="error" :closable="false"
   /></ArtDialog>
 </template>

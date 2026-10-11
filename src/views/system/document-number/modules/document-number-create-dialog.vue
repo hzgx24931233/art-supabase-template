@@ -5,10 +5,9 @@
         <template #header>
           <header class="number-rule-create__header">
             <div>
-              <ArtSectionTitle :show-line="false">批量配置租户规则</ArtSectionTitle>
-              <p>先从树形菜单定位业务功能，再把同一套编号规范一次分配给多个租户。</p>
+              <ArtSectionTitle :show-line="false">新增编号规则</ArtSectionTitle>
+              <p>先从树形菜单定位业务功能，再为该功能配置统一的编号规范。</p>
             </div>
-            <ElTag type="primary" round>{{ selectedTenantCount }} 个租户</ElTag>
           </header>
         </template>
 
@@ -63,10 +62,6 @@
               <dt>编号字段</dt>
               <dd>{{ selectedScene?.fieldLabel || '待选择' }}</dd>
             </div>
-            <div>
-              <dt>批量范围</dt>
-              <dd>{{ selectedTenantCount }} 个租户</dd>
-            </div>
           </dl>
         </ArtSectionCard>
 
@@ -74,7 +69,7 @@
           type="info"
           :closable="false"
           show-icon
-          title="同一租户、同一编号功能只有一条规则；已有规则会同步更新，缺失规则会自动创建。"
+          title="同一编号功能只有一条规则；已有规则会同步更新，缺失规则会自动创建。"
         />
       </aside>
     </div>
@@ -92,12 +87,9 @@
   import ArtSectionTitle from '@/components/core/surfaces/art-section-title/index.vue'
   import { addDocumentNumberRules, fetchDocumentNumberSceneList } from '@/api/document-number'
   import { fetchGetEnableMenuList } from '@/api/system-manage'
-  import { fetchGetEnableTenantList } from '@/api/system-manage/tenant'
   import { renderDocumentNumber, validateDocumentNumberTemplate } from '@/utils/document-number'
   import TreeUtils from '@/utils/tree'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { areTenantCreateTargetsInScope } from '@/utils/tenant-scope-access-policy'
   import type { AppRouteRecord } from '@/types/router'
 
   type NumberScene = Api.SystemManage.DocumentNumberSceneItem
@@ -105,7 +97,6 @@
   interface CreateFormModel {
     menuId: string
     ruleKey: string
-    tenantIds: string[]
     autoEnabled: boolean
     template: string
     resetCycle: Api.SystemManage.DocumentNumberResetCycle
@@ -129,7 +120,6 @@
     scenes: NumberScene[]
     menus: AppRouteRecord[]
     menuTree: MenuNode[]
-    tenantOptions: Array<{ label: string; value: string }>
     items: ComputedRef<FormItem[]>
     rules: ComputedRef<FormRules<CreateFormModel>>
   }
@@ -138,14 +128,12 @@
   const dialogRef = ref<ArtDialogExpose>()
   const formRef = ref<FormExpose>()
   const userStore = useUserStore()
-  const tenantScopeStore = useTenantScopeStore()
-  const { getDictMap, isPlatformSuper } = storeToRefs(userStore)
+  const { getDictMap } = storeToRefs(userStore)
   const treeUtils = new TreeUtils({ idKey: 'id', parentKey: 'parentId', childrenKey: 'children' })
 
   const createInitialForm = (): CreateFormModel => ({
     menuId: '',
     ruleKey: '',
-    tenantIds: [],
     autoEnabled: true,
     template: 'YD{YYYYMM}-{SEQ:3}',
     resetCycle: 'month',
@@ -159,7 +147,6 @@
     scenes: [] as NumberScene[],
     menus: [] as AppRouteRecord[],
     menuTree: [] as MenuNode[],
-    tenantOptions: [] as Array<{ label: string; value: string }>,
     items: computed<FormItem[]>(() => [
       { label: '业务归属', key: 'businessSection', type: 'divider', span: 24 },
       {
@@ -200,27 +187,6 @@
         description: selectedScene.value
           ? `绑定字段：${selectedScene.value.targetTable}.${selectedScene.value.targetColumn}`
           : '只显示该菜单已经接入统一编号引擎的字段。'
-      },
-      {
-        label: '分配租户',
-        key: 'tenantIds',
-        type: 'select',
-        span: 24,
-        props: {
-          multiple: true,
-          filterable: true,
-          disabled: !tenantScopeStore.isAllTenants,
-          collapseTags: true,
-          collapseTagsTooltip: true,
-          maxCollapseTags: 3,
-          placeholder: tenantScopeStore.isAllTenants ? '可一次选择多个租户' : '当前租户范围',
-          options: form.tenantOptions
-        },
-        description: tenantScopeStore.isAllTenants
-          ? '一次保存即可批量配置；已有租户规则会更新，缺失的会自动创建。'
-          : isPlatformSuper.value
-            ? '当前只配置顶部所选租户；切换范围后请重新打开。'
-            : '当前账号只能配置所属租户。'
       },
       { label: '生成策略', key: 'strategySection', type: 'divider', span: 24 },
       {
@@ -272,9 +238,6 @@
     rules: computed<FormRules<CreateFormModel>>(() => ({
       menuId: [{ required: true, message: '请选择所属菜单', trigger: 'change' }],
       ruleKey: [{ required: true, message: '请选择编号功能', trigger: 'change' }],
-      tenantIds: [
-        { required: true, type: 'array', min: 1, message: '请选择至少一个租户', trigger: 'change' }
-      ],
       template: [
         { required: true, message: '请输入编号模板', trigger: 'blur' },
         {
@@ -297,7 +260,6 @@
   const selectedScene = computed<NumberScene | undefined>(() =>
     form.scenes.find((scene: NumberScene) => scene.ruleKey === form.data.ruleKey)
   )
-  const selectedTenantCount = computed(() => form.data.tenantIds.length)
   const selectedMenuPath = computed(() => {
     if (!form.data.menuId) return ''
     return treeUtils
@@ -363,34 +325,12 @@
   }
 
   const initialize = async (): Promise<void> => {
-    const [sceneResult, menuResult, tenantResult] = await Promise.all([
+    const [sceneResult, menuResult] = await Promise.all([
       fetchDocumentNumberSceneList(),
-      fetchGetEnableMenuList(),
-      fetchGetEnableTenantList()
+      fetchGetEnableMenuList()
     ])
     form.scenes = sceneResult.data ?? []
     form.menus = (menuResult.data ?? []).filter((menu) => menu.type !== 'button')
-    const selectedTenantId = tenantScopeStore.effectiveTenantId
-    form.tenantOptions = (tenantResult.data ?? [])
-      .filter((tenant) => tenantScopeStore.isAllTenants || String(tenant.id) === selectedTenantId)
-      .map((tenant) => ({
-        label: `${tenant.tenantName}（${tenant.tenantCode}）`,
-        value: String(tenant.id)
-      }))
-    if (!tenantScopeStore.isAllTenants && selectedTenantId) {
-      if (!form.tenantOptions.some((option) => option.value === selectedTenantId)) {
-        form.tenantOptions = [
-          {
-            label:
-              tenantScopeStore.selectedTenant?.tenantName ||
-              userStore.getUserInfo.tenant?.tenantName ||
-              '当前租户',
-            value: selectedTenantId
-          }
-        ]
-      }
-      form.data.tenantIds = [selectedTenantId]
-    }
     buildMenuTree()
   }
 
@@ -403,21 +343,8 @@
     const scene = selectedScene.value
     if (!scene) return false
 
-    if (
-      !areTenantCreateTargetsInScope({
-        effectiveTenantId: tenantScopeStore.effectiveTenantId,
-        isAllTenants: tenantScopeStore.isAllTenants,
-        isPlatformSuper: tenantScopeStore.isPlatformScope,
-        tenantIds: form.data.tenantIds
-      })
-    ) {
-      ElMessage.warning('租户范围已变化，请重新打开配置窗口')
-      return false
-    }
-
     try {
       const result = await addDocumentNumberRules({
-        tenantIds: form.data.tenantIds,
         scene,
         autoEnabled: form.data.autoEnabled,
         template: form.data.template,
@@ -429,11 +356,11 @@
       if (result.error || !result.data) return false
       const created = result.data?.created ?? 0
       const updated = result.data?.updated ?? 0
-      ElMessage.success(`批量配置完成：新建 ${created} 个，更新 ${updated} 个租户规则`)
+      ElMessage.success(`编号规则配置完成：新建 ${created} 个，更新 ${updated} 个`)
       emit('success')
       return true
     } catch {
-      ElMessage.error('编号规则配置失败，请检查当前租户范围后重试')
+      ElMessage.error('编号规则配置失败，请稍后重试')
       return false
     }
   }
@@ -443,7 +370,7 @@
     await dialogRef.value?.handleOpen(undefined, {
       title: '新增编号规则',
       contentMaxHeight: '76vh',
-      confirmText: '批量配置',
+      confirmText: '保存',
       loading: true,
       onOpen: async (_data, api) => {
         try {

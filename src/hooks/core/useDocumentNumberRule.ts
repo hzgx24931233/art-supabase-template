@@ -1,19 +1,6 @@
 import { fetchDocumentNumberRulesByKeys } from '@/api/document-number'
-import { useTenantScopeStore } from '@/store/modules/tenantScope'
-import { resolveTenantReadTargetId } from '@/utils/tenant-scope-access-policy'
 
-export function useDocumentNumberRule(
-  ruleKey: string,
-  tenantId?: MaybeRefOrGetter<string | undefined>
-) {
-  const tenantScopeStore = useTenantScopeStore()
-  const readTenantId = computed(() =>
-    resolveTenantReadTargetId({
-      effectiveTenantId: tenantScopeStore.effectiveTenantId,
-      requestedTenantId: toValue(tenantId),
-      isPlatformSuper: tenantScopeStore.isPlatformScope
-    })
-  )
+export function useDocumentNumberRule(ruleKey: string) {
   const rule = shallowRef<Api.SystemManage.DocumentNumberRuleItem>()
   const loading = ref(false)
   const hasLoaded = ref(false)
@@ -22,19 +9,13 @@ export function useDocumentNumberRule(
 
   const loadRule = async (): Promise<void> => {
     hasLoaded.value = true
-    const targetTenantId = readTenantId.value
     const requestId = ++requestSequence
     rule.value = undefined
     loadError.value = undefined
-    if (!targetTenantId) {
-      loading.value = false
-      return
-    }
-
     loading.value = true
     try {
-      const { data, error } = await fetchDocumentNumberRulesByKeys([ruleKey], targetTenantId)
-      if (requestId !== requestSequence || readTenantId.value !== targetTenantId) return
+      const { data, error } = await fetchDocumentNumberRulesByKeys([ruleKey])
+      if (requestId !== requestSequence) return
       if (error) {
         loadError.value = error
         return
@@ -47,32 +28,17 @@ export function useDocumentNumberRule(
     }
   }
 
-  watch(
-    readTenantId,
-    () => {
-      requestSequence += 1
-      rule.value = undefined
-      loadError.value = undefined
-      loading.value = false
-      if (hasLoaded.value) void loadRule()
-    },
-    { flush: 'sync' }
-  )
-
   const automatic = computed(() => rule.value?.autoEnabled === true)
   const description = computed(() => {
-    if (readTenantId.value === null) return '请先选择目标租户查看编号规则。'
-    if (readTenantId.value === undefined) return '当前单据不属于所选租户范围。'
     if (loading.value || !hasLoaded.value) return '编号规则加载中'
     if (loadError.value) return '编号规则读取失败，请稍后重试。'
-    if (!rule.value) return '当前租户尚未配置编号规则。'
+    if (!rule.value) return '尚未配置编号规则。'
     if (!rule.value.autoEnabled) return '当前规则为手工填写，保存时会校验编号唯一性。'
     return `保存时自动生成，示例：${rule.value.preview || rule.value.template}`
   })
 
   const inputProps = (isEdit: boolean, placeholder: string, lockOnEdit = false) => ({
     disabled:
-      !readTenantId.value ||
       loading.value ||
       Boolean(loadError.value) ||
       (isEdit && lockOnEdit) ||

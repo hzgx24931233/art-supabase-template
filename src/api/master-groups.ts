@@ -5,7 +5,6 @@ export type MasterGroupDomain =
 
 export interface MasterGroup {
   id: string
-  tenantId: string
   domain: MasterGroupDomain
   parentId: string | null
   code: string
@@ -17,17 +16,13 @@ export interface MasterGroup {
 
 const { supabase, responseHandle } = useSupabase()
 
-export async function fetchMasterGroups(
-  domain: MasterGroupDomain,
-  tenantId?: string | null
-): Promise<MasterGroup[]> {
-  let query = supabase
+export async function fetchMasterGroups(domain: MasterGroupDomain): Promise<MasterGroup[]> {
+  const query = supabase
     .from('mdm_master_group')
     .select('*')
     .eq('domain', domain)
     .order('sort')
     .order('code')
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   const { data } = await responseHandle<MasterGroup[]>(() => query, {
     breakReturn: true,
     showErrorMessage: false,

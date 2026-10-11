@@ -68,7 +68,6 @@
   } from '@/api/scm-receipt-target'
 
   interface Context {
-    tenantId: string
     documentNo: string
     line: ScmReceiptTargetLine
   }
@@ -118,7 +117,7 @@
       }
       let bin = bins.value.find((item) => item.id === binId)
       if (!bin) {
-        bin = (await fetchScmReceiptPlacementBin(current.tenantId, binId)) ?? undefined
+        bin = (await fetchScmReceiptPlacementBin(binId)) ?? undefined
         if (requestGeneration !== generation) return
         if (bin) bins.value.push(bin)
       }
@@ -170,8 +169,8 @@
       onOpen: async (_data, api) => {
         try {
           const [warehouseResult, binRows] = await Promise.all([
-            fetchScmReceiptPlacementWarehouse(data.tenantId, warehouseId),
-            fetchScmReceiptPlacementBins(data.tenantId, warehouseId)
+            fetchScmReceiptPlacementWarehouse(warehouseId),
+            fetchScmReceiptPlacementBins(warehouseId)
           ])
           if (requestGeneration !== generation) return
           if (!warehouseResult) {

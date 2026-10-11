@@ -133,7 +133,6 @@
                 <ElFormItem label="菜单品牌字图" prop="wordmarkImageEnabled" class="is-wide">
                   <WebsiteWordmarkSettings
                     :enabled="form.wordmarkImageEnabled"
-                    :resource-tenant-id="platformTenantId"
                     :light-url="form.wordmarkLightUrl"
                     :dark-url="form.wordmarkDarkUrl"
                     :site-name="form.siteName"
@@ -305,7 +304,6 @@
                 <ElFormItem label="Logo" prop="logoUrl">
                   <ArtUploadImage
                     v-model="form.logoUrl"
-                    :resource-tenant-id="platformTenantId"
                     title="上传 Logo"
                     :size="120"
                     :limit="1"
@@ -315,7 +313,6 @@
                 <ElFormItem label="Favicon" prop="faviconUrl">
                   <ArtUploadImage
                     v-model="form.faviconUrl"
-                    :resource-tenant-id="platformTenantId"
                     title="上传 Favicon"
                     :size="120"
                     :limit="1"
@@ -477,7 +474,6 @@
   const { setWebsiteConfig, loadWebsiteConfig } = useWebsiteConfig()
   const userStore = useUserStore()
   const { isPlatformSuper } = storeToRefs(userStore)
-  const platformTenantId = computed(() => userStore.getUserInfo.tenantId || '')
   const isReadOnly = computed(() => !isPlatformSuper.value)
   const hasUnsavedChanges = computed(() => !isEqual(form, originalForm.value))
   const publishState = computed(() => {
@@ -672,13 +668,7 @@
   }
 
   const normalizePayload = (): WebsiteConfig => {
-    const payload = omit(cloneDeep(form), [
-      'tenantId',
-      'createBy',
-      'createTime',
-      'updateBy',
-      'updateTime'
-    ])
+    const payload = omit(cloneDeep(form), ['createBy', 'createTime', 'updateBy', 'updateTime'])
     return {
       ...payload,
       authChannels: normalizeAuthChannels(payload.authChannels),

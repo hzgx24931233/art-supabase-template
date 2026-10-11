@@ -3,14 +3,8 @@ import type { WorkOrderExtensionField } from '@/types/business/work-order-extens
 
 export type DocumentTypeTagStyle = '' | 'primary' | 'success' | 'info' | 'warning' | 'danger'
 
-export interface DocumentTypeTenantReference {
-  tenantCode: string
-  tenantName: string
-}
-
 export interface DocumentTypeRecord {
   id: string
-  tenantId: string
   menuId: string
   documentTypeCode: string
   documentTypeName: string
@@ -28,11 +22,9 @@ export interface DocumentTypeRecord {
   createTime?: string
   updateBy?: string | null
   updateTime?: string
-  tenant?: DocumentTypeTenantReference | null
 }
 
 export interface DocumentTypeWriteInput {
-  tenantId?: string
   menuId: string
   documentTypeCode: string
   documentTypeName: string
@@ -48,13 +40,12 @@ export interface DocumentTypeWriteInput {
   allowedIssueWarehouseTypes: string[]
 }
 
-export type DocumentTypeUpdateInput = Omit<DocumentTypeWriteInput, 'tenantId'>
+export type DocumentTypeUpdateInput = DocumentTypeWriteInput
 
 export interface DocumentTypeQuery {
   current: number
   size: number
   keyword?: string
-  tenantId?: string | null
   menuIds?: string[]
   enabled?: boolean
   isDefault?: boolean
@@ -65,7 +56,6 @@ export interface DocumentTypeStats {
   enabled: number
   defaults: number
   menuCount: number
-  tenantCount: number
   menuCounts: Record<string, number>
   lastUpdateTime?: string
 }
@@ -80,7 +70,6 @@ export interface DocumentTypeMenuNode extends AppRouteRecord {
 }
 
 export interface DocumentTypeExportQuery {
-  tenantId?: string | null
   menuIds?: string[]
   keyword?: string
   enabled?: boolean
@@ -88,10 +77,7 @@ export interface DocumentTypeExportQuery {
   limit?: number
 }
 
-export interface DocumentTypeExportRecord extends Omit<
+export type DocumentTypeExportRecord = Omit<
   DocumentTypeRecord,
   'allowedIssueWarehouseTypes' | 'extensionFields'
-> {
-  tenantName?: string | null
-  tenantCode?: string | null
-}
+>

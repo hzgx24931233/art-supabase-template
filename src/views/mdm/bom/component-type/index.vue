@@ -165,7 +165,6 @@
   import TreeUtils from '@/utils/tree'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useAuth } from '@/hooks/core/useAuth'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import ArtWorkspaceSplitter from '@/components/core/layouts/art-workspace-splitter/index.vue'
   import ArtSectionCard from '@/components/core/surfaces/art-section-card/index.vue'
@@ -205,7 +204,6 @@
   defineOptions({ name: 'MdmComponentType' })
   const { confirmDelete } = useArtFeedback()
   const { hasAnyAuth } = useAuth()
-  const { effectiveTenantId, tenantOptions } = storeToRefs(useTenantScopeStore())
   const tableRef = ref<ArtTableQueryExpose>()
   const typeDialogRef = ref<InstanceType<typeof ComponentTypeDialog>>()
   const groupDialogRef = ref<InstanceType<typeof IndustryGroupDialog>>()
@@ -257,16 +255,11 @@
       }
     }
   ]
-  const tenantChoices = () =>
-    tenantOptions.value.map((tenant) => ({
-      label: tenant.tenantName || tenant.tenantCode,
-      value: tenant.id
-    }))
   const loadGroups = async () => {
     groupLoading.value = true
     groupError.value = null
     try {
-      groups.value = await fetchComponentIndustryGroups(effectiveTenantId.value)
+      groups.value = await fetchComponentIndustryGroups()
     } catch (error) {
       groupError.value = error instanceof Error ? error : new Error('行业分组加载失败')
     } finally {
@@ -286,10 +279,6 @@
     await nextTick()
     treeRef.value?.setCurrentKey(id || undefined)
   })
-  watch(effectiveTenantId, () => {
-    selectedGroupId.value = ''
-    void refresh()
-  })
   onMounted(() => void loadGroups())
   const selectGroup = (id: string) => {
     selectedGroupId.value = id
@@ -302,18 +291,13 @@
           .map((group) => group.id)
       : undefined
   const fetchData = (params: ComponentTypeQuery, options?: { signal?: AbortSignal }) =>
-    fetchComponentTypes(
-      { ...params, tenantId: effectiveTenantId.value, groupIds: groupIds() },
-      options
-    )
+    fetchComponentTypes({ ...params, groupIds: groupIds() }, options)
   const handleTableSuccess: ArtTableQueryProps['onSuccess'] = (rows, response) => {
     totalTypes.value = Number(response.total ?? rows.length)
   }
   const openTypeDialog = (row?: ComponentTypeRecord) => {
     void typeDialogRef.value?.handleOpen({
       row,
-      tenantId: row?.tenantId || effectiveTenantId.value || '',
-      tenantOptions: tenantChoices(),
       groups: groups.value,
       groupId: selectedGroupId.value
     })
@@ -322,9 +306,7 @@
     void groupDialogRef.value?.handleOpen({
       row,
       parent,
-      groups: groups.value,
-      tenantId: row?.tenantId || parent?.tenantId || effectiveTenantId.value || '',
-      tenantOptions: tenantChoices()
+      groups: groups.value
     })
   }
   const handleGroupSaved = async (id: string) => {

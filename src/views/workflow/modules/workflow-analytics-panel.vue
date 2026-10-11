@@ -197,7 +197,7 @@
             <ArtEmptyState
               v-if="!state.bottleneck.approvers.length"
               title="当前周期暂无审批人数据"
-              description="产生审批任务后会展示租户范围内的负载分布。"
+              description="产生审批任务后会展示负载分布。"
               icon="ri:team-line"
             />
             <ElScrollbar v-else max-height="min(360px, 42vh)">

@@ -6,7 +6,7 @@
         icon="ri:folder-settings-line"
         eyebrow="CATEGORY GOVERNANCE"
         title="文档分类"
-        description="建立稳定的层级导航，分类编码在当前租户内保持唯一。"
+        description="建立稳定的层级导航，分类编码保持唯一。"
       />
       <ArtForm
         ref="formRef"
@@ -52,8 +52,6 @@
     row?: EsopCategory
     parentId?: string
     categories: EsopCategory[]
-    tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
   }
 
   interface FormExpose {
@@ -67,7 +65,6 @@
   const dialogRef = ref<ArtDialogExpose<EsopCategoryDialogOpenData>>()
   const formRef = ref<FormExpose>()
   const categories = shallowRef<EsopCategory[]>([])
-  const tenantOptions = ref<Array<{ label: string; value: string }>>([])
   const treeProps = { label: 'categoryName', children: 'children' }
   const categoryTreeUtils = new TreeUtils({
     idKey: 'id',
@@ -76,7 +73,6 @@
     deepClone: false
   })
   const initial = (): EsopCategoryInput => ({
-    tenantId: '',
     parentId: null,
     categoryCode: '',
     categoryName: '',
@@ -92,24 +88,10 @@
         : []
     )
     return categoryTreeUtils.listToTree(
-      categoryTreeUtils
-        .treeToList(categories.value)
-        .filter((node) => node.tenantId === form.tenantId && !excluded.has(node.id))
+      categoryTreeUtils.treeToList(categories.value).filter((node) => !excluded.has(node.id))
     )
   })
   const items = computed<FormItem[]>(() => [
-    {
-      label: '目标租户',
-      key: 'tenantId',
-      type: 'select',
-      span: 24,
-      options: tenantOptions.value,
-      props: {
-        disabled: Boolean(form.id),
-        filterable: true,
-        placeholder: '请选择本次维护的数据归属租户'
-      }
-    },
     { label: '上级分类', key: 'parentId', type: 'text', span: 24 },
     {
       label: '分类编码',
@@ -152,7 +134,6 @@
   ])
   void userStore.ensureDictLoaded('commonEnabledStatus')
   const rules: FormRules<EsopCategoryInput> = {
-    tenantId: [{ required: true, message: '请选择目标租户', trigger: 'change' }],
     categoryCode: [
       { required: true, message: '请输入分类编码', trigger: 'blur' },
       {
@@ -176,9 +157,7 @@
   const handleOpen = async (data: EsopCategoryDialogOpenData): Promise<void> => {
     Object.assign(form, initial())
     categories.value = data.categories
-    tenantOptions.value = data.tenantOptions
     if (data.row) Object.assign(form, data.row)
-    form.tenantId = data.row?.tenantId || data.tenantId
     if (!data.row) form.parentId = data.parentId || null
     await nextTick()
     formRef.value?.clearValidate()
@@ -189,13 +168,6 @@
       onConfirm: submit
     })
   }
-  watch(
-    () => form.tenantId,
-    (value, previous) => {
-      if (value === previous || !previous) return
-      form.parentId = null
-    }
-  )
   defineExpose({ handleOpen })
 </script>
 

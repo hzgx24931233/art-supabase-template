@@ -33,10 +33,7 @@ export function buildOperationalMasterWriteInput(
   model: OperationalMasterRecord,
   context: OperationalMasterWriteContext
 ): OperationalMasterInput {
-  const payload = pick(cloneDeep(model), [
-    'tenantId',
-    ...context.fieldKeys
-  ]) as OperationalMasterInput
+  const payload = pick(cloneDeep(model), [...context.fieldKeys]) as OperationalMasterInput
 
   if (['customer', 'project'].includes(context.kind)) {
     payload.region = context.regionPath.filter(Boolean).join('/') || null

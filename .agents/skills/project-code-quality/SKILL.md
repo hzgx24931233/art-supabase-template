@@ -23,20 +23,15 @@ Keep every change maintainable at repository scale, not merely functional in the
 - Extend the closest shared module when three or more callers need the same behavior, or when the behavior is cross-cutting policy such as error normalization.
 - Do not create a wrapper that only renames an existing library or project utility.
 
-## Preserve The Tenant-Scope Contract
+## Preserve The Single-Organization Access Contract
 
-Treat tenant scope as a cross-layer security and data-correctness contract, not a page filter.
+This project is single-organization. The former per-organization scope contract no longer exists: there is no scope switcher, no scope request header, and no persisted scope session state anywhere in the platform. Visibility is decided only by RBAC (menus, buttons, field permissions) and by RLS policies that no longer scope rows per organization.
 
-- Only `isPlatformSuper` users may see or use the header tenant switcher. Tenant administrators and ordinary users never receive a cross-tenant UI or server capability.
-- Ordinary users always read and write only their authenticated tenant. Ignore forged tenant-scope headers at the database boundary.
-- Platform super in `全部租户` reads across tenants and retains authorized mutations. Platform super with a concrete header tenant reads and writes only that tenant unless an operation explicitly targets an existing row from the all-tenant workspace.
-- For reads, use `useTenantScopeStore().effectiveTenantId` as an optional filter. `null` for platform super means all tenants; never fall back from that `null` to `getUserInfo.tenantId` or the platform tenant.
-- For writes in the all-tenant workspace, derive the target from the affected row, a tenant-owned parent object, or an explicit tenant selector on create/import. Never use the authenticated platform tenant as an implicit business-data target. Do not require a header switch when the operation already has an unambiguous target tenant.
-- Tenant-owned RLS tables must retain the project-wide `canonical_platform_super_write` policy (or an audited equivalent) so platform-all mutations are not rejected after the UI has resolved an explicit target. This bypass is based only on the authenticated `is_platform_super()` capability; request headers never grant it.
-- Direct table reads, views, and `SECURITY DEFINER` read RPCs must implement the same ordinary/all/selected semantics. Use `app_private.current_read_tenant_id()` null-safely or `app_private.tenant_in_current_read_scope(tenant_id)`; never write `tenant_id = app_private.current_read_tenant_id()` because platform-all resolves to `NULL`.
-- Authentication bootstrap is the control-plane exception: the authenticated user's own `sys_user` profile must remain readable before the shell can validate or restore a persisted tenant scope. Scope other users normally, but never attach a restrictive tenant policy that can hide `auth_user_id = auth.uid()`; verify refresh/login with a valid selected tenant and a stale invalid tenant ID.
-- A platform-super bypass such as `is_platform_super() OR tenant_id = current_user_tenant_id()` is invalid for reads: it ignores a concrete header selection. Preserve permission and ownership predicates while applying the canonical tenant-read predicate.
-- Verify at least four cases for tenant-sensitive work: platform-all, platform-selected, ordinary-own, and ordinary with a forged cross-tenant header. Add all-tenant create/edit coverage when the change includes mutations.
+- `isPlatformSuper` is a role-based check: it is true when the authenticated user holds the enabled `R_SUPER` role. Never couple it to an organization scope, an organization selection, or a platform-versus-organization distinction.
+- Reads, writes, option lists, and exports all operate on the single organization's data. Do not reintroduce per-organization scope columns, scope request headers or claims, per-organization write targets, cross-organization read-only gating, organization selectors, or scope display helpers.
+- New RLS policies must not introduce per-organization scoping. Keep the policy surface limited to the permission and platform-super dimensions: compose the established `app_private.has_permission(...)` and ownership predicates, and retain the canonical platform-super write policy where a table already depends on it.
+- A `SECURITY DEFINER` reader must repeat the same permission predicates as the RLS-enabled read path; it must not add an organization-scope predicate to substitute for them.
+- Verify that every removed scope branch stays removed: no read, write, or option list may fall back to a "current organization" value or to a forwarded scope header.
 
 ## Reuse Before Creating
 
@@ -59,7 +54,7 @@ Do not hand-write generic parsing, object, collection, date, async, observer, or
 - A subrepository may own only domain-specific policy or behavior that cannot be expressed without that domain's types and invariants. A local wrapper that merely renames a library or main-repository helper is not a valid ownership boundary; call or configure the shared helper directly.
 - When duplication is found, migrate every repository in the same change, delete the local implementations, remove stale imports/tests, and run `pnpm reuse:audit` plus typechecks for every affected repository. Do not fix only the repository named in the immediate bug report.
 - Database text normalization is explicit at the write-payload boundary. Use `normalizeNonNullableText` for `NOT NULL` text columns and `normalizeNullableText` only when blank input semantically means SQL `NULL`. Never use a global transport interceptor to guess column nullability, and never emit `.trim() || null` directly.
-- Use `normalizeNullableNumber`, `normalizeStringList`, shared tenant display utilities, and shared date/currency/percent formatters instead of recreating their logic in pages or subrepositories.
+- Use `normalizeNullableNumber`, `normalizeStringList`, and the shared display, date, currency, and percent formatters instead of recreating their logic in pages or subrepositories.
 - Independently deployable code is a packaging boundary, not ordinary frontend duplication. Supabase Edge Functions may share only code included in that function project's deployable `_shared` tree, and standalone module Vite bootstrap files may retain the minimal platform-root resolver required to locate the main package. Do not import main-repository source across those boundaries unless the deployment/build packaging is changed and verified in the same task.
 - `pnpm reuse:audit` is the executable guard for raw nullable-text normalization, canonical-helper redeclarations, and identical generic frontend helpers copied across repositories. Fix findings by centralizing behavior; do not weaken or bypass the audit to make checks pass.
 

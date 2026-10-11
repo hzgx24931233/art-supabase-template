@@ -18,7 +18,6 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persist
 type JsonRecord = Record<string, unknown>
 
 interface RegistrationRuntime {
-  tenantId: string
   organizationId: string
   roleCode: string
   autoEnableUser: boolean
@@ -67,34 +66,17 @@ const buildSafeProfile = (body: JsonRecord, email: string): JsonRecord => ({
 })
 
 const loadRegistrationRuntime = async (): Promise<RegistrationRuntime> => {
-  const { data: registerTenant, error: tenantError } = await supabaseAdmin
-    .from('sys_tenant')
-    .select('id')
-    .eq('builtin_type', 'public_register')
-    .eq('status', '1')
-    .single()
-  if (tenantError || !registerTenant) throw new Error('注册公共租户未正确配置')
-
   const { data: rootOrganization, error: organizationError } = await supabaseAdmin
     .from('mdm_organization')
     .select('id')
-    .eq('tenant_id', registerTenant.id)
     .eq('is_system', true)
     .eq('status', '1')
     .single()
-  if (organizationError || !rootOrganization) throw new Error('注册公共租户缺少系统根组织')
-
-  const { data: platformTenant, error: platformError } = await supabaseAdmin
-    .from('sys_tenant')
-    .select('id')
-    .eq('builtin_type', 'platform')
-    .single()
-  if (platformError || !platformTenant) throw new Error('平台租户未正确配置')
+  if (organizationError || !rootOrganization) throw new Error('注册默认组织缺少系统根组织')
 
   const { data: parameters, error: parameterError } = await supabaseAdmin
     .from('sys_param')
     .select('param_key, param_value')
-    .eq('tenant_id', platformTenant.id)
     .eq('enabled', true)
     .in('param_key', ['registration.default_role_id', 'registration.auto_enable_user'])
   if (parameterError) throw new Error('注册策略读取失败')
@@ -104,8 +86,7 @@ const loadRegistrationRuntime = async (): Promise<RegistrationRuntime> => {
 
   let roleQuery = supabaseAdmin
     .from('sys_role')
-    .select('id, role_code, enabled, builtin_type, tenant_id')
-    .eq('tenant_id', registerTenant.id)
+    .select('id, role_code, enabled, builtin_type')
     .eq('enabled', true)
 
   roleQuery = configuredRoleId
@@ -118,8 +99,7 @@ const loadRegistrationRuntime = async (): Promise<RegistrationRuntime> => {
   if (!role) {
     const fallback = await supabaseAdmin
       .from('sys_role')
-      .select('id, role_code, enabled, builtin_type, tenant_id')
-      .eq('tenant_id', registerTenant.id)
+      .select('id, role_code, enabled, builtin_type')
       .eq('builtin_type', 'default_register')
       .eq('enabled', true)
       .single()
@@ -132,7 +112,6 @@ const loadRegistrationRuntime = async (): Promise<RegistrationRuntime> => {
   }
 
   return {
-    tenantId: registerTenant.id,
     organizationId: rootOrganization.id,
     roleCode: role.role_code,
     autoEnableUser: String(paramMap.get('registration.auto_enable_user') ?? 'true') === 'true'
@@ -189,12 +168,11 @@ Deno.serve(async (req: Request) => {
         user_roles: [runtime.roleCode],
         user_type: '2',
         account_identity_type: 'external',
-        tenant_id: runtime.tenantId,
         organization_id: runtime.organizationId,
         status: runtime.autoEnableUser ? '1' : '2',
         create_by: email
       })
-      .select('id, tenant_id, organization_id, user_roles, status')
+      .select('id, organization_id, user_roles, status')
       .single()
 
     if (profileError || !createdUser) {
@@ -210,7 +188,6 @@ Deno.serve(async (req: Request) => {
       result: {
         ok: true,
         user_id: createdUser.id,
-        tenant_id: createdUser.tenant_id,
         organization_id: createdUser.organization_id,
         role_codes: createdUser.user_roles,
         status: createdUser.status

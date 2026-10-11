@@ -5,8 +5,8 @@
     :selected-data="selectedData"
     :api-fn="fetchEmployees"
     :columns="columns"
-    :placeholder="resolvedTenantId ? placeholder : '请先选择目标租户'"
-    :disabled="disabled || !resolvedTenantId"
+    :placeholder="placeholder"
+    :disabled="disabled"
     :clearable="clearable"
     row-key="id"
     :label-key="getEmployeeLabel"
@@ -18,7 +18,7 @@
     :empty-description="
       apiFn
         ? '当前数据来源没有匹配的人员，请调整搜索条件或完善人员配置。'
-        : '当前租户没有可选的在职或试用期员工，请先完善员工花名册。'
+        : '当前没有可选的在职或试用期员工，请先完善员工花名册。'
     "
     :show-pagination="true"
     :page-size="10"
@@ -50,7 +50,6 @@
     DataSelectKey,
     DataSelectRecord
   } from '@/components/core/forms/art-data-select/types'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import {
     fetchEmployeeSelectorList,
     type EmployeeIntegrationItem
@@ -63,7 +62,6 @@
     multiple?: boolean
     modelValues?: string[]
     selectedData?: EmployeeIntegrationItem[]
-    tenantId?: string
     title?: string
     subtitle?: string
     placeholder?: string
@@ -80,7 +78,6 @@
     multiple: false,
     modelValues: () => [],
     selectedData: () => [],
-    tenantId: '',
     title: '选择员工',
     subtitle: '按姓名、工号、组织或岗位检索员工档案',
     placeholder: '请选择员工',
@@ -100,14 +97,11 @@
     clear: []
   }>()
 
-  const tenantScopeStore = useTenantScopeStore()
   // Single and multiple selectors have different value types; the dynamic component
   // boundary is intentional and values are normalized by the handlers below.
   const selectorComponent = computed<Component>(() =>
     props.multiple ? ArtTableMultipleSelect : ArtTableSingleSelect
   )
-  const { effectiveTenantId } = storeToRefs(tenantScopeStore)
-  const resolvedTenantId = computed(() => props.tenantId || effectiveTenantId.value || '')
   const employeeMaintenanceActions = [
     {
       label: '去维护员工花名册',
@@ -190,10 +184,8 @@
   }
 
   const fetchEmployees = async (params: DataSelectFetchParams) => {
-    if (!resolvedTenantId.value) return { data: [], total: 0 }
     const from = Math.max((params.page - 1) * params.pageSize, 0)
     const result = await (props.apiFn ?? fetchEmployeeSelectorList)({
-      tenantId: resolvedTenantId.value,
       keyword: params.keyword,
       from,
       to: from + params.pageSize - 1

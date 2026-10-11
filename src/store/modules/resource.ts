@@ -4,7 +4,6 @@ import { uploadAttachment } from '@/api/attachments'
 const uploadAndRefresh = async (files: File | File[], args: Resources.Args): Promise<void> => {
   try {
     await uploadAttachment(files, {
-      targetTenantId: typeof args.targetTenantId === 'string' ? args.targetTenantId : undefined,
       onProgress: args.onProgress
     })
   } finally {

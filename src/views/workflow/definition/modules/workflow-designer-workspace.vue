@@ -82,7 +82,7 @@
             <template #header>
               <div class="workflow-designer-page__section-heading">
                 <ArtSectionTitle>基础信息</ArtSectionTitle>
-                <p>先定义流程身份、所属租户与业务场景，后续字段和节点均围绕该对象配置。</p>
+                <p>先定义流程身份与业务场景，后续字段和节点均围绕该对象配置。</p>
               </div>
             </template>
             <ArtForm
@@ -197,9 +197,7 @@
             ref="workflowCanvasRef"
             v-show="activeStep === 3"
             v-model="form.data.config"
-            :tenant-id="form.data.tenantId"
             :business-type="form.data.businessType"
-            @request-step="activeStep = $event"
           />
 
           <ArtSectionCard
@@ -367,7 +365,6 @@
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useUserStore } from '@/store/modules/user'
-  import { fetchGetEnableTenantList } from '@/api/system-manage/tenant'
   import {
     fetchWorkflowDefinitionDetail,
     publishWorkflowDefinition,
@@ -502,9 +499,7 @@
       key: 1,
       label: '基础信息',
       description: '流程身份与业务场景',
-      complete: Boolean(
-        trim(form.data.code) && trim(form.data.name) && form.data.businessType && form.data.tenantId
-      )
+      complete: Boolean(trim(form.data.code) && trim(form.data.name) && form.data.businessType)
     },
     {
       key: 2,
@@ -529,7 +524,6 @@
   ])
 
   const baseRules = computed<FormRules<DesignerForm>>(() => ({
-    tenantId: [{ required: true, message: '请选择流程所属租户', trigger: 'change' }],
     code: [
       { required: true, message: '请输入流程编码', trigger: 'blur' },
       {
@@ -543,25 +537,6 @@
   }))
 
   const baseItems = computed<FormItem[]>(() => [
-    {
-      label: '所属租户',
-      key: 'tenantId',
-      type: 'select',
-      span: 24,
-      help: form.data.id
-        ? '流程归属租户不可变更；平台超级管理员正在进行跨租户维护。'
-        : '流程只服务所选租户，同一流程编码可在不同租户独立配置。',
-      api: fetchGetEnableTenantList,
-      resultField: 'data',
-      valueField: 'id',
-      labelFn: (tenant) => `${tenant.tenantName}（${tenant.tenantCode}）`,
-      props: {
-        filterable: true,
-        placeholder: '选择流程所属租户',
-        disabled: Boolean(form.data.id),
-        onChange: handleTenantChange
-      }
-    },
     {
       label: '流程编码',
       key: 'code',
@@ -621,13 +596,6 @@
       props: { activeText: '自动通过', inactiveText: '安全阻断', inlinePrompt: true }
     }
   ])
-
-  function handleTenantChange(): void {
-    form.data.config.nodes.forEach((node) => {
-      node.assignee.userIds = []
-      node.assignee.roleCodes = []
-    })
-  }
 
   function handleBusinessTypeChange(): void {
     const allowedFields = new Set(contextFields.value.map((field) => field.key))
@@ -834,7 +802,6 @@
       versions[0]
     form.data = {
       id: detail.id,
-      tenantId: detail.tenantId,
       code: detail.code,
       name: detail.name,
       businessType: detail.businessType,

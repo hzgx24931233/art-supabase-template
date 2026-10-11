@@ -23,7 +23,6 @@
         :record="form.model"
         :groups="form.groups"
         :references="form.references"
-        :tenant-options="form.tenantOptions"
       />
 
       <div v-else class="operational-master-dialog__form-panel">
@@ -42,7 +41,6 @@
             <ArtEmployeeSelect
               :model-value="form.model.ownerId ?? undefined"
               :selected-data="employeeSelection(form.model.ownerId)"
-              :tenant-id="form.model.tenantId"
               placeholder="选择项目负责人"
               @update:model-value="form.model.ownerId = $event ?? null"
             />
@@ -51,7 +49,6 @@
             <ArtEmployeeSelect
               :model-value="form.model.salespersonId ?? undefined"
               :selected-data="employeeSelection(form.model.salespersonId)"
-              :tenant-id="form.model.tenantId"
               placeholder="选择销售员"
               @update:model-value="form.model.salespersonId = $event ?? null"
             />
@@ -80,7 +77,7 @@
               label-key="name"
               description-key="code"
               title="选择生产人员"
-              subtitle="从当前租户已维护的生产人员中选择工位负责人"
+              subtitle="从已维护的生产人员中选择工位负责人"
               search-placeholder="搜索姓名或人员编号"
               placeholder="选择工位负责人"
               empty-text="暂无可选生产人员"
@@ -111,7 +108,6 @@
   import type { EmployeeIntegrationItem } from '@/api/integration/employees'
   import { fetchRegionOptions } from '@/api/region-options'
   import ArtEntitySummary from '@/components/core/surfaces/art-entity-summary/index.vue'
-  import { useTenantScopeFormPolicy } from '@/hooks/core/useTenantScopeFormPolicy'
   import { useUserStore } from '@/store/modules/user'
   import { validateEmail, validatePhone, validateTelPhone } from '@/utils/form/validator'
   import TreeUtils from '@/utils/tree'
@@ -132,8 +128,6 @@
 
   export interface MasterDialogOpenData {
     config: OperationalMasterConfig
-    tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
     groups: MasterGroup[]
     initialGroupId?: string
     row?: OperationalMasterRecord
@@ -143,7 +137,6 @@
 
   const emit = defineEmits<{ success: [mode: 'add' | 'edit'] }>()
   const userStore = useUserStore()
-  const { shouldExposeTenantField } = useTenantScopeFormPolicy()
   const { getDictMap } = storeToRefs(userStore)
   const referenceTree = new TreeUtils({ parentKey: 'parentId' })
   const dialogRef = ref<ArtDialogExpose<MasterDialogOpenData>>()
@@ -162,7 +155,6 @@
     config: undefined as OperationalMasterConfig | undefined,
     groups: [] as MasterGroup[],
     references: emptyReferences(),
-    tenantOptions: [] as Array<{ label: string; value: string }>,
     readonly: false,
     copy: false
   })
@@ -200,12 +192,9 @@
   const referenceOptions = (field: MasterFieldConfig) => {
     if (!field.reference) return []
     if (field.reference === 'workCenters') {
-      if (!form.model.tenantId || !form.model.departmentId) return []
+      if (!form.model.departmentId) return []
       return form.references.workCenters
-        .filter(
-          (item) =>
-            item.tenantId === form.model.tenantId && item.departmentId === form.model.departmentId
-        )
+        .filter((item) => item.departmentId === form.model.departmentId)
         .map((item) => ({ label: `${item.name} · ${item.code}`, value: item.id }))
     }
     return form.references[field.reference].map((item) => ({
@@ -216,37 +205,30 @@
 
   const groupOptions = computed(() =>
     referenceTree.listToTree(
-      form.groups
-        .filter((group) => group.tenantId === form.model.tenantId)
-        .map((group) => ({
-          id: group.id,
-          parentId: group.parentId,
-          label: `${group.name} · ${group.code}`,
-          value: group.id
-        }))
+      form.groups.map((group) => ({
+        id: group.id,
+        parentId: group.parentId,
+        label: `${group.name} · ${group.code}`,
+        value: group.id
+      }))
     )
   )
 
   const departmentOptions = computed(() =>
     referenceTree.listToTree(
-      form.references.departments
-        .filter((item) => item.tenantId === form.model.tenantId)
-        .map((item) => ({
-          id: item.id,
-          parentId: item.parentId,
-          label: `${item.name} · ${item.code}`,
-          value: item.id
-        }))
+      form.references.departments.map((item) => ({
+        id: item.id,
+        parentId: item.parentId,
+        label: `${item.name} · ${item.code}`,
+        value: item.id
+      }))
     )
   )
 
   const workCenterOptions = computed(() => {
-    if (!form.model.tenantId || !form.model.departmentId) return []
+    if (!form.model.departmentId) return []
     return form.references.workCenters
-      .filter(
-        (item) =>
-          item.tenantId === form.model.tenantId && item.departmentId === form.model.departmentId
-      )
+      .filter((item) => item.departmentId === form.model.departmentId)
       .map((item) => ({ label: `${item.name} · ${item.code}`, value: item.id }))
   })
 
@@ -256,7 +238,6 @@
       ? [
           {
             id: item.id,
-            tenantId: item.tenantId,
             employeeNo: item.code,
             employeeName: item.name,
             employmentStatus: 'active'
@@ -364,35 +345,6 @@
   }
 
   const formItems = computed<FormItem[]>(() => {
-    const tenantItems: FormItem[] = shouldExposeTenantField.value
-      ? [
-          {
-            key: 'section-scope',
-            label: () =>
-              h('span', { class: 'operational-master-dialog__section-heading' }, [
-                h('strong', '数据归属'),
-                h('small', '选择本条主数据所属租户，保存后不可变更。')
-              ]),
-            type: 'divider',
-            span: 24
-          },
-          {
-            key: 'tenantId',
-            label: '所属租户',
-            type: 'select',
-            span: 24,
-            options: form.tenantOptions,
-            props: {
-              disabled: form.readonly || (!!form.model.id && !form.copy),
-              filterable: true,
-              placeholder: '请选择本条主数据所属租户',
-              onChange: reloadReferences
-            },
-            help: '在“全部租户”工作区新增时必须明确业务数据归属。'
-          }
-        ]
-      : []
-
     const sectionItems = config.value.formSections.flatMap((section) => {
       const fieldItems = section.fieldKeys.flatMap((fieldKey) => {
         const field = config.value.fields.find((item) => item.key === fieldKey)
@@ -402,13 +354,11 @@
       return [createSectionDivider(section), ...fieldItems]
     })
 
-    return [...tenantItems, ...sectionItems]
+    return sectionItems
   })
 
   const formRules = computed(() => {
-    const rules: Record<string, Array<Record<string, unknown>>> = {
-      tenantId: [{ required: true, message: '请选择所属租户', trigger: 'change' }]
-    }
+    const rules: Record<string, Array<Record<string, unknown>>> = {}
     for (const field of config.value.fields.filter((item) => item.required)) {
       rules[String(field.key)] = [
         {
@@ -441,7 +391,6 @@
   function createModel(data: MasterDialogOpenData): OperationalMasterRecord {
     const model: OperationalMasterRecord = {
       id: '',
-      tenantId: data.row?.tenantId || data.tenantId,
       enabled: true,
       remark: ''
     }
@@ -466,7 +415,7 @@
   }
 
   async function reloadReferences(): Promise<void> {
-    form.references = await fetchOperationalMasterReferences(form.model.tenantId)
+    form.references = await fetchOperationalMasterReferences()
     if (form.model.groupId && !form.groups.some((group) => group.id === form.model.groupId)) {
       form.model.groupId = null
     }
@@ -491,7 +440,6 @@
   const handleOpen = async (data: MasterDialogOpenData): Promise<void> => {
     form.config = data.config
     form.groups = data.groups
-    form.tenantOptions = data.tenantOptions
     form.readonly = !!data.readonly
     form.copy = !!data.copy
     form.model = createModel(data)

@@ -8,7 +8,7 @@
       icon="ri:pulse-line"
       :tags="[
         {
-          label: isPlatformSuper ? '平台全局视角' : '本租户只读视角',
+          label: isPlatformSuper ? '平台全局视角' : '只读视角',
           type: isPlatformSuper ? 'primary' : 'info',
           effect: 'plain'
         }

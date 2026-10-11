@@ -2,7 +2,6 @@ export type ComponentTypeTagStyle = '' | 'primary' | 'success' | 'info' | 'warni
 
 export interface ComponentIndustryGroup {
   id: string
-  tenantId: string
   parentId: string | null
   code: string
   name: string
@@ -14,7 +13,6 @@ export interface ComponentIndustryGroup {
 
 export interface ComponentTypeRecord {
   id: string
-  tenantId: string
   groupId: string
   componentTypeCode: string
   componentTypeName: string
@@ -34,7 +32,6 @@ export type ComponentIndustryGroupInput = Omit<ComponentIndustryGroup, 'id' | 'c
 export interface ComponentTypeQuery {
   current: number
   size: number
-  tenantId?: string | null
   keyword?: string
   groupIds?: string[]
   enabled?: boolean

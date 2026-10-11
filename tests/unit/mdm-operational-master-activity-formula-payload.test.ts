@@ -5,7 +5,6 @@ import { buildActivityFormulaWriteInput } from '@/views/mdm/operational-master/m
 
 const model = (): OperationalMasterRecord => ({
   id: '22222222-2222-4222-8222-222222222222',
-  tenantId: '11111111-1111-4111-8111-111111111111',
   code: ' LPS ',
   name: ' 良品数标准工时 ',
   purpose: 'report_preparation',

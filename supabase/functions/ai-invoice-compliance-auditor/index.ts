@@ -92,7 +92,6 @@ Deno.serve(async (request) => {
       .from('ai_run')
       .insert({
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         feature: FEATURE,
         model: RULE_VERSION,
         prompt_version: RULE_VERSION,

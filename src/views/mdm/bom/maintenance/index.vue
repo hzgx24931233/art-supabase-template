@@ -13,7 +13,7 @@
         :tags="[
           { label: '版本受控', type: 'primary' },
           { label: '循环校验', type: 'success' },
-          { label: '租户隔离', type: 'info' }
+          { label: '物料清单维护', type: 'info' }
         ]"
         :metrics="metrics"
       >
@@ -68,7 +68,6 @@
   import type { ColumnOption } from '@/types'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useAuth } from '@/hooks/core/useAuth'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import { exportExcel } from '@/utils/file'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
@@ -118,8 +117,6 @@
   const { hasAuth } = useAuth()
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId, tenantOptions } = storeToRefs(useTenantScopeStore())
-  const tenantId = computed(() => effectiveTenantId.value ?? '')
   const route = useRoute()
   const targetBomId = computed(() =>
     route.query.fromMasterDelete === '1' && typeof route.query.recordId === 'string'
@@ -196,16 +193,13 @@
   ])
   const ensureOptions = async () => {
     if (!units.value.length)
-      units.value = await fetchMaterialReferenceOptions<UnitOfMeasure>(
-        'unit-of-measure',
-        tenantId.value
-      )
+      units.value = await fetchMaterialReferenceOptions<UnitOfMeasure>('unit-of-measure')
   }
   const loadGroups = async () => {
     groupLoading.value = true
     groupError.value = null
     try {
-      groups.value = await fetchBomGroups(tenantId.value)
+      groups.value = await fetchBomGroups()
     } catch (error) {
       groups.value = []
       groupError.value = error instanceof Error ? error : new Error('BOM 分组加载失败')
@@ -214,11 +208,6 @@
     }
   }
   const groupDialogData = (options: { row?: BomGroup; parent?: BomGroup } = {}) => ({
-    tenantId: options.row?.tenantId || options.parent?.tenantId || tenantId.value,
-    tenantOptions: tenantOptions.value.map((tenant) => ({
-      label: tenant.tenantName || tenant.tenantCode,
-      value: tenant.id
-    })),
     groups: groups.value,
     ...options
   })
@@ -249,11 +238,6 @@
   const openDialog = async (row?: BomRecord, options?: { copy?: boolean }) => {
     const data: BomDialogOpenData = {
       row,
-      tenantId: row?.tenantId || tenantId.value,
-      tenantOptions: tenantOptions.value.map((tenant) => ({
-        label: tenant.tenantName || tenant.tenantCode,
-        value: tenant.id
-      })),
       units: units.value,
       loadUnits: async () => {
         await ensureOptions()
@@ -272,7 +256,6 @@
     return fetchBoms(
       {
         ...params,
-        tenantId: tenantId.value,
         id: targetBomId.value || undefined,
         groupIds: selectedGroupId.value ? descendantIds(selectedGroupId.value) : undefined
       },
@@ -571,7 +554,7 @@
     }
   ]
   const exportRows = async () => {
-    const result = await fetchBoms({ ...search, tenantId: tenantId.value, current: 1, size: 10000 })
+    const result = await fetchBoms({ ...search, current: 1, size: 10000 })
     await exportExcel({
       data: result.data.map((row) => ({
         code: row.bomCode,
@@ -599,7 +582,7 @@
     userStore.ensureDictLoaded('mdmBomPurpose'),
     userStore.ensureDictLoaded('mdmBomStatus')
   ])
-  watch(tenantId, () => void loadGroups(), { immediate: true })
+  onMounted(() => void loadGroups())
   watch(targetBomId, () => {
     selectedGroupId.value = ''
     Object.assign(search, { keyword: '', purpose: undefined, status: undefined })

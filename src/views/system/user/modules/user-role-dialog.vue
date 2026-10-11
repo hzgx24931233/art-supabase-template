@@ -42,18 +42,15 @@
   import { cloneDeep } from 'lodash-es'
   import { ElMessage, type FormRules } from 'element-plus'
   import { assignUserRoles, fetchGetEnableRoleList } from '@/api/system-manage'
-  import { useUserStore } from '@/store/modules/user'
 
   type UserListItem = Api.SystemManage.UserListItem
-  type UserRoleFormData = Pick<UserListItem, 'userRoles' | 'id' | 'tenantId'>
+  type UserRoleFormData = Pick<UserListItem, 'userRoles' | 'id'>
 
   interface Emits {
     (e: 'success'): void
   }
 
   const emit = defineEmits<Emits>()
-  const userStore = useUserStore()
-  const { getUserInfo, isPlatformSuper } = storeToRefs(userStore)
   const dialogRef = ref<ArtDialogExpose<UserListItem>>()
   const formRef = ref()
   const rules: FormRules = {}
@@ -64,10 +61,6 @@
 
   const formData = ref<UserRoleFormData>(createInitialForm())
   const userContext = shallowRef<UserListItem>()
-  const currentTenantId = computed(() => getUserInfo.value.tenantId)
-  const roleQueryTenantId = computed(() =>
-    isPlatformSuper.value ? formData.value.tenantId : currentTenantId.value
-  )
   const selectedRoleCount = computed(() => formData.value.userRoles?.length ?? 0)
   const userAvatarFallback = computed(() => {
     const displayName = (userContext.value?.nickName || userContext.value?.userName || '').trim()
@@ -80,10 +73,6 @@
       key: 'userRoles',
       type: 'select',
       api: fetchGetEnableRoleList,
-      params: {
-        tenantId: roleQueryTenantId.value
-      },
-      shouldFetch: (params) => Boolean(params?.tenantId),
       resultField: 'data',
       labelField: 'roleName',
       valueField: 'roleCode',
@@ -93,8 +82,7 @@
         collapseTags: true,
         collapseTagsTooltip: true,
         maxCollapseTags: 3,
-        disabled: !roleQueryTenantId.value,
-        placeholder: roleQueryTenantId.value ? '请选择角色' : '当前用户未绑定租户'
+        placeholder: '请选择角色'
       },
       description: '支持多选；请仅分配与当前岗位职责直接相关的角色。'
     }
@@ -115,14 +103,12 @@
     }
 
     try {
-      const tenantId = roleQueryTenantId.value
-      if (!formData.value.id || !tenantId) {
-        ElMessage.warning('用户或所属租户信息缺失，请关闭后重新打开')
+      if (!formData.value.id) {
+        ElMessage.warning('用户信息缺失，请关闭后重新打开')
         return false
       }
       await assignUserRoles({
         id: formData.value.id,
-        tenantId,
         userRoles: [...(formData.value.userRoles ?? [])]
       })
       emit('success')
@@ -135,11 +121,10 @@
   const handleOpen = async (data: UserListItem): Promise<void> => {
     await resetForm()
     userContext.value = data
-    const { id, userRoles, tenantId } = data
+    const { id, userRoles } = data
     formData.value = {
       id,
-      userRoles,
-      tenantId: isPlatformSuper.value ? tenantId : currentTenantId.value
+      userRoles
     }
     await dialogRef.value?.handleOpen(data, {
       title: '分配用户角色',

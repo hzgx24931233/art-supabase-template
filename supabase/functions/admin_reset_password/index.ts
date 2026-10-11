@@ -9,7 +9,6 @@ const corsHeaders = {
 
 interface UserProfile {
   auth_user_id: string
-  tenant_id: string
   status: string | null
 }
 
@@ -71,7 +70,7 @@ serve(async (req) => {
     })
     const { data: operator, error: operatorError } = await adminClient
       .from('sys_user')
-      .select('auth_user_id, tenant_id, status')
+      .select('auth_user_id, status')
       .eq('auth_user_id', authData.user.id)
       .maybeSingle<UserProfile>()
 
@@ -93,24 +92,15 @@ serve(async (req) => {
       )
     }
 
-    const { data: operatorIsPlatformSuper } = await authClient.rpc('current_is_super')
-
     const { data: target, error: targetError } = await adminClient
       .from('sys_user')
-      .select('auth_user_id, tenant_id, status')
+      .select('auth_user_id, status')
       .eq('user_email', targetEmail)
       .maybeSingle()
 
     if (targetError || !target?.auth_user_id || target.status !== '1') {
       return new Response(JSON.stringify({ error: 'User not found or disabled' }), {
         status: 404,
-        headers: corsHeaders
-      })
-    }
-
-    if (operatorIsPlatformSuper !== true && target.tenant_id !== operator.tenant_id) {
-      return new Response(JSON.stringify({ error: 'Cannot reset a user in another tenant' }), {
-        status: 403,
         headers: corsHeaders
       })
     }

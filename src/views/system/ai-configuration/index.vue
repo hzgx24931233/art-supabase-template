@@ -167,7 +167,7 @@
       {
         label: '平均超时',
         value: `${averageTimeout} 秒`,
-        description: `租户总日配额 ${dailyQuota.toLocaleString('zh-CN')} 次`,
+        description: `总日配额 ${dailyQuota.toLocaleString('zh-CN')} 次`,
         icon: 'ri:timer-flash-line',
         tone: 'warning'
       }
@@ -232,7 +232,7 @@
         width: 108,
         formatter: (row: AiFeatureConfig) => (
           <ElTag type={row.inherited ? 'info' : 'primary'} effect="plain" round>
-            {row.inherited ? '平台默认' : canManage.value ? '平台配置' : '租户配置'}
+            {row.inherited ? '平台默认' : '自定义配置'}
           </ElTag>
         )
       },

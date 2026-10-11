@@ -343,10 +343,8 @@ export async function editDict(params: Api.DataCenter.DictListItem) {
 }
 
 // 资源列表
-export async function fetchGetResourceList(
-  params: Api.DataCenter.Resources.ResourceSearchParams & { tenantId?: string }
-) {
-  const { originName = '', suffix = '', tenantId, from = 0, to = 9 } = params
+export async function fetchGetResourceList(params: Api.DataCenter.Resources.ResourceSearchParams) {
+  const { originName = '', suffix = '', from = 0, to = 9 } = params
   const specs: FilterSpec[] = [{ col: 'originName', op: 'ilike', val: `%${originName}%` }]
 
   if (suffix) {
@@ -366,7 +364,6 @@ export async function fetchGetResourceList(
     .order('create_time', { ascending: false })
     .range(from, to)
 
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   query = applyFilters(query, specs, { skipEmpty: true, camelToSnake: true })
   return await responseHandle<Api.DataCenter.Resources.ResourceListItem[]>(() => query, {
     showErrorMessage: true
@@ -524,23 +521,33 @@ async function fetchMetadataFromInformationSchema(): Promise<Api.DataCenter.SqlC
 async function fetchForeignKeysMetadata(): Promise<Api.DataCenter.SqlConsole.ForeignKeyMetadata[]> {
   const relationQuery = `
     SELECT
-      tc.table_schema AS source_schema,
-      tc.table_name AS source_table,
-      kcu.column_name AS source_column,
-      ccu.table_schema AS target_schema,
-      ccu.table_name AS target_table,
-      ccu.column_name AS target_column,
-      tc.constraint_name
-    FROM information_schema.table_constraints tc
-    JOIN information_schema.key_column_usage kcu
-      ON tc.constraint_name = kcu.constraint_name
-      AND tc.table_schema = kcu.table_schema
-    JOIN information_schema.constraint_column_usage ccu
-      ON ccu.constraint_name = tc.constraint_name
-      AND ccu.constraint_schema = tc.constraint_schema
-    WHERE tc.constraint_type = 'FOREIGN KEY'
-      AND tc.table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
-    ORDER BY tc.table_schema, tc.table_name, tc.constraint_name
+      source_schema.nspname AS source_schema,
+      source_table.relname AS source_table,
+      source_column.attname AS source_column,
+      target_schema.nspname AS target_schema,
+      target_table.relname AS target_table,
+      target_column.attname AS target_column,
+      con.conname AS constraint_name
+    FROM pg_catalog.pg_constraint con
+    JOIN pg_catalog.pg_class source_table
+      ON source_table.oid = con.conrelid
+    JOIN pg_catalog.pg_namespace source_schema
+      ON source_schema.oid = source_table.relnamespace
+    JOIN pg_catalog.pg_class target_table
+      ON target_table.oid = con.confrelid
+    JOIN pg_catalog.pg_namespace target_schema
+      ON target_schema.oid = target_table.relnamespace
+    CROSS JOIN LATERAL unnest(con.conkey, con.confkey)
+      WITH ORDINALITY AS key_pair(source_attnum, target_attnum, ordinal_position)
+    JOIN pg_catalog.pg_attribute source_column
+      ON source_column.attrelid = source_table.oid
+      AND source_column.attnum = key_pair.source_attnum
+    JOIN pg_catalog.pg_attribute target_column
+      ON target_column.attrelid = target_table.oid
+      AND target_column.attnum = key_pair.target_attnum
+    WHERE con.contype = 'f'
+      AND source_schema.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+    ORDER BY source_schema.nspname, source_table.relname, con.conname, key_pair.ordinal_position
   `
 
   const { data, error } = await executeSql({ query: relationQuery })

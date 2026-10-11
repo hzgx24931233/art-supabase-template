@@ -12,7 +12,6 @@ export interface UserAccountIdentityPolicyInput {
   identityType: unknown
   employeeId: unknown
   remark: unknown
-  tenantBuiltinType: unknown
   callerIsPlatformSuper: boolean
 }
 
@@ -32,17 +31,14 @@ export function validateUserAccountIdentity(
   const employeeId = typeof input.employeeId === 'string' ? input.employeeId.trim() : ''
   if (input.identityType === 'employee') {
     if (!employeeId) return '员工账号必须关联员工花名册'
-    if (input.tenantBuiltinType === 'platform' || input.tenantBuiltinType === 'public_register') {
-      return '系统预置租户不能创建员工账号'
-    }
     return null
   }
 
   if (employeeId) return '非员工账号不能关联员工花名册'
 
   if (input.identityType === 'platform') {
-    if (input.tenantBuiltinType !== 'platform' || !input.callerIsPlatformSuper) {
-      return '平台治理账号只能由平台超级管理员在平台租户内维护'
+    if (!input.callerIsPlatformSuper) {
+      return '平台治理账号只能由平台超级管理员维护'
     }
     return null
   }

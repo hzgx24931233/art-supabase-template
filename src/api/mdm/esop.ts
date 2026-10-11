@@ -27,9 +27,8 @@ const writeOptions = {
   errorMessage: '操作失败，请检查数据后重试'
 }
 
-export async function fetchEsopCategories(tenantId: string): Promise<EsopCategory[]> {
-  let query = supabase.from('mdm_esop_category').select('*')
-  if (tenantId) query = query.eq('tenant_id', tenantId)
+export async function fetchEsopCategories(): Promise<EsopCategory[]> {
+  const query = supabase.from('mdm_esop_category').select('*')
   const { data } = await responseHandle<EsopCategory[]>(
     () => query.order('sort').order('category_name'),
     readOptions
@@ -44,11 +43,10 @@ export async function fetchEsopDocuments(
   let query = supabase
     .from('mdm_esop_document')
     .select(
-      '*,category:mdm_esop_category!mdm_esop_document_category_fkey(id,category_code,category_name),bindings:mdm_esop_binding(id,target_type,material_id,process_route_id,material:mdm_material!mdm_esop_binding_material_fkey(id,material_code,material_name,specification_model),processRoute:mdm_process_route!mdm_esop_binding_route_fkey(id,name,material_id,material:mdm_material!mdm_process_route_material_tenant_fkey(id,material_code,material_name,specification_model)))',
+      '*,category:mdm_esop_category!mdm_esop_document_category_fkey(id,category_code,category_name),bindings:mdm_esop_binding(id,target_type,material_id,process_route_id,material:mdm_material(id,material_code,material_name,specification_model),processRoute:mdm_process_route(id,name,material_id,material:mdm_material(id,material_code,material_name,specification_model)))',
       { count: 'exact' }
     )
     .order('upload_time', { ascending: false })
-  if (params.tenantId) query = query.eq('tenant_id', params.tenantId)
   if (params.keyword)
     query = query.or(
       buildOrIlikeFilter(['document_code', 'document_name', 'attachment_name'], params.keyword)
@@ -67,17 +65,15 @@ export async function fetchEsopDocuments(
   return { data: data ?? [], total: total ?? 0, current: params.current, size: params.size }
 }
 
-export async function fetchEsopReferenceOptions(tenantId: string): Promise<EsopReferenceOptions> {
-  let materialQuery = supabase
+export async function fetchEsopReferenceOptions(): Promise<EsopReferenceOptions> {
+  const materialQuery = supabase
     .from('mdm_material')
-    .select('id,tenant_id,material_code,material_name,specification_model')
+    .select('id,material_code,material_name,specification_model')
     .eq('status', 'enabled')
-  if (tenantId) materialQuery = materialQuery.eq('tenant_id', tenantId)
 
-  let routeQuery = supabase
+  const routeQuery = supabase
     .from('mdm_process_route')
-    .select('id,tenant_id,name,material_id,material:mdm_material(material_code,material_name)')
-  if (tenantId) routeQuery = routeQuery.eq('tenant_id', tenantId)
+    .select('id,name,material_id,material:mdm_material(material_code,material_name)')
 
   const [{ data: materials }, { data: routes }] = await Promise.all([
     responseHandle<EsopReferenceOptions['materials']>(
@@ -87,7 +83,6 @@ export async function fetchEsopReferenceOptions(tenantId: string): Promise<EsopR
     responseHandle<
       Array<{
         id: string
-        tenantId: string
         name: string
         materialId: string
         material: { materialCode: string; materialName: string } | null
@@ -98,7 +93,6 @@ export async function fetchEsopReferenceOptions(tenantId: string): Promise<EsopR
     materials: materials ?? [],
     routes: (routes ?? []).map((route) => ({
       id: route.id,
-      tenantId: route.tenantId,
       name: route.name,
       materialId: route.materialId,
       materialCode: route.material?.materialCode ?? '',

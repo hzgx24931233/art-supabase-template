@@ -5,7 +5,6 @@ import { buildMaterialArchiveWriteInput } from '@/views/mdm/material/archive/mod
 
 const archiveModel: MaterialArchive = {
   id: '11111111-1111-4111-8111-111111111111',
-  tenantId: '22222222-2222-4222-8222-222222222222',
   categoryId: '33333333-3333-4333-8333-333333333333',
   category: {
     id: '33333333-3333-4333-8333-333333333333',

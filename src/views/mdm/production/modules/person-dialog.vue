@@ -27,7 +27,6 @@
         <ArtEmployeeSelect
           :model-value="form.model.employeeId || undefined"
           :selected-data="selection"
-          :tenant-id="form.model.tenantId"
           :api-fn="fetchProductionEmployeeOptions"
           :disabled="form.sourceLoading"
           @confirm="selectEmployee"
@@ -44,7 +43,6 @@
   import type { ArtDialogExpose } from '@/components/core/dialogs/art-dialog/types'
   import type { EmployeeIntegrationItem } from '@/api/integration/employees'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import {
     fetchProductionEmployeeReference,
     fetchProductionEmployeeOptions,
@@ -64,8 +62,6 @@
   const formRef = ref<InstanceType<typeof ArtForm>>()
   const selection = ref<EmployeeIntegrationItem[]>([])
   const user = useUserStore()
-  const tenantScopeStore = useTenantScopeStore()
-  const { effectiveTenantId, tenantOptions } = storeToRefs(tenantScopeStore)
   let requestVersion = 0
   const form = reactive({
     model: createPerson(),
@@ -74,7 +70,6 @@
     sourceLoading: false,
     sourceError: '',
     rules: {
-      tenantId: [{ required: true, message: '请选择所属租户', trigger: 'change' }],
       name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
       employeeNo: [{ required: true, message: '请输入工号', trigger: 'blur' }],
       barcode: [{ required: true, message: '请输入条码', trigger: 'blur' }],
@@ -82,28 +77,9 @@
       workType: [{ required: true, message: '请选择工作类型', trigger: 'change' }]
     }
   })
-  const scopedDepartments = computed(() =>
-    form.departments.filter((department) => department.tenantId === form.model.tenantId)
-  )
+  const scopedDepartments = computed(() => form.departments)
   const items = computed<FormItem[]>(() => [
     { key: 'source', label: '身份来源', type: 'divider', span: 24 },
-    {
-      key: 'tenantId',
-      label: '所属租户',
-      type: 'select',
-      span: 24,
-      options: tenantOptions.value.map((tenant) => ({
-        label: `${tenant.tenantName}（${tenant.tenantCode}）`,
-        value: tenant.id
-      })),
-      props: {
-        disabled: !!form.id || !!form.model.departmentId,
-        filterable: true,
-        placeholder: '请选择本次新增数据所属的租户',
-        onChange: handleTenantChange
-      },
-      help: '“全部租户”下仍可新增；人员、员工档案和生产部门必须属于同一租户。'
-    },
     {
       key: 'employeeId',
       label: '员工花名册',
@@ -172,10 +148,6 @@
       props: { rows: 2, maxlength: 1000 }
     }
   ])
-  function handleTenantChange() {
-    clearEmployee()
-    Object.assign(form.model, { departmentId: '', permissionDepartmentIds: [] })
-  }
   function defaultBarcode() {
     if (!form.model.barcode) form.model.barcode = form.model.employeeNo
   }
@@ -194,12 +166,6 @@
     try {
       const employee = await fetchProductionEmployeeReference(id)
       if (version !== requestVersion) return
-      if (form.model.tenantId && employee.tenantId !== form.model.tenantId) {
-        ElMessage.warning('员工档案与当前所属租户不一致，请选择同一租户的员工')
-        clearEmployee()
-        return
-      }
-      if (!form.model.tenantId) form.model.tenantId = employee.tenantId
       selection.value = rows
       const patch: Partial<ProductionPersonInput> = {
         employeeId: id,
@@ -232,21 +198,16 @@
       sourceLoading: false,
       sourceError: ''
     })
-    const departmentTenantId = data.departmentId
-      ? data.departments.find((department) => department.id === data.departmentId)?.tenantId
-      : undefined
     form.model = data.row
       ? (cloneDeep(pick(data.row, Object.keys(createPerson()))) as ProductionPersonInput)
       : {
           ...createPerson(),
-          tenantId: departmentTenantId || effectiveTenantId.value || '',
           departmentId: data.departmentId || ''
         }
     selection.value = data.row?.employeeId
       ? [
           {
             id: data.row.employeeId,
-            tenantId: data.row.tenantId,
             employeeNo: data.row.employeeNo,
             employeeName: data.row.name,
             employmentStatus: 'active',
@@ -261,17 +222,6 @@
         : '建立人员生产身份与组织关系',
       confirmText: data.row ? '保存更改' : '创建人员',
       contentMaxHeight: '70vh',
-      loading: true,
-      loadingText: '正在加载租户选项…',
-      onOpen: async (_openData, api) => {
-        try {
-          await tenantScopeStore.loadTenantOptions()
-        } catch {
-          ElMessage.warning('租户选项加载失败，请关闭弹窗后重试')
-        } finally {
-          api.setLoading(false)
-        }
-      },
       onConfirm: async () => {
         if (form.sourceLoading) return false
         try {

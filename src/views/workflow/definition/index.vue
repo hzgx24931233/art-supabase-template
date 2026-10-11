@@ -13,7 +13,7 @@
       title="审批流程设计"
       description="用版本化配置复用审批能力，发布中的版本保持不可变，所有流转动作完整留痕。"
       icon="ri:git-merge-line"
-      :tags="!isPlatformSuper ? [{ label: '租户只读', type: 'info', effect: 'plain' }] : []"
+      :tags="!isPlatformSuper ? [{ label: '只读模式', type: 'info', effect: 'plain' }] : []"
     >
       <template #actions>
         <BusinessTableWorkspaceActions :table="tableQueryRef" />
@@ -64,7 +64,7 @@
               emptyText: '暂无审批流程定义',
               emptyDescription: isPlatformSuper
                 ? '可以新建流程，或调整筛选条件后重新查询。'
-                : '当前租户还没有可查看的流程，请联系平台管理员配置。'
+                : '暂无可查看的流程，请联系平台管理员配置。'
             }"
             focus-scope-selector=".workflow-definition__workspace"
           />
@@ -132,7 +132,6 @@
   import { useLazyComponent } from '@/hooks/core/useLazyComponent'
   import { useUserStore } from '@/store/modules/user'
   import { fetchGetEnableMenuList } from '@/api/system-manage'
-  import { fetchGetEnableTenantList } from '@/api/system-manage/tenant'
   import TreeUtils from '@/utils/tree'
   import {
     deleteWorkflowDefinition,
@@ -153,10 +152,7 @@
   )
 
   type Definition = Api.Workflow.WorkflowDefinitionRecord
-  type SearchParams = Pick<
-    Api.Workflow.WorkflowDefinitionSearchParams,
-    'keyword' | 'status' | 'tenantId'
-  > & {
+  type SearchParams = Pick<Api.Workflow.WorkflowDefinitionSearchParams, 'keyword' | 'status'> & {
     businessTypes?: string[]
   }
   type TableParams = SearchParams & Pick<Api.Common.PaginationParams, 'current' | 'size'>
@@ -230,7 +226,7 @@
     [...(row.versions || [])].sort((a, b) => b.versionNo - a.versionNo)[0]
 
   const table: UnwrapNestedRefs<TableGroup> = reactive<TableGroup>({
-    searchQuery: { keyword: '', businessTypes: undefined, status: '', tenantId: '' },
+    searchQuery: { keyword: '', businessTypes: undefined, status: '' },
     searchItems: computed<SearchFormItem[]>(() => [
       {
         label: '关键词',
@@ -245,21 +241,6 @@
         props: {
           options: getDictMap.value.workflowDefinitionStatus ?? [],
           placeholder: '全部状态',
-          clearable: true
-        }
-      },
-      {
-        label: '所属租户',
-        key: 'tenantId',
-        type: 'select',
-        hidden: !isPlatformSuper.value,
-        api: fetchGetEnableTenantList,
-        resultField: 'data',
-        valueField: 'id',
-        labelFn: (tenant) => `${tenant.tenantName}（${tenant.tenantCode}）`,
-        props: {
-          placeholder: '全部租户',
-          filterable: true,
           clearable: true
         }
       }
@@ -303,21 +284,6 @@
         minWidth: 150,
         formatter: (row) => getWorkflowBusinessTypeLabel(row.businessType)
       },
-      ...(isPlatformSuper.value
-        ? [
-            {
-              prop: 'tenant',
-              label: '所属租户',
-              minWidth: 190,
-              formatter: (row: Definition) => (
-                <div class="workflow-definition__tenant-cell">
-                  <strong>{row.tenant?.tenantName || '--'}</strong>
-                  <small>{row.tenant?.tenantCode || row.tenantId}</small>
-                </div>
-              )
-            } satisfies ColumnOption<Definition>
-          ]
-        : []),
       {
         prop: 'status',
         label: '状态',
@@ -518,9 +484,8 @@
   }
 
   async function handleDelete(row: Definition): Promise<void> {
-    const tenantLabel = row.tenant?.tenantName ? `（${row.tenant.tenantName}）` : ''
     await confirmDelete(
-      `确定删除“${row.name}”${tenantLabel}吗？只有从未产生审批记录的流程可以删除；已有历史的流程必须停用。`
+      `确定删除“${row.name}”吗？只有从未产生审批记录的流程可以删除；已有历史的流程必须停用。`
     )
     await deleteWorkflowDefinition(row.id)
     await tableQueryRef.value?.refreshRemove()
@@ -820,30 +785,6 @@
 
     :deep(.workflow-definition__version-cell button:hover) {
       text-decoration: underline;
-    }
-
-    :deep(.workflow-definition__tenant-cell) {
-      display: grid;
-      gap: 2px;
-      min-width: 0;
-    }
-
-    :deep(.workflow-definition__tenant-cell strong),
-    :deep(.workflow-definition__tenant-cell small) {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    :deep(.workflow-definition__tenant-cell strong) {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--art-gray-800);
-    }
-
-    :deep(.workflow-definition__tenant-cell small) {
-      font-size: 12px;
-      color: var(--art-gray-600);
     }
 
     :deep(.workflow-definition__actions) {

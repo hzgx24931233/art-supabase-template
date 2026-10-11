@@ -7,59 +7,69 @@ import {
   parsePeopleImport
 } from '@/views/mdm/production/modules/production-transfer'
 
-const department = (id: string, tenantId: string, code: string): ProductionDepartment => ({
+const department = (id: string, code: string): ProductionDepartment => ({
   ...createDepartment(),
   id,
-  tenantId,
   code
 })
 
-test('department import binds rows and duplicate parent codes to the selected tenant', () => {
+test('department import binds rows to the resolved parent department code', () => {
   const rows = parseDepartmentImport(
-    [{ 部门名称: '二线', 部门编码: 'LINE-2', 上级部门编码: 'FACTORY' }],
-    [
-      department('other-parent', 'other-tenant', 'FACTORY'),
-      department('target-parent', 'target-tenant', 'FACTORY')
-    ],
-    'target-tenant'
+    [{ 部门名称: '二线', 部门编码: 'LINE-2', 上级部门编码: 'FACTORY', 状态: '启用' }],
+    [department('parent-1', 'FACTORY')]
   )
-  assert.equal(rows[0].tenantId, 'target-tenant')
-  assert.equal(rows[0].parentId, 'target-parent')
+  assert.equal(rows[0].name, '二线')
+  assert.equal(rows[0].code, 'LINE-2')
+  assert.equal(rows[0].enabled, true)
+  assert.equal(rows[0].parentId, 'parent-1')
+  assert.throws(
+    () =>
+      parseDepartmentImport(
+        [{ 部门名称: '二线', 部门编码: 'LINE-2', 上级部门编码: 'MISSING' }],
+        [department('parent-1', 'FACTORY')]
+      ),
+    /上级部门编码不存在/
+  )
 })
 
-test('person import resolves department and permission codes only within the target tenant', () => {
-  const departments = [
-    department('other-department', 'other-tenant', 'LINE'),
-    department('target-department', 'target-tenant', 'LINE')
-  ]
+test('person import resolves department and permission codes by department code', () => {
+  const departments = [department('department-1', 'LINE'), department('department-2', 'PACK')]
   const rows = parsePeopleImport(
-    [{ 部门编码: 'LINE', 姓名: '测试员工', 工号: 'EMP-1', 权限部门编码: 'LINE' }],
+    [
+      {
+        部门编码: 'LINE',
+        姓名: '测试员工',
+        工号: 'EMP-1',
+        权限部门编码: 'LINE,PACK'
+      }
+    ],
     departments,
-    '',
-    'target-tenant'
+    ''
   )
-  assert.equal(rows[0].tenantId, 'target-tenant')
-  assert.equal(rows[0].departmentId, 'target-department')
-  assert.deepEqual(rows[0].permissionDepartmentIds, ['target-department'])
+  assert.equal(rows[0].departmentId, 'department-1')
+  assert.equal(rows[0].name, '测试员工')
+  assert.equal(rows[0].employeeNo, 'EMP-1')
+  assert.deepEqual(rows[0].permissionDepartmentIds, ['department-1', 'department-2'])
+
+  const fallbackRows = parsePeopleImport(
+    [{ 姓名: '测试员工', 工号: 'EMP-1' }],
+    departments,
+    'department-2'
+  )
+  assert.equal(fallbackRows[0].departmentId, 'department-2')
+
+  assert.throws(
+    () =>
+      parsePeopleImport([{ 姓名: '测试员工', 工号: 'EMP-1' }], departments, 'missing-department'),
+    /请选择所属部门或填写已有部门编码/
+  )
   assert.throws(
     () =>
       parsePeopleImport(
-        [{ 姓名: '测试员工', 工号: 'EMP-1' }],
+        [{ 部门编码: 'LINE', 姓名: '测试员工', 工号: 'EMP-1', 权限部门编码: 'MISSING' }],
         departments,
-        'other-department',
-        'target-tenant'
+        ''
       ),
-    /目标租户内/
-  )
-})
-
-test('production imports reject an ambiguous target tenant', () => {
-  assert.throws(
-    () => parseDepartmentImport([{ 部门名称: '二线', 部门编码: 'LINE-2' }], [], ''),
-    /目标租户/
-  )
-  assert.throws(
-    () => parsePeopleImport([{ 姓名: '测试员工', 工号: 'EMP-1' }], [], '', ''),
-    /目标租户/
+    /权限部门编码不存在/
   )
 })

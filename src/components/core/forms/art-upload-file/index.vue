@@ -38,18 +38,13 @@
           <span
             class="art-upload-file__trigger"
             :class="{ 'is-disabled': uploadDisabled, 'is-loading': uploading }"
-            :title="
-              missingTenantTarget && !uploadRequest ? '请先在页头选择业务所属租户' : undefined
-            "
           >
             <ArtSvgIcon
               :icon="uploading ? 'ri:loader-4-line' : 'ri:attachment-2'"
               :class="{ 'art-upload-file__spinner': uploading }"
               aria-hidden="true"
             />
-            {{
-              uploading ? '上传中…' : missingTenantTarget && !uploadRequest ? '先选择租户' : title
-            }}
+            {{ uploading ? '上传中…' : title }}
           </span>
         </slot>
       </ElUpload>
@@ -127,7 +122,6 @@
       v-if="canPickResource && !readonly"
       v-model:visible="resourcePickerVisible"
       title="从资源管理器选择文件"
-      :resource-tenant-id="props.resourceTenantId"
       :multiple="multiple"
       :limit="multiple ? Math.max(limit - fileList.length, 0) : 1"
       @confirm="handleResourceConfirm"
@@ -159,7 +153,6 @@
   import { isAcceptedFileType } from '@/utils/file/accept'
   import { createNamedClipboardFile, getClipboardFiles } from '@/utils/file/clipboard'
   import { getFriendlySupabaseErrorMessage } from '@/utils/supabase'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
 
   defineOptions({ name: 'ArtUploadFile', inheritAttrs: false })
 
@@ -179,7 +172,6 @@
       showResourcePicker?: boolean
       hoverEffect?: boolean
       inline?: boolean
-      resourceTenantId?: string
       fileName?: string
       uploadRequest?: (file: File) => Promise<Api.DataCenter.Resources.ResourceListItem[]>
     }>(),
@@ -198,7 +190,6 @@
       showResourcePicker: true,
       hoverEffect: true,
       inline: false,
-      resourceTenantId: '',
       fileName: ''
     }
   )
@@ -220,16 +211,8 @@
   const uploading = computed(() => activeUploads.value > 0)
   const resourcePickerVisible = ref(false)
   const resourceMode = ref(false)
-  const tenantScopeStore = useTenantScopeStore()
-  const missingTenantTarget = computed(
-    () => tenantScopeStore.isAllTenants && !props.resourceTenantId.trim()
-  )
-  const uploadDisabled = computed(
-    () => props.disabled || (missingTenantTarget.value && !props.uploadRequest)
-  )
-  const canPickResource = computed(
-    () => props.showResourcePicker && !missingTenantTarget.value && !props.disabled
-  )
+  const uploadDisabled = computed(() => props.disabled)
+  const canPickResource = computed(() => props.showResourcePicker && !props.disabled)
   const canPaste = computed(() => !props.readonly && !uploadDisabled.value && !resourceMode.value)
   const pickerAtLimit = computed(() => props.multiple && fileList.value.length >= props.limit)
   const sourceTooltip = computed(() =>
@@ -242,10 +225,7 @@
   }
 
   const resolvedTip = computed(
-    () =>
-      (missingTenantTarget.value && !props.uploadRequest
-        ? '请先在页头选择业务所属租户'
-        : props.tip) || `单个文件不超过 ${formatFileSize(props.fileSize)}`
+    () => props.tip || `单个文件不超过 ${formatFileSize(props.fileSize)}`
   )
 
   watch(canPickResource, (allowed) => {
@@ -295,8 +275,7 @@
   const handleUpload = async (options: UploadRequestOptions): Promise<unknown> => {
     activeUploads.value += 1
     try {
-      return await (props.uploadRequest?.(options.file) ??
-        uploadAttachment(options.file, { targetTenantId: props.resourceTenantId || undefined }))
+      return await (props.uploadRequest?.(options.file) ?? uploadAttachment(options.file))
     } finally {
       activeUploads.value -= 1
     }
@@ -360,13 +339,6 @@
     const resources = selected.filter((resource) => Boolean(resource.url?.trim()))
     if (!resources.length) {
       ElMessage.warning('请选择有可访问地址的文件')
-      return
-    }
-    if (
-      props.resourceTenantId &&
-      resources.some((resource) => resource.tenantId !== props.resourceTenantId)
-    ) {
-      ElMessage.warning('所选文件不属于当前目标租户，请重新选择')
       return
     }
     if (

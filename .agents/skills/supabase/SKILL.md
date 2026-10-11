@@ -10,18 +10,16 @@ metadata:
 
 ## Core Principles
 
-### Project tenant-scope invariant
+### Project single-organization invariant
 
-For `art-supabase-pro`, apply this invariant to every table, view, RPC, Edge Function, and Data API provider that handles tenant-owned business data:
+For `art-supabase-pro`, apply this invariant to every table, view, RPC, Edge Function, and Data API provider that handles business data. The project is single-organization: no per-organization scope column, claim, request header, or scope switcher exists anywhere.
 
-- Only platform super administrators can select `全部租户` or another tenant in the application header. Ordinary users and tenant administrators are always bound to their authenticated tenant, including when they forge `x-art-tenant-scope`.
-- `app_private.current_read_tenant_id()` returns the ordinary user's tenant, the concrete header tenant for platform-selected, and `NULL` for platform-all. Test `NULL` as all tenants with `app_private.tenant_in_current_read_scope(tenant_id)` or an equivalent null-safe predicate. Never compare `tenant_id = current_read_tenant_id()` directly.
-- Do not implement SELECT as `is_platform_super() OR tenant_id = current_user_tenant_id()`: the super branch leaks all tenants after a concrete tenant is selected. Apply the canonical read predicate and keep separate permission/ownership conditions.
-- `SECURITY DEFINER` readers bypass RLS and therefore must repeat the canonical read predicate in every base query, count, option list, recursive CTE, and related-record lookup.
-- Platform-all remains writable for authorized platform super administrators. Bind an existing-row mutation to that row's tenant, a child creation to its parent tenant, and a root create/import to an explicit target tenant. Do not require a header switch when the target is already unambiguous, and never default business data to the platform tenant merely because the actor is platform super.
-- Preserve `canonical_platform_super_write` on every RLS-enabled public table with `tenant_id`, or provide a reviewed equivalent that grants the same authenticated platform-super write path. Do not derive this authority from `x-art-tenant-scope`; the header selects a view, while `is_platform_super()` grants authority.
-- Do not treat login bootstrap identity as an ordinary business list. The current `sys_user` row identified by `auth_user_id = auth.uid()` must remain readable even while a valid, stale, or invalid tenant scope is persisted; scope reads of other users normally. A global restrictive tenant policy on `sys_user` is invalid because it can turn a successful Auth login into `PGRST116` during profile loading.
-- Verify platform-all, platform-selected, ordinary-own, and forged-header ordinary behavior after every tenant-boundary migration. For mutation changes, also verify platform-all create/edit with an explicit or inherited target tenant.
+- Reads and writes always target the single organization. The server resolves the read scope; the client never sends a scope parameter or a scope header.
+- RLS is limited to the permission and platform-super dimensions: compose `app_private.has_permission(...)`, `app_private.is_platform_super()` where a platform-super maintenance path is required, and `app_private.owns_record(create_by)` when creator ownership is required. Do not add per-organization scope columns, predicates, or policy variants.
+- Do not replace a permission predicate with an unconditional platform-super branch in a SELECT policy: platform super is an explicit maintenance override, not the ordinary read path.
+- `SECURITY DEFINER` readers bypass RLS and therefore must repeat the same permission, platform-super, and ownership predicates in every base query, count, option list, recursive CTE, and related-record lookup.
+- Do not treat login bootstrap identity as an ordinary business list. The current `sys_user` row identified by `auth_user_id = auth.uid()` must remain readable so a successful Auth login cannot turn into `PGRST116` during profile loading; scope reads of other users through the normal permission policies.
+- Verify ordinary-user and platform-super behavior after every access-control migration, and verify that no removed scope branch, scope parameter, or scope header remains in the call path.
 
 ### Project database delivery policy
 
@@ -29,7 +27,7 @@ For `art-supabase-pro`, do not create, fetch, reconstruct, retain, or publish pe
 
 - Do not run `supabase migration new`, `supabase migration fetch`, `supabase db pull`, `supabase db push`, or MCP `apply_migration`.
 - Apply approved schema, RLS, function, trigger, grant, comment, seed, and scheduler changes directly with MCP `execute_sql`; use `supabase db query --linked` only as the documented fallback when MCP is unavailable.
-- Before a production mutation, take and verify a recoverable backup, run the SQL inside `BEGIN`/`ROLLBACK` against the target when the operation supports transactional validation, and inspect dependencies and cross-tenant violations. Then execute the reviewed statement directly and immediately run post-change assertions, lint/advisors, and the relevant application tests.
+- Before a production mutation, take and verify a recoverable backup, run the SQL inside `BEGIN`/`ROLLBACK` against the target when the operation supports transactional validation, and inspect dependencies and access-control violations. Then execute the reviewed statement directly and immediately run post-change assertions, lint/advisors, and the relevant application tests.
 - Keep durable audit evidence in architecture/runbook documentation and ordinary automated tests, not in migration SQL. Never repopulate `supabase/migrations` merely to align local and remote migration history.
 - Existing remote migration-history rows are operational history only; do not materialize them as individual SQL files in the workspace.
 

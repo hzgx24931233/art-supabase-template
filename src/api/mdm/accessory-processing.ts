@@ -21,13 +21,13 @@ let mesWorkOrderTrackingAvailable = true
 export const isMesWorkOrderTrackingAvailable = (): boolean => mesWorkOrderTrackingAvailable
 
 const MES_WORK_ORDER_EMBED =
-  'workOrders:mes_work_order!mes_work_order_accessory_item_tenant_fk(id,workOrderNo:work_order_no,deletedAt:deleted_at)'
+  'workOrders:mes_work_order(id,workOrderNo:work_order_no,deletedAt:deleted_at)'
 
 const ACCESSORY_ITEM_FIELDS =
-  'id,lineNo:line_no,rowNo:row_no,name,widthMm:width_mm,lengthM:length_m,quantity,materialColor:material_color,remark,sketch:sketch_bounds,sketchPath:sketch_path,imageUrls:image_urls,materialId:material_id,materialCode:material_code,specificationModel:specification_model,baseUnitId:base_unit_id,materialTypeId:material_type_id,materialSource:material_source,categoryId:category_id,codeRuleId:code_rule_id,baseUnit:mdm_unit_of_measure!accessory_item_unit_tenant_fk(unitName:unit_name),materialType:mdm_material_type!accessory_item_type_tenant_fk(typeName:type_name),category:mdm_material_category!accessory_item_category_tenant_fk(categoryName:category_name),codeRule:mdm_material_code_rule!accessory_item_code_rule_tenant_fk(ruleName:rule_name),material:mdm_material!mdm_accessory_processing_item_material_id_tenant_id_fkey(materialCode:material_code,description,imageUrls:image_urls,codeRuleId:code_rule_id)'
+  'id,lineNo:line_no,rowNo:row_no,name,widthMm:width_mm,lengthM:length_m,quantity,materialColor:material_color,remark,sketch:sketch_bounds,sketchPath:sketch_path,imageUrls:image_urls,materialId:material_id,materialCode:material_code,specificationModel:specification_model,baseUnitId:base_unit_id,materialTypeId:material_type_id,materialSource:material_source,categoryId:category_id,codeRuleId:code_rule_id,baseUnit:mdm_unit_of_measure(unitName:unit_name),materialType:mdm_material_type(typeName:type_name),category:mdm_material_category(categoryName:category_name),codeRule:mdm_material_code_rule(ruleName:rule_name),material:mdm_material(materialCode:material_code,description,imageUrls:image_urls,codeRuleId:code_rule_id)'
 
 const buildAccessoryListSelect = (includeMesWorkOrders: boolean): string =>
-  'id,tenantId:tenant_id,sourcePath:source_path,sourceName:source_name,drawingName:drawing_name,projectName:project_name,projectId:project_id,bomId:bom_id,customerId:customer_id,categoryId:category_id,status,confidence,warnings,createTime:create_time,project:mdm_project(projectName:project_name),items:mdm_accessory_processing_item(' +
+  'id,sourcePath:source_path,sourceName:source_name,drawingName:drawing_name,projectName:project_name,projectId:project_id,bomId:bom_id,customerId:customer_id,categoryId:category_id,status,confidence,warnings,createTime:create_time,project:mdm_project(projectName:project_name),items:mdm_accessory_processing_item(' +
   ACCESSORY_ITEM_FIELDS +
   (includeMesWorkOrders ? `,${MES_WORK_ORDER_EMBED}` : '') +
   '))'
@@ -98,7 +98,6 @@ export interface AccessoryProcessingItem {
 
 export interface AccessoryProcessingList {
   id: string
-  tenantId: string
   sourcePath: string | null
   sourceName: string
   projectName: string
@@ -127,7 +126,6 @@ export interface AccessoryOcrResponse {
 
 export interface AccessoryRecognitionRecord {
   id: string
-  tenantId: string
   createTime: string
   projectName: string
   drawingName: string
@@ -139,7 +137,6 @@ export interface AccessoryRecognitionRecord {
 
 interface RecognitionRow {
   id: string
-  tenantId: string
   createTime: string
   proposedPayload: unknown
   metadata: unknown
@@ -189,24 +186,19 @@ function parseRecognitionItem(value: unknown): AccessoryProcessingItem | null {
   }
 }
 
-export async function fetchAccessoryRecognitions(
-  tenantId: string | null,
-  includeTenantRecords = false
-): Promise<AccessoryRecognitionRecord[]> {
-  if (includeTenantRecords && !tenantId) return []
+export async function fetchAccessoryRecognitions(): Promise<AccessoryRecognitionRecord[]> {
   const { data: authData, error: authError } = await supabase.auth.getUser()
   if (authError || !authData.user)
     throw new Error('登录状态已失效，请重新登录', { cause: authError })
-  let query = supabase
+  const query = supabase
     .from('ai_artifact_review')
     .select(
-      'id,tenantId:tenant_id,createTime:create_time,proposedPayload:proposed_payload,metadata,confidence,warnings'
+      'id,createTime:create_time,proposedPayload:proposed_payload,metadata,confidence,warnings'
     )
     .eq('feature', 'accessory_processing_ocr')
+    .eq('auth_user_id', authData.user.id)
     .order('create_time', { ascending: false })
     .limit(50)
-  if (!includeTenantRecords) query = query.eq('auth_user_id', authData.user.id)
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   const { data } = await responseHandle<RecognitionRow[]>(() => query, {
     breakReturn: true,
     showErrorMessage: false,
@@ -217,7 +209,6 @@ export async function fetchAccessoryRecognitions(
     const metadata = isRecord(row.metadata) ? row.metadata : {}
     return {
       id: row.id,
-      tenantId: row.tenantId,
       createTime: row.createTime,
       projectName: typeof payload.projectName === 'string' ? payload.projectName : '',
       drawingName: typeof payload.drawingName === 'string' ? payload.drawingName : '',
@@ -254,13 +245,13 @@ export async function restoreAccessoryRecognitionFiles(
     throw new Error('该识别记录的原件索引无效，请重新上传清单')
   }
   const match =
-    /^\/storage\/v1\/object\/sign\/mdm-accessory-processing\/([0-9a-f-]{36})\/([0-9a-f-]{36})\/page\//i.exec(
+    /^\/storage\/v1\/object\/sign\/mdm-accessory-processing\/([0-9a-f-]{36})\/page\//i.exec(
       pathname
     )
-  if (!match || match[1].toLowerCase() !== record.tenantId.toLowerCase()) {
+  if (!match) {
     throw new Error('该识别记录的原件索引无效，请重新上传清单')
   }
-  const prefix = `${match[1]}/${match[2]}`
+  const prefix = match[1]
   const [sourceResult, sketchResult] = await Promise.all([
     supabase.storage.from(bucket).list(`${prefix}/source`, { limit: 100 }),
     supabase.storage.from(bucket).list(`${prefix}/sketch`, { limit: 100 })
@@ -289,7 +280,6 @@ export interface AccessoryProjectOption {
   id: string
   projectName: string
   projectCode: string
-  tenantId: string
   customerId: string | null
 }
 
@@ -299,21 +289,20 @@ export interface AccessoryCustomerOption {
 }
 
 export async function uploadAccessoryFile(
-  tenantId: string,
   groupId: string,
   kind: 'source' | 'page' | 'sketch',
   file: File | Blob,
   filename: string
 ): Promise<Api.DataCenter.Resources.ResourceListItem[]> {
   const safeName = filename.replace(/[^\w.-]/g, '_').slice(-100)
-  const path = `${tenantId}/${groupId}/${kind}/${crypto.randomUUID()}-${safeName}`
+  const path = `${groupId}/${kind}/${crypto.randomUUID()}-${safeName}`
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
     contentType: file.type || 'application/octet-stream',
     upsert: false
   })
   if (error) throw new Error('文件上传失败，请稍后重试', { cause: error })
   const url = await signAccessoryPath(path)
-  return [{ tenantId, originName: filename, storagePath: path, mimeType: file.type, url }]
+  return [{ originName: filename, storagePath: path, mimeType: file.type, url }]
 }
 
 export async function signAccessoryPath(path: string): Promise<string> {
@@ -334,10 +323,7 @@ export async function recognizeAccessoryPages(imageUrls: string[]): Promise<Acce
   return data as AccessoryOcrResponse
 }
 
-export async function fetchAccessoryLists(
-  tenantId: string | null,
-  listId?: string
-): Promise<AccessoryProcessingList[]> {
+export async function fetchAccessoryLists(listId?: string): Promise<AccessoryProcessingList[]> {
   const runQuery = async (includeMesWorkOrders: boolean) => {
     let query = supabase
       .from('mdm_accessory_processing_list')
@@ -345,7 +331,6 @@ export async function fetchAccessoryLists(
       .order('create_time', { ascending: false })
       .limit(100)
     if (listId) query = query.eq('id', listId)
-    if (tenantId) query = query.eq('tenant_id', tenantId)
     return responseHandle<AccessoryProcessingList[]>(() => query, {
       breakReturn: true,
       showErrorMessage: false,
@@ -374,15 +359,12 @@ export async function fetchAccessoryLists(
   }))
 }
 
-export async function fetchAccessoryProjects(tenantId: string): Promise<AccessoryProjectOption[]> {
+export async function fetchAccessoryProjects(): Promise<AccessoryProjectOption[]> {
   const { data } = await responseHandle<AccessoryProjectOption[]>(
     () =>
       supabase
         .from('mdm_project')
-        .select(
-          'id,tenantId:tenant_id,projectName:project_name,projectCode:project_code,customerId:customer_id'
-        )
-        .eq('tenant_id', tenantId)
+        .select('id,projectName:project_name,projectCode:project_code,customerId:customer_id')
         .order('project_name')
         .limit(300),
     { breakReturn: true, showErrorMessage: false, errorMessage: '项目列表加载失败，请重试' }
@@ -390,15 +372,12 @@ export async function fetchAccessoryProjects(tenantId: string): Promise<Accessor
   return data ?? []
 }
 
-export async function fetchAccessoryCustomers(
-  tenantId: string
-): Promise<AccessoryCustomerOption[]> {
+export async function fetchAccessoryCustomers(): Promise<AccessoryCustomerOption[]> {
   const { data } = await responseHandle<AccessoryCustomerOption[]>(
     () =>
       supabase
         .from('mdm_customer')
         .select('id,customerName:customer_name')
-        .eq('tenant_id', tenantId)
         .eq('enabled', true)
         .order('customer_name')
         .limit(300),
@@ -411,7 +390,6 @@ export async function saveAccessoryDraft(payload: {
   id?: string
   mode?: 'SaveDraft' | 'Add' | 'Edit' | 'Copy'
   sourceItemId?: string
-  tenantId: string
   sourcePath: string | null
   sourceName: string
   projectName: string
@@ -524,7 +502,7 @@ function toAccessoryDeleteDependency(
   }
 }
 
-/** The scoped RPC inspects inbound foreign keys with the delete permission and tenant boundary. */
+/** The scoped RPC inspects inbound foreign keys with the delete permission. */
 export async function fetchAccessoryDeleteDependencies(
   candidates: AccessoryDeleteCandidate[],
   mode: 'items' | 'codes'

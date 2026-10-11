@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+  <head>
+    <title>程管家</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="基于 Vue 3、TypeScript 和 Element Plus 的企业级中后台管理平台。"
+    />
+    <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon-CFn7NuyD.ico" />
+
+    <style>html{background-color:#fafbfc}html.dark{background-color:#070707}</style>
+
+    <script>
+      // 初始化 html class 主题属性
+      ;(function () {
+        try {
+          if (typeof Storage === 'undefined' || !window.localStorage) {
+            return
+          }
+
+          const themeType = localStorage.getItem('sys-theme')
+          if (themeType === 'dark') {
+            document.documentElement.classList.add('dark')
+          }
+        } catch (e) {
+          console.warn('Failed to apply initial theme:', e)
+        }
+      })()
+    </script>
+    <script type="module" crossorigin src="/assets/index-DUP5L4n7.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-C0FnF6B9.js">
+    <link rel="modulepreload" crossorigin href="/assets/framework-Bwlbiqw9.js">
+    <link rel="modulepreload" crossorigin href="/assets/common-utils-ZYyBsGt8.js">
+    <link rel="modulepreload" crossorigin href="/assets/icon-XA0lSCKJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/use-size-My8PvM08.js">
+    <link rel="modulepreload" crossorigin href="/assets/event-6lLCNg9V.js">
+    <link rel="modulepreload" crossorigin href="/assets/use-global-config-DfX0BYIY.js">
+    <link rel="modulepreload" crossorigin href="/assets/typescript-DOc6skV4.js">
+    <link rel="modulepreload" crossorigin href="/assets/build-runtime-C5jyRH4d.js">
+    <link rel="modulepreload" crossorigin href="/assets/ComponentLoader-DQ35eotJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/tree-Bci7DVlh.js">
+    <link rel="modulepreload" crossorigin href="/assets/sys-CJEMpD9j.js">
+    <link rel="stylesheet" crossorigin href="/assets/sys-1oWo33m3.css">
+    <link rel="stylesheet" crossorigin href="/assets/element-plus-styles-DvSiFKXB.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-CDDXt8Fk.css">
+  </head>
+
+  <body>
+    <div id="app"></div>
+  </body>
+</html>

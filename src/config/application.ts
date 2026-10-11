@@ -1,7 +1,7 @@
 /**
  * Runtime identity for the independently deployable applications.
  *
- * Authentication, tenants and RBAC stay in the platform Supabase project. Each
+ * Authentication and RBAC stay in the platform Supabase project. Each
  * frontend declares only its own application code and requests the matching
  * menu tree from the platform contract.
  *

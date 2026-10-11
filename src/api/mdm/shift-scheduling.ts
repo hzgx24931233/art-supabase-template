@@ -7,7 +7,6 @@ export type ShiftScheduleDateMode = 'single' | 'ongoing' | 'range'
 
 export interface ShiftScheduleMember {
   id: string
-  tenantId: string
   departmentId: string
   employeeName: string
   employeeNo: string
@@ -24,7 +23,6 @@ export interface ShiftScheduleMember {
 
 export interface ShiftScheduleRecord {
   id: string
-  tenantId: string
   departmentId: string
   patternId: string
   patternName: string

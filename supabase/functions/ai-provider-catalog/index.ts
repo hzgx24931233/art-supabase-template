@@ -3,7 +3,6 @@ import {
   authenticateAiEdgeRequest,
   authorizeAiEdgeAppUser
 } from '../_shared/ai-edge-user-context.ts'
-import { getAiConfigTenantScope } from '../_shared/ai-config-tenancy.ts'
 import { resolveAiProviderEndpoints } from '../_shared/ai-provider-endpoints.ts'
 
 interface CatalogRequest {
@@ -515,7 +514,7 @@ Deno.serve(async (req) => {
   if (!context.ok) {
     return json({ code: context.code, message: context.message }, context.status)
   }
-  const { admin, appUser } = context
+  const { admin } = context
 
   const sharedModel = Deno.env.get('AI_MODEL') || Deno.env.get('OPENAI_MODEL') || ''
   const [providerEndpoint] = resolveAiProviderEndpoints({
@@ -554,11 +553,9 @@ Deno.serve(async (req) => {
     }
   }
 
-  const configTenantScope = await getAiConfigTenantScope(admin, appUser.tenant_id)
   const { data: configuredData } = await admin
     .from('ai_feature_config')
     .select('model,vision_model,fallback_model')
-    .in('tenant_id', configTenantScope)
   const configuredRows = (configuredData ?? []) as ConfiguredModelRow[]
   const environmentModels = [
     sharedModel,

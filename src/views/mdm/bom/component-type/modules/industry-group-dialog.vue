@@ -39,8 +39,6 @@
     row?: ComponentIndustryGroup
     parent?: ComponentIndustryGroup
     groups: ComponentIndustryGroup[]
-    tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
   }
 
   const emit = defineEmits<{ success: [id: string] }>()
@@ -48,7 +46,6 @@
   const formRef = ref<InstanceType<typeof ArtForm>>()
   const createModel = (): ComponentIndustryGroupInput => ({
     id: undefined,
-    tenantId: '',
     parentId: null,
     code: '',
     name: '',
@@ -58,27 +55,17 @@
   })
   const model = reactive(createModel())
   const context = reactive({
-    groups: [] as ComponentIndustryGroup[],
-    tenantOptions: [] as IndustryGroupDialogOpenData['tenantOptions']
+    groups: [] as ComponentIndustryGroup[]
   })
   const items = computed<FormItem[]>(() => [
     { key: 'level', label: '分组层级', type: 'divider', span: 24 },
-    {
-      key: 'tenantId',
-      label: '所属租户',
-      type: 'select',
-      span: 24,
-      hidden: context.tenantOptions.length <= 1 && Boolean(model.tenantId),
-      options: context.tenantOptions,
-      props: { disabled: Boolean(model.id || model.parentId), filterable: true }
-    },
     {
       key: 'parentId',
       label: '上级分组',
       type: 'treeSelect',
       span: 24,
       options: context.groups
-        .filter((group) => group.tenantId === model.tenantId && group.id !== model.id)
+        .filter((group) => group.id !== model.id)
         .map((group) => ({
           label: `${group.name}（${group.code}）`,
           value: group.id,
@@ -120,7 +107,6 @@
     }
   ])
   const rules = {
-    tenantId: [{ required: true, message: '请选择所属租户', trigger: 'change' }],
     code: [
       { required: true, message: '请输入分组编码', trigger: 'blur' },
       { pattern: /^[A-Za-z][A-Za-z0-9_-]{0,39}$/, message: '编码格式不正确', trigger: 'blur' }
@@ -149,12 +135,10 @@
       data.row
         ? cloneDeep(data.row)
         : {
-            tenantId: data.parent?.tenantId || data.tenantId,
             parentId: data.parent?.id || null
           }
     )
     context.groups = data.groups
-    context.tenantOptions = data.tenantOptions
     await dialogRef.value?.handleOpen(data, {
       title: data.row ? '编辑行业分组' : '新增行业分组',
       contentMaxHeight: '70vh',
@@ -162,15 +146,5 @@
       onConfirm: submit
     })
   }
-  watch(
-    () => model.tenantId,
-    (tenantId) => {
-      if (
-        model.parentId &&
-        !context.groups.some((group) => group.id === model.parentId && group.tenantId === tenantId)
-      )
-        model.parentId = null
-    }
-  )
   defineExpose({ handleOpen })
 </script>

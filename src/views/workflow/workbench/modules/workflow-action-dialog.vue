@@ -20,9 +20,6 @@
           </strong>
           <small>
             {{ state.task?.instance?.businessTitle || '--' }}
-            <template v-if="state.platformOverride && state.task?.tenant?.tenantName">
-              · {{ state.task.tenant.tenantName }}
-            </template>
           </small>
         </div>
       </div>

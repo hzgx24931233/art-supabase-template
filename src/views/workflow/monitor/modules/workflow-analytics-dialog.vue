@@ -15,7 +15,7 @@
   async function handleOpen(): Promise<void> {
     await dialogRef.value?.handleOpen(undefined, {
       title: '审批运营分析',
-      subtitle: '从经营结果到节点瓶颈，提供租户安全的流程治理依据。',
+      subtitle: '从经营结果到节点瓶颈，提供安全的流程治理依据。',
       contentMaxHeight: '78vh',
       showFooter: false
     })

@@ -40,9 +40,8 @@ const writeOptions = {
 
 const businessTypeSelect = `
   *,
-  tenant:sys_tenant!mdm_business_type_tenant_id_fkey(tenant_code, tenant_name),
   documentType:mdm_document_type!mdm_business_type_document_type_fkey!inner(
-    id, tenant_id, menu_id, document_type_code, document_type_name, enabled
+    id, menu_id, document_type_code, document_type_name, enabled
   )
 `
 
@@ -81,16 +80,7 @@ export async function fetchBusinessTypeList(
   params: BusinessTypeQuery,
   options?: { signal?: AbortSignal }
 ) {
-  const {
-    current,
-    size,
-    keyword = '',
-    tenantId,
-    menuIds,
-    documentTypeId,
-    enabled,
-    isDefault
-  } = params
+  const { current, size, keyword = '', menuIds, documentTypeId, enabled, isDefault } = params
   let query = supabase
     .from('mdm_business_type')
     .select(businessTypeSelect, { count: 'exact' })
@@ -101,7 +91,6 @@ export async function fetchBusinessTypeList(
   query = applyFilters(
     query,
     [
-      { col: 'tenant_id', op: 'eq', val: tenantId },
       { col: 'document_type_id', op: 'eq', val: documentTypeId },
       { col: 'enabled', op: 'eq', val: enabled },
       { col: 'is_default', op: 'eq', val: isDefault }
@@ -128,18 +117,17 @@ export async function fetchBusinessTypeList(
   }
 }
 
-export async function fetchBusinessTypeStats(tenantId?: string | null): Promise<BusinessTypeStats> {
+export async function fetchBusinessTypeStats(): Promise<BusinessTypeStats> {
   const { data } = await fetchAllRangePages<BusinessTypeRecord>(
     ({ from, to }) => {
-      let query = supabase
+      const query = supabase
         .from('mdm_business_type')
         .select(
-          `id,tenant_id,document_type_id,enabled,is_default,update_time,
+          `id,document_type_id,enabled,is_default,update_time,
           documentType:mdm_document_type!mdm_business_type_document_type_fkey!inner(menu_id)`
         )
         .order('id')
         .range(from, to)
-      if (tenantId) query = query.eq('tenant_id', tenantId)
       return responseHandle<BusinessTypeRecord[]>(() => query, {
         ...readOptions,
         showErrorMessage: false
@@ -161,7 +149,6 @@ export async function fetchBusinessTypeStats(tenantId?: string | null): Promise<
     defaults: rows.filter((row) => row.isDefault).length,
     menuCount: Object.keys(menuCounts).length,
     documentTypeCount: new Set(rows.map((row) => row.documentTypeId)).size,
-    tenantCount: new Set(rows.map((row) => row.tenantId)).size,
     menuCounts,
     lastUpdateTime: rows
       .map((row) => row.updateTime ?? '')
@@ -193,13 +180,11 @@ export async function fetchBusinessTypeMenuTree(): Promise<BusinessTypeMenuNode[
 export async function fetchBusinessTypeDocumentOptions(
   params: BusinessTypeOptionQuery
 ): Promise<{ data: BusinessTypeDocumentReference[] }> {
-  if (!params.tenantId) return { data: [] }
   const { data } = await fetchAllRangePages<BusinessTypeDocumentReference>(
     ({ from, to }) => {
       let query = supabase
         .from('mdm_document_type')
-        .select('id,tenant_id,menu_id,document_type_code,document_type_name,enabled')
-        .eq('tenant_id', params.tenantId)
+        .select('id,menu_id,document_type_code,document_type_name,enabled')
         .order('sort_order')
         .order('document_type_name')
         .range(from, to)
@@ -218,13 +203,11 @@ export async function fetchBusinessTypeDocumentOptions(
 export async function fetchBusinessTypeOptions(
   params: BusinessTypeOptionQuery
 ): Promise<{ data: BusinessTypeRecord[] }> {
-  if (!params.tenantId) return { data: [] }
   const { data } = await fetchAllRangePages<BusinessTypeRecord>(
     ({ from, to }) => {
       let query = supabase
         .from('mdm_business_type')
         .select('id,business_type_code,business_type_name,document_type_id,enabled')
-        .eq('tenant_id', params.tenantId)
         .order('sort_order')
         .order('business_type_name')
         .range(from, to)
@@ -241,14 +224,13 @@ export async function fetchBusinessTypeOptions(
   return { data: data ?? [] }
 }
 
-export async function fetchNextBusinessTypeSort(documentTypeId: string, tenantId?: string | null) {
-  let query = supabase
+export async function fetchNextBusinessTypeSort(documentTypeId: string) {
+  const query = supabase
     .from('mdm_business_type')
     .select('sort_order')
     .eq('document_type_id', documentTypeId)
     .order('sort_order', { ascending: false })
     .limit(1)
-  if (tenantId) query = query.eq('tenant_id', tenantId)
   const { data } = await responseHandle<Array<{ sortOrder: number }>>(() => query, {
     ...readOptions,
     showErrorMessage: false
@@ -319,7 +301,6 @@ export async function exportBusinessTypes(
   const { data } = await responseHandle<BusinessTypeExportRecord[]>(
     () =>
       supabase.rpc('export_mdm_business_types', {
-        p_tenant_id: params.tenantId ?? null,
         p_menu_ids: params.menuIds?.length ? params.menuIds : null,
         p_document_type_id: params.documentTypeId || null,
         p_keyword: normalizeNullableText(params.keyword),

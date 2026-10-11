@@ -2,7 +2,6 @@ export type EsopStatus = 'enabled' | 'disabled'
 
 export interface EsopAudit {
   id: string
-  tenantId: string
   createBy?: string | null
   createTime: string
   updateBy?: string | null
@@ -21,7 +20,6 @@ export interface EsopCategory extends EsopAudit {
 
 export interface EsopMaterialOption {
   id: string
-  tenantId: string
   materialCode: string
   materialName: string
   specificationModel?: string | null
@@ -29,7 +27,6 @@ export interface EsopMaterialOption {
 
 export interface EsopRouteOption {
   id: string
-  tenantId: string
   name: string
   materialId: string
   materialCode: string
@@ -70,7 +67,6 @@ export interface EsopDocument extends EsopAudit {
 export interface EsopDocumentQuery {
   current: number
   size: number
-  tenantId: string
   keyword?: string
   status?: EsopStatus
   categoryIds?: string[]
@@ -79,7 +75,6 @@ export interface EsopDocumentQuery {
 
 export interface EsopCategoryInput {
   id?: string
-  tenantId: string
   parentId?: string | null
   categoryCode: string
   categoryName: string
@@ -90,7 +85,6 @@ export interface EsopCategoryInput {
 
 export interface EsopDocumentInput {
   id?: string
-  tenantId: string
   categoryId: string
   documentCode: string
   documentName: string

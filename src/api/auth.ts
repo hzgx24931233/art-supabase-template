@@ -141,8 +141,6 @@ export async function login(params: Api.Auth.LoginParams) {
       }
     )
 
-
-
     const { accessToken, refreshToken } = result.data?.session ?? {}
     if (!accessToken || !refreshToken) {
       throw new Error('手机号登录未返回有效会话')
@@ -174,7 +172,7 @@ export async function login(params: Api.Auth.LoginParams) {
   )
 }
 
-/** OAuth 回调后执行与邮箱登录相同的业务账号、租户和角色准入检查。 */
+/** OAuth 回调后执行与邮箱登录相同的业务账号和角色准入检查。 */
 export async function checkCurrentUserAccess(cleanupUnprovisioned = false): Promise<void> {
   await checkUserAccess({ cleanupUnprovisioned }, false)
 }
@@ -416,7 +414,7 @@ export async function fetchGetUserInfo(signal?: AbortSignal): Promise<CurrentUse
 
   const profileQueryBuilder = supabase
     .from('sys_user')
-    .select('*, tenant:sys_tenant!sys_user_tenant_id_fkey(tenant_code, tenant_name, builtin_type)')
+    .select('*')
     .eq('auth_user_id', uid)
     .is('deleted_at', null)
   const profileQuery = (

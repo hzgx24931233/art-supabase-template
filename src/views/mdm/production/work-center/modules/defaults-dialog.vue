@@ -41,7 +41,7 @@
     人员与排程: '新增工作中心默认采用的人员参与和排程处理规则。',
     自动化: '新增工作中心默认采用的班次触发与自动报工规则。'
   } as const
-  async function handleOpen(tenantId: string) {
+  async function handleOpen() {
     policy.value = createCenterPolicy()
     error.value = ''
     activeSection.value = '报工规则'
@@ -54,7 +54,7 @@
       onOpen: async (_d, api) => {
         try {
           const [defaults] = await Promise.all([
-            fetchCenterDefaults(tenantId),
+            fetchCenterDefaults(),
             Promise.all(centerPolicyDictionaryCodes.map((code) => user.ensureDictLoaded(code)))
           ])
           policy.value = defaults || createCenterPolicy()
@@ -67,7 +67,7 @@
       onConfirm: async () => {
         if (error.value) return false
         try {
-          await saveCenterDefaults(policy.value, tenantId)
+          await saveCenterDefaults(policy.value)
         } catch {
           return false
         }

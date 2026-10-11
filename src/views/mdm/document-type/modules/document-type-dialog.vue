@@ -162,7 +162,6 @@
   import ArtEmptyState from '@/components/core/feedback/art-empty-state/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import ArtIconButton from '@/components/core/widget/art-icon-button/index.vue'
-  import { useTenantScopeFormPolicy } from '@/hooks/core/useTenantScopeFormPolicy'
   import { useUserStore } from '@/store/modules/user'
   import TreeUtils from '@/utils/tree'
   import type { ComponentTypeRecord, DocumentTypeMenuNode, DocumentTypeRecord } from '@/api/mdm'
@@ -193,8 +192,6 @@
     record?: DocumentTypeRecord
     selectedMenuId?: string
     menuTree: DocumentTypeMenuNode[]
-    tenantOptions: Array<{ label: string; value: string }>
-    effectiveTenantId?: string | null
   }
 
   interface FormExpose {
@@ -206,7 +203,6 @@
     data: DocumentTypeFormModel
     mode: DialogMode
     menuTree: SelectableMenuNode[]
-    tenantOptions: Array<{ label: string; value: string }>
     items: ComputedRef<FormItem[]>
     rules: ComputedRef<FormRules<DocumentTypeFormModel>>
   }
@@ -217,7 +213,6 @@
   const treeUtils = new TreeUtils({ idKey: 'id', parentKey: 'parentId', childrenKey: 'children' })
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { shouldExposeTenantField } = useTenantScopeFormPolicy()
   const presetColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399']
   const componentTypeOptions = ref<ComponentTypeRecord[]>([])
   const isProductionType = computed(() =>
@@ -258,33 +253,8 @@
     data: createDocumentTypeFormModel(),
     mode: 'add',
     menuTree: [],
-    tenantOptions: [],
     items: computed<FormItem[]>(() => {
-      const tenantItems: FormItem[] = shouldExposeTenantField.value
-        ? [
-            { label: '数据归属', key: 'tenantSection', type: 'divider', span: 24 },
-            {
-              label: '所属租户',
-              key: 'tenantId',
-              type: 'select',
-              span: 24,
-              props: {
-                options: form.tenantOptions,
-                filterable: true,
-                disabled: form.mode !== 'add',
-                placeholder: '请选择本条单据类型所属租户',
-                onChange: () => void refreshSuggestedSort()
-              },
-              description:
-                form.mode === 'add'
-                  ? '在全部租户工作区新增时，必须明确数据归属。'
-                  : '编辑或复制时沿用原记录租户，避免跨租户复制主数据。'
-            }
-          ]
-        : []
-
       return [
-        ...tenantItems,
         { label: '归属与类型标识', key: 'identitySection', type: 'divider', span: 24 },
         {
           label: '所属菜单功能',
@@ -318,7 +288,7 @@
             clearable: true,
             placeholder: '例如：PRODUCTION_ORDER'
           },
-          description: '租户内唯一，保存时自动转换为大写。'
+          description: '保存时自动转换为大写编码。'
         },
         {
           label: '单据类型名称',
@@ -467,9 +437,6 @@
       ]
     }),
     rules: computed<FormRules<DocumentTypeFormModel>>(() => ({
-      tenantId: [
-        { required: shouldExposeTenantField.value, message: '请选择所属租户', trigger: 'change' }
-      ],
       menuId: [{ required: true, message: '请选择所属菜单功能', trigger: 'change' }],
       documentTypeCode: [
         { required: true, message: '请输入单据类型编号', trigger: 'blur' },
@@ -522,8 +489,8 @@
     })) as SelectableMenuNode[]
 
   const refreshSuggestedSort = async (): Promise<void> => {
-    if (form.mode === 'edit' || !form.data.menuId || !form.data.tenantId) return
-    form.data.sortOrder = await fetchNextDocumentTypeSort(form.data.menuId, form.data.tenantId)
+    if (form.mode === 'edit' || !form.data.menuId) return
+    form.data.sortOrder = await fetchNextDocumentTypeSort(form.data.menuId)
   }
 
   const handleDefaultChange = (isDefault: boolean): void => {
@@ -539,7 +506,6 @@
   const initializeForm = (data: DocumentTypeDialogOpenData): void => {
     form.mode = data.mode
     form.menuTree = buildSelectableMenuTree(data.menuTree)
-    form.tenantOptions = data.tenantOptions
 
     if (data.mode === 'edit' && data.record) {
       form.data = createDocumentTypeFormModel({ ...data.record })
@@ -554,7 +520,6 @@
       ? treeUtils.findNode(form.menuTree, data.selectedMenuId)
       : undefined
     form.data = createDocumentTypeFormModel({
-      tenantId: data.effectiveTenantId ?? undefined,
       menuId: selectedMenu?.type === 'menu' ? selectedMenu.id : ''
     })
   }
@@ -619,7 +584,7 @@
         await copyDocumentType(form.data.sourceId, buildDocumentTypeUpdateInput(form.data))
         emit('success', 'add')
       } else {
-        await createDocumentType(buildDocumentTypeInput(form.data, shouldExposeTenantField.value))
+        await createDocumentType(buildDocumentTypeInput(form.data))
         emit('success', 'add')
       }
       return true
@@ -658,9 +623,7 @@
             userStore.ensureDictLoaded('mdmDocumentExtensionValueType')
           ])
           await refreshSuggestedSort()
-          componentTypeOptions.value = form.data.tenantId
-            ? await fetchComponentTypeOptions(form.data.tenantId)
-            : []
+          componentTypeOptions.value = await fetchComponentTypeOptions()
           await nextTick()
           formRef.value?.clearValidate()
         } finally {
@@ -672,13 +635,6 @@
   }
 
   defineExpose({ handleOpen })
-  watch(
-    () => form.data.tenantId,
-    async (tenantId, previous) => {
-      if (!tenantId || tenantId === previous) return
-      componentTypeOptions.value = await fetchComponentTypeOptions(tenantId)
-    }
-  )
 </script>
 
 <style scoped lang="scss">

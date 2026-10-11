@@ -89,6 +89,21 @@ BEGIN
   END IF;
 END
 $$;
+-- 镜像自带的 graphql 托管 schema 有 DDL 事件触发器，缺序列会让任何 DDL 报 OID 错误；
+-- 这里补齐它依赖的对象，等价于托管环境。
+CREATE SCHEMA IF NOT EXISTS graphql;
+CREATE SEQUENCE IF NOT EXISTS graphql.seq_schema_version;
+-- 镜像里可能已有该函数（返回类型可能不同，CREATE OR REPLACE 换不掉）：存在就跳过
+DO $stub$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'graphql' AND p.proname = 'increment_schema_version'
+  ) THEN
+    EXECUTE 'CREATE FUNCTION graphql.increment_schema_version() RETURNS void LANGUAGE plpgsql AS $body$ BEGIN PERFORM pg_catalog.nextval(''graphql.seq_schema_version''); END $body$';
+  END IF;
+END
+$stub$;
 '@
 
   Write-Host '[verify] 创建桩对象（auth.users、auth.jwt、发布）'
@@ -108,7 +123,6 @@ UNION ALL SELECT 'functions', count(*)::text FROM pg_proc p JOIN pg_namespace n 
 UNION ALL SELECT 'policies', count(*)::text FROM pg_policies WHERE schemaname IN ('public','app_private')
 UNION ALL SELECT 'rls_tables', count(*)::text FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relrowsecurity
 UNION ALL SELECT 'triggers', count(*)::text FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE NOT t.tgisinternal AND n.nspname IN ('public','app_private')
-UNION ALL SELECT 'tenants', count(*)::text FROM public.sys_tenant
 UNION ALL SELECT 'roles', count(*)::text FROM public.sys_role
 UNION ALL SELECT 'menus', count(*)::text FROM public.sys_menu
 UNION ALL SELECT 'menus_with_pages', count(*)::text FROM public.sys_menu WHERE type = 'menu'
@@ -132,22 +146,18 @@ ORDER BY 1;
 
   Write-Host '[verify] 校验平台助手函数与授权'
   $helperSql = @'
-SELECT 'platform_tenant_id' AS item, app_private.platform_tenant_id()::text AS value;
-SELECT 'register_tenant_id' AS item, app_private.default_register_tenant_id()::text AS value;
 SELECT 'current_is_super_without_jwt' AS item, public.current_is_super()::text AS value;
--- 无 JWT 时租户读取上下文会按设计抛错，这里改为校验安全模型本身是否随基线落地
-SELECT 'sys_tenant_policies' AS item, count(*)::text AS value FROM pg_policies
- WHERE schemaname = 'public' AND tablename = 'sys_tenant';
+-- 单组织模型：基线里不再有 sys_tenant，读写上下文也不再按租户收敛
 SELECT 'sys_user_policies' AS item, count(*)::text AS value FROM pg_policies
  WHERE schemaname = 'public' AND tablename = 'sys_user';
 SELECT 'anon_function_grants_summary' AS item, count(*)::text AS value
   FROM information_schema.routine_privileges
  WHERE routine_schema IN ('public','app_private') AND grantee IN ('anon','public');
-SELECT 'r_super_granted_pages' AS item, count(*)::text AS value
+SELECT 'role_page_grants' AS item, count(*)::text AS value
   FROM public.sys_role_menu rm
   JOIN public.sys_role r ON r.id = rm.role_id
   JOIN public.sys_menu m ON m.id = rm.menu_id
- WHERE r.role_code = 'R_SUPER' AND m.type = 'menu';
+ WHERE m.type = 'menu';
 SELECT 'workflow_definition_columns' AS item, count(*)::text AS value
   FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'wf_definition';
 '@
@@ -168,11 +178,10 @@ SELECT 'workflow_definition_columns' AS item, count(*)::text AS value
 
   $results = @(
     @{ name = '保留表数量'; actual = [int](Read-Stat 'tables'); min = 80 },
-    @{ name = '策略数量'; actual = [int](Read-Stat 'policies'); min = 380 },
+    @{ name = '策略数量'; actual = [int](Read-Stat 'policies'); min = 200 },
     @{ name = '函数数量'; actual = [int](Read-Stat 'functions'); min = 200 },
     @{ name = '启用 RLS 的表'; actual = [int](Read-Stat 'rls_tables'); min = 85 },
     @{ name = '触发器数量'; actual = [int](Read-Stat 'triggers'); min = 230 },
-    @{ name = '内置租户'; actual = [int](Read-Stat 'tenants'); min = 2 },
     @{ name = '内置角色'; actual = [int](Read-Stat 'roles'); min = 3 },
     @{ name = '平台菜单'; actual = [int](Read-Stat 'menus'); min = 90 },
     @{ name = '角色菜单授权'; actual = [int](Read-Stat 'role_menu_grants'); min = 100 },
@@ -202,8 +211,9 @@ SELECT 'workflow_definition_columns' AS item, count(*)::text AS value
     'mdm_material',
     'mdm_organization'
   )
-  # 权限保真度：anon 只应拿到源库显式授予的函数（101 个），PUBLIC 与序列一律不开放
-  if ([int](Read-Stat 'anon_function_grants') -ne 101) { $failures += 'anon 函数授权数与源库显式清单不一致（期望 101）' }
+  # 权限保真度：anon 只应拿到源库显式授予的函数。期望值随源库 ACL 变化，取自
+  # 「从远端目录重建授权」后的基线快照（见 supabase/baseline/README.md）。
+  if ([int](Read-Stat 'anon_function_grants') -ne 169) { $failures += 'anon 函数授权数与源库显式清单不一致（期望 169）' }
   # PUBLIC 执行权限是 PostgreSQL 内建默认，只对带 ACL 块的函数收回；期望值与生成报告对照
   $expectedPublic = (Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot 'platform-baseline-report.json') | ConvertFrom-Json).expectedPublicExecutableFunctions
   if ([int](Read-Stat 'public_function_grants') -ne [int]$expectedPublic) {
@@ -214,14 +224,11 @@ SELECT 'workflow_definition_columns' AS item, count(*)::text AS value
   if ($businessLeft -gt $contractTables.Count) {
     $failures += "业务表残留 $businessLeft 张，超过文档化的契约表数量 $($contractTables.Count)"
   }
-  if (-not ($helpers | Where-Object { $_ -match '^platform_tenant_id\|028e6a68' })) {
-    $failures += 'platform_tenant_id() 未返回平台租户'
-  }
   if (-not ($helpers | Where-Object { $_ -match '^current_is_super_without_jwt\|f' })) {
     $failures += 'current_is_super() 在缺少 JWT 时未返回 false'
   }
-  if ($helpers | Where-Object { $_ -match '^r_super_granted_pages\|0$' }) {
-    $failures += 'R_SUPER 没有授权到任何平台页面'
+  if ($helpers | Where-Object { $_ -match '^role_page_grants\|0$' }) {
+    $failures += '基线没有种入任何「角色→平台页面」授权'
   }
 
   if ($failures.Count -gt 0) {

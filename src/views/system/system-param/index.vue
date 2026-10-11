@@ -106,13 +106,11 @@
   const tableQueryRef = ref<ArtTableQueryExpose>()
   const dialogRef = ref<DialogExpose>()
   const userStore = useUserStore()
-  const { getDictMap, getUserInfo, isPlatformSuper } = storeToRefs(userStore)
+  const { getDictMap } = storeToRefs(userStore)
   const { hasAuth, hasAnyAuth } = useAuth()
   const canManage = computed(() =>
     hasAnyAuth(['System:SystemParam:Add', 'System:SystemParam:Edit', 'System:SystemParam:Delete'])
   )
-  const isWritableRow = (row: SystemParam): boolean =>
-    isPlatformSuper.value || row.tenantId === getUserInfo.value.tenantId
   const groupOptions = computed(() => getDictMap.value.systemParamGroup ?? [])
   const typeOptions = computed(() => getDictMap.value.systemParamType ?? [])
 
@@ -275,8 +273,7 @@
         width: 50,
         fixed: 'left',
         reserveSelection: true,
-        selectable: (row: SystemParam) =>
-          hasAuth('System:SystemParam:Delete') && isWritableRow(row) && !row.builtin
+        selectable: (row: SystemParam) => hasAuth('System:SystemParam:Delete') && !row.builtin
       },
       {
         prop: 'paramIdentity',
@@ -360,22 +357,21 @@
         label: '操作',
         width: 120,
         fixed: 'right',
-        formatter: (row) =>
-          isWritableRow(row) ? (
-            <div class="inline-flex items-center gap-2">
-              <ArtButtonTable
-                type="edit"
-                permission="System:SystemParam:Edit"
-                onClick={() => openDialog(row)}
-              />
-              <ArtButtonTable
-                type="delete"
-                permission="System:SystemParam:Delete"
-                disabled={row.builtin}
-                onClick={() => void handleDelete(row)}
-              />
-            </div>
-          ) : null
+        formatter: (row) => (
+          <div class="inline-flex items-center gap-2">
+            <ArtButtonTable
+              type="edit"
+              permission="System:SystemParam:Edit"
+              onClick={() => openDialog(row)}
+            />
+            <ArtButtonTable
+              type="delete"
+              permission="System:SystemParam:Delete"
+              disabled={row.builtin}
+              onClick={() => void handleDelete(row)}
+            />
+          </div>
+        )
       }
     ] as ColumnOption<SystemParam>[]
 

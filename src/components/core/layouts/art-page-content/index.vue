@@ -50,7 +50,6 @@
   import { ElScrollbar } from 'element-plus'
   import { useAutoLayoutHeight } from '@/hooks/core/useLayoutHeight'
   import { useSettingStore } from '@/store/modules/setting'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import { useWorktabStore } from '@/store/modules/worktab'
 
   defineOptions({ name: 'ArtPageContent' })
@@ -58,7 +57,6 @@
   const route = useRoute()
   const { containerMinHeight } = useAutoLayoutHeight()
   const { pageTransition, containerWidth, refresh } = storeToRefs(useSettingStore())
-  const { revision: tenantScopeRevision } = storeToRefs(useTenantScopeStore())
   const { keepAliveExclude } = storeToRefs(useWorktabStore())
 
   const uncachedRouteViewName = 'ArtUncachedRouteView'
@@ -154,7 +152,6 @@
   }
 
   watch(refresh, reload, { flush: 'post' })
-  watch(tenantScopeRevision, reload, { flush: 'post' })
 
   // 组件挂载后标记首次加载完成
   onMounted(() => {

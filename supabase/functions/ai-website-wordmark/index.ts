@@ -155,7 +155,7 @@ Deno.serve(async (request) => {
     return json({ code: 'invalid_input', message: '请提供有效的系统名称' }, 400)
   }
 
-  const runtimeConfig = await loadAiRuntimeConfig(admin, appUser.tenant_id, FEATURE, {
+  const runtimeConfig = await loadAiRuntimeConfig(admin, FEATURE, {
     enabled: true,
     provider: 'openai',
     model: DEFAULT_MODEL,
@@ -210,7 +210,7 @@ Deno.serve(async (request) => {
     return json({ code: 'rate_limited', message: 'AI 品牌字图生成次数已达上限，请稍后重试' }, 429)
   }
 
-  const publishedPrompt = await loadPublishedAiPrompt(admin, appUser.tenant_id, FEATURE, {
+  const publishedPrompt = await loadPublishedAiPrompt(admin, FEATURE, {
     content: FALLBACK_SYSTEM_PROMPT,
     version: 'code-v1'
   })
@@ -220,7 +220,6 @@ Deno.serve(async (request) => {
     .from('ai_run')
     .insert({
       auth_user_id: user.id,
-      tenant_id: appUser.tenant_id,
       feature: FEATURE,
       model: endpoints[0].model,
       prompt_version: publishedPrompt.version,

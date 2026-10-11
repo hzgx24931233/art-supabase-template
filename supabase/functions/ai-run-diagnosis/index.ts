@@ -25,7 +25,7 @@ type DiagnosisSeverity = 'low' | 'medium' | 'high' | 'critical'
 type DiagnosisCategory =
   'provider' | 'configuration' | 'prompt' | 'tool' | 'data' | 'performance' | 'unknown'
 type DiagnosisPriority = 'P0' | 'P1' | 'P2'
-type DiagnosisOwner = 'platform' | 'tenant' | 'provider'
+type DiagnosisOwner = 'platform' | 'provider'
 
 interface DiagnosisRequest {
   runId: string
@@ -35,7 +35,6 @@ interface DiagnosisRequest {
 interface TargetRun {
   id: string
   conversation_id: string | null
-  tenant_id: string
   auth_user_id: string
   feature: string
   model: string
@@ -205,7 +204,7 @@ function parseDiagnosis(content: string): DiagnosisResult {
             priority: enumValue(action.priority, ['P0', 'P1', 'P2'] as const, 'P2'),
             title: textValue(action.title, 200),
             steps: stringArray(action.steps, 6, 300),
-            owner: enumValue(action.owner, ['platform', 'tenant', 'provider'] as const, 'platform')
+            owner: enumValue(action.owner, ['platform', 'provider'] as const, 'platform')
           }
         })
         .filter((item) => item.title)
@@ -447,7 +446,7 @@ Deno.serve(async (req) => {
       throw new DiagnosisError('invalid_input', '请选择有效的 AI 运行记录。', 400)
     }
 
-    const runtimeConfig = await loadAiRuntimeConfig(admin, appUser.tenant_id, FEATURE, {
+    const runtimeConfig = await loadAiRuntimeConfig(admin, FEATURE, {
       enabled: true,
       provider: 'openai_compatible',
       model: 'meta/llama-3.1-8b-instruct',
@@ -471,11 +470,11 @@ Deno.serve(async (req) => {
     let targetQuery = admin
       .from('ai_run')
       .select(
-        'id,conversation_id,tenant_id,auth_user_id,feature,model,prompt_version,status,input_tokens,output_tokens,latency_ms,tool_calls,error_code,error_message,metadata,started_at,finished_at,feedback:ai_feedback(rating,comment,create_time)'
+        'id,conversation_id,auth_user_id,feature,model,prompt_version,status,input_tokens,output_tokens,latency_ms,tool_calls,error_code,error_message,metadata,started_at,finished_at,feedback:ai_feedback(rating,comment,create_time)'
       )
       .eq('id', targetRunId)
     if (!isPlatformSuper) {
-      targetQuery = targetQuery.eq('tenant_id', appUser.tenant_id).eq('auth_user_id', user.id)
+      targetQuery = targetQuery.eq('auth_user_id', user.id)
     }
     const { data: targetData, error: targetError } = await targetQuery.maybeSingle()
     const target = targetData as TargetRun | null
@@ -504,7 +503,7 @@ Deno.serve(async (req) => {
       throw new DiagnosisError('context_load_failed', '无法读取本次运行的诊断上下文。')
     }
 
-    const publishedPrompt = await loadPublishedAiPrompt(admin, appUser.tenant_id, FEATURE, {
+    const publishedPrompt = await loadPublishedAiPrompt(admin, FEATURE, {
       content: DEFAULT_PROMPT,
       version: runtimeConfig.promptVersion
     })
@@ -517,7 +516,6 @@ Deno.serve(async (req) => {
     const { data: run, error: runError } = await admin
       .from('ai_run')
       .insert({
-        tenant_id: appUser.tenant_id,
         auth_user_id: user.id,
         feature: FEATURE,
         model: resolvedModel,
@@ -542,7 +540,7 @@ Deno.serve(async (req) => {
     const systemPrompt = [
       publishedPrompt.content,
       '固定输出字段：severity、category、confidence、summary、rootCauses、actions、prevention、observations。',
-      'rootCauses 每项包含 title、evidence、confidence；actions 每项包含 priority(P0/P1/P2)、title、steps、owner(platform/tenant/provider)。'
+      'rootCauses 每项包含 title、evidence、confidence；actions 每项包含 priority(P0/P1/P2)、title、steps、owner(platform/provider)。'
     ].join('\n')
     const userPrompt = JSON.stringify(
       sanitizeForDiagnosis({

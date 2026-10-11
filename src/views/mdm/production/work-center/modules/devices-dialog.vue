@@ -127,7 +127,6 @@
   const fetchEquipment = async (p: DataSelectFetchParams) => {
     const result = await fetchWorkCenterReferenceOptions(
       'equipment',
-      center.value?.tenantId || '',
       p.keyword,
       p.page,
       p.pageSize,

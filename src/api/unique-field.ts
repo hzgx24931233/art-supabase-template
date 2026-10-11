@@ -18,7 +18,7 @@ export async function isFieldValueTaken(params: {
     query = query.neq('id', excludeId)
   }
 
-  // 租户及其他业务维度由调用方传入。
+  // 其它业务维度由调用方传入。
   if (extraWhere) {
     Object.entries(extraWhere).forEach(([key, val]) => {
       if (val !== undefined && val !== null) {

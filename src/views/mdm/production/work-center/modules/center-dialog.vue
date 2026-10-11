@@ -64,7 +64,6 @@
                   subtitle="来源：工艺主数据 · 工序控制码"
                   search-placeholder="控制码 / 名称"
                   placeholder="请选择工序控制码"
-                  :disabled="!referenceTenantId"
               /></template>
               <template #personIds
                 ><ArtEmployeeSelect
@@ -206,7 +205,6 @@
     activityFormulas: [] as WorkCenterReference[],
     activities: [] as WorkCenterActivityInput[]
   })
-  const defaultsLoadedFor = ref('')
   const sections = ['报工规则', '生产控制', '人员与排程', '自动化'] as const
   const sectionMeta = {
     报工规则: {
@@ -361,33 +359,10 @@
   const disabledCenter = (r: DataSelectRecord) => r.id === form.id
   const fetchCenters = (p: DataSelectFetchParams) =>
     fetchAvailableMainCenters(p.keyword, p.page, p.pageSize, form.id)
-  const referenceTenantId = computed(
-    () =>
-      form.departments.find((department) => department.id === form.model.departmentId)?.tenantId ||
-      ''
-  )
   const fetchControlCodes = (p: DataSelectFetchParams) =>
-    fetchWorkCenterReferenceOptions(
-      'control_code',
-      referenceTenantId.value,
-      p.keyword,
-      p.page,
-      p.pageSize,
-      form.id
-    )
+    fetchWorkCenterReferenceOptions('control_code', p.keyword, p.page, p.pageSize, form.id)
   async function loadActivityFormulas() {
-    if (!referenceTenantId.value) {
-      form.activityFormulas = []
-      return
-    }
-    const result = await fetchWorkCenterReferenceOptions(
-      'activity_formula',
-      referenceTenantId.value,
-      '',
-      1,
-      1000,
-      form.id
-    )
+    const result = await fetchWorkCenterReferenceOptions('activity_formula', '', 1, 1000, form.id)
     form.activityFormulas = result.data
   }
   async function handleOpen(data: OpenData) {
@@ -413,7 +388,6 @@
       form.mainSelection = []
     }
     if (!data.row) form.model.departmentId = data.departmentId || ''
-    defaultsLoadedFor.value = referenceTenantId.value
     await dialogRef.value?.handleOpen(data, {
       title: {
         add: '新增工作中心',
@@ -433,11 +407,7 @@
         try {
           await Promise.all(editorDictionaryCodes.map((code) => user.ensureDictLoaded(code)))
           const [defaults, people, activities] = await Promise.all([
-            data.mode === 'add'
-              ? referenceTenantId.value
-                ? fetchCenterDefaults(referenceTenantId.value)
-                : Promise.resolve(null)
-              : Promise.resolve(null),
+            data.mode === 'add' ? fetchCenterDefaults() : Promise.resolve(null),
             form.model.personIds.length
               ? fetchCenterPeople(form.model.personIds)
               : Promise.resolve([]),
@@ -508,31 +478,6 @@
     },
     { deep: true }
   )
-  watch(referenceTenantId, (tenantId, previousTenantId) => {
-    if (!tenantId || tenantId === previousTenantId) return
-    if (previousTenantId) {
-      form.model.operationControlCodeId = null
-      form.controlCodeSelection = []
-      form.activities.forEach((activity) => {
-        activity.planFormulaId = null
-        activity.reportFormulaId = null
-      })
-    }
-    void loadActivityFormulas().catch(() => {
-      form.error = '活动公式加载失败，请重试'
-    })
-    if (form.mode === 'add' && tenantId !== defaultsLoadedFor.value) {
-      defaultsLoadedFor.value = tenantId
-      void fetchCenterDefaults(tenantId)
-        .then((defaults) => {
-          if (referenceTenantId.value === tenantId)
-            form.model.policy = cloneDeep(defaults || createCenterPolicy())
-        })
-        .catch(() => {
-          form.error = '工作中心默认配置加载失败，请重试'
-        })
-    }
-  })
   defineExpose({ handleOpen })
 </script>
 <style scoped lang="scss">

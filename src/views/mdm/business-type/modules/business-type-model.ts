@@ -13,7 +13,6 @@ export const createBusinessTypeFormModel = (
 ): BusinessTypeFormModel => ({
   id: undefined,
   sourceId: undefined,
-  tenantId: undefined,
   menuId: '',
   documentTypeId: '',
   businessTypeCode: '',
@@ -34,7 +33,6 @@ export const createBusinessTypeFormModel = (
 export const createBusinessTypeCopyModel = (source: BusinessTypeRecord): BusinessTypeFormModel =>
   createBusinessTypeFormModel({
     sourceId: source.id,
-    tenantId: source.tenantId,
     menuId: source.documentType?.menuId ?? '',
     documentTypeId: source.documentTypeId,
     businessTypeCode: '',
@@ -51,12 +49,8 @@ export const createBusinessTypeCopyModel = (source: BusinessTypeRecord): Busines
     enabled: source.enabled
   })
 
-export const buildBusinessTypeInput = (
-  model: BusinessTypeFormModel,
-  includeTenant: boolean
-): BusinessTypeWriteInput => {
+export const buildBusinessTypeInput = (model: BusinessTypeFormModel): BusinessTypeWriteInput => {
   const payload = pick(model, [
-    'tenantId',
     'documentTypeId',
     'businessTypeCode',
     'businessTypeName',
@@ -82,14 +76,11 @@ export const buildBusinessTypeInput = (
   payload.tagStyle = normalizeNonNullableText(
     payload.tagStyle
   ) as BusinessTypeWriteInput['tagStyle']
-  if (!includeTenant) delete payload.tenantId
   return payload
 }
 
 export const buildBusinessTypeUpdateInput = (
   model: BusinessTypeFormModel
 ): BusinessTypeUpdateInput => {
-  const payload = buildBusinessTypeInput(model, false)
-  delete payload.tenantId
-  return payload
+  return buildBusinessTypeInput(model)
 }

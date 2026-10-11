@@ -60,7 +60,7 @@
               placeholder="选择编码策略"
             >
               <ElOption
-                v-for="item in scopedCodeRules"
+                v-for="item in codeRules"
                 :key="item.id"
                 :label="item.ruleName"
                 :value="item.id"
@@ -70,7 +70,6 @@
           <template #imageUrls>
             <ArtUploadImage
               v-model="formModel.imageUrls"
-              :resource-tenant-id="formModel.tenantId"
               multiple
               :limit="5"
               :size="92"
@@ -123,7 +122,6 @@
             ><ArtEmployeeSelect
               :model-value="formModel.purchaserId ?? undefined"
               v-model:selected-data="employeeSelections.purchaserId"
-              :tenant-id="tenantId"
               placeholder="选择采购员"
               @update:model-value="formModel.purchaserId = $event ?? null"
           /></template>
@@ -131,7 +129,6 @@
             ><ArtEmployeeSelect
               :model-value="formModel.plannerId ?? undefined"
               v-model:selected-data="employeeSelections.plannerId"
-              :tenant-id="tenantId"
               placeholder="选择计划员"
               @update:model-value="formModel.plannerId = $event ?? null"
           /></template>
@@ -139,7 +136,6 @@
             ><ArtEmployeeSelect
               :model-value="formModel.salespersonId ?? undefined"
               v-model:selected-data="employeeSelections.salespersonId"
-              :tenant-id="tenantId"
               placeholder="选择销售员"
               @update:model-value="formModel.salespersonId = $event ?? null"
           /></template>
@@ -147,7 +143,6 @@
             ><ArtEmployeeSelect
               :model-value="formModel.custodianId ?? undefined"
               v-model:selected-data="employeeSelections.custodianId"
-              :tenant-id="tenantId"
               placeholder="选择仓管员"
               @update:model-value="formModel.custodianId = $event ?? null"
           /></template>
@@ -155,7 +150,6 @@
             ><ArtEmployeeSelect
               :model-value="formModel.dispatcherId ?? undefined"
               v-model:selected-data="employeeSelections.dispatcherId"
-              :tenant-id="tenantId"
               placeholder="选择调度员"
               @update:model-value="formModel.dispatcherId = $event ?? null"
           /></template>
@@ -163,7 +157,6 @@
             ><ArtEmployeeSelect
               :model-value="formModel.productionPlannerId ?? undefined"
               v-model:selected-data="employeeSelections.productionPlannerId"
-              :tenant-id="tenantId"
               placeholder="选择生产计划员"
               @update:model-value="formModel.productionPlannerId = $event ?? null"
           /></template>
@@ -272,7 +265,6 @@
     row?: MaterialArchive
     copy?: boolean
     presetCategoryId?: string
-    tenantId: string
     categories: MaterialCategory[]
     materialTypes: MaterialType[]
     units: UnitOfMeasure[]
@@ -374,7 +366,6 @@
   }
   const initialForm = (): ArchiveFormModel => ({
     id: undefined,
-    tenantId: '',
     codeRuleId: null,
     categoryId: '',
     materialCode: '',
@@ -496,24 +487,6 @@
     sort: 10
   })
   const formModel = reactive<ArchiveFormModel>(initialForm())
-  const tenantId = computed(() => formModel.tenantId)
-  const scopedCategories = computed(() =>
-    categories.value.filter((item) => item.tenantId === formModel.tenantId)
-  )
-  const scopedMaterialTypes = computed(() =>
-    materialTypes.value.filter((item) => item.tenantId === formModel.tenantId)
-  )
-  const scopedUnits = computed(() =>
-    units.value.filter((item) => item.tenantId === formModel.tenantId)
-  )
-  const scopedAttributeGroups = computed(() =>
-    attributeGroups.value.filter((item) => item.tenantId === formModel.tenantId)
-  )
-  const scopedCodeRules = computed(() =>
-    codeRules.value.filter((item) => item.tenantId === formModel.tenantId)
-  )
-  const scopedContextOptions = (items: MaterialContextOption[]) =>
-    items.filter((item) => item.tenantId === formModel.tenantId)
   const resetEmployeeSelections = (): void => {
     Object.assign(employeeSelections, initialEmployeeSelections())
   }
@@ -538,7 +511,6 @@
     let from = 0
     while (missingIds.size) {
       const result = await fetchEmployeeSelectorList({
-        tenantId: formModel.tenantId,
         from,
         to: from + pageSize - 1
       })
@@ -568,12 +540,12 @@
     return items.map((item) => ({ label: label(item), value: item.id }))
   }
   const unitOptions = computed(() =>
-    option(scopedUnits.value, (item: UnitOfMeasure) => `${item.unitName} · ${item.unitCode}`)
+    option(units.value, (item: UnitOfMeasure) => `${item.unitName} · ${item.unitCode}`)
   )
   const categoryTreeUtils = new TreeUtils({ parentKey: 'parentId' })
   const categoryOptions = computed(() =>
     categoryTreeUtils.listToTree<MaterialCategoryOption>(
-      scopedCategories.value.map((item) => ({
+      categories.value.map((item) => ({
         id: item.id,
         parentId: item.parentId,
         label: `${item.categoryName} · ${item.categoryCode}`,
@@ -584,16 +556,16 @@
     )
   )
   const typeOptions = computed(() =>
-    option(scopedMaterialTypes.value, (item: MaterialType) => `${item.typeName} · ${item.typeCode}`)
+    option(materialTypes.value, (item: MaterialType) => `${item.typeName} · ${item.typeCode}`)
   )
   const groupOptions = computed(() =>
     option(
-      scopedAttributeGroups.value,
+      attributeGroups.value,
       (item: MaterialAttributeGroup) => `${item.groupName} · ${item.groupCode}`
     )
   )
   const namedOptions = (items: MaterialContextOption[]) =>
-    scopedContextOptions(items).map((item) => ({
+    items.map((item) => ({
       label: item.code ? `${item.name} · ${item.code}` : item.name,
       value: item.id
     }))
@@ -602,11 +574,10 @@
   const warehouseSelectOptions = computed(() => namedOptions(warehouseOptions.value))
   const isFinishedMaterial = computed(
     () =>
-      scopedMaterialTypes.value.find((item) => item.id === formModel.materialTypeId)?.typeCode ===
-      'FERT'
+      materialTypes.value.find((item) => item.id === formModel.materialTypeId)?.typeCode === 'FERT'
   )
   const finishedReceiptWarehouses = computed(() =>
-    scopedContextOptions(warehouseOptions.value).filter(
+    warehouseOptions.value.filter(
       (item) => item.warehouseType === 'finished' && (item.businessScopes?.length ?? 0) > 0
     )
   )
@@ -629,7 +600,7 @@
     namedOptions(supplyRuleOptions.value.filter((item) => item.applySerial))
   )
   const selectedBaseUnit = computed(() =>
-    scopedUnits.value.find((item) => item.id === formModel.baseUnitId)
+    units.value.find((item) => item.id === formModel.baseUnitId)
   )
   const activeTabMeta = computed(() => tabMeta[activeTab.value])
   const completion = computed(() => {
@@ -650,10 +621,10 @@
     return Math.round((values.filter(Boolean).length / values.length) * 100)
   })
   const selectedAttributeGroup = computed(() =>
-    scopedAttributeGroups.value.find((item) => item.id === formModel.attributeGroupId)
+    attributeGroups.value.find((item) => item.id === formModel.attributeGroupId)
   )
   const selectedCategory = computed(() =>
-    scopedCategories.value.find((item) => item.id === formModel.categoryId)
+    categories.value.find((item) => item.id === formModel.categoryId)
   )
   const materialDescription = computed(() =>
     buildMaterialDescription(selectedCategory.value, formModel, selectedAttributeGroup.value)
@@ -1433,7 +1404,6 @@
     outboundRuleOptions.value = data.outboundRuleOptions
     supplyRuleOptions.value = data.supplyRuleOptions
     if (data.row) Object.assign(formModel, cloneDeep(data.row))
-    formModel.tenantId = data.row?.tenantId || data.tenantId
     if (!data.row && data.presetCategoryId) formModel.categoryId = data.presetCategoryId
     if (data.copy) {
       formModel.id = undefined
@@ -1441,7 +1411,7 @@
       formModel.materialName = `${formModel.materialName}（副本）`
     }
     if (!formModel.id && !formModel.codeRuleId)
-      formModel.codeRuleId = scopedCodeRules.value[0]?.id ?? null
+      formModel.codeRuleId = codeRules.value[0]?.id ?? null
     await dialogRef.value?.handleOpen(data, {
       title: `${data.copy ? '复制' : data.row ? '编辑' : '新增'}物料编码`,
       subtitle: '统一物料身份与各业务域默认视图',
@@ -1465,36 +1435,6 @@
       formModel.description = value
     },
     { immediate: true }
-  )
-  watch(
-    () => formModel.tenantId,
-    (value, previous) => {
-      if (value === previous || !previous) return
-      formModel.categoryId = ''
-      formModel.materialTypeId = null
-      formModel.baseUnitId = null
-      formModel.auxiliaryUnitId = null
-      formModel.auxiliaryUnit2Id = null
-      formModel.attributeGroupId = null
-      formModel.codeRuleId = null
-      formModel.storageLocationId = null
-      formModel.unitConversions = []
-      formModel.purchaserId = null
-      formModel.plannerId = null
-      formModel.salespersonId = null
-      formModel.custodianId = null
-      formModel.dispatcherId = null
-      formModel.productionPlannerId = null
-      resetEmployeeSelections()
-      formModel.materialGroupId = null
-      formModel.defaultSupplierId = null
-      formModel.defaultWarehouseId = null
-      formModel.inboundWarehouseId = null
-      formModel.issuingWarehouseId = null
-      formModel.outboundRuleId = null
-      formModel.batchRuleId = null
-      formModel.serialRuleId = null
-    }
   )
   watch(
     () => formModel.baseUnitId,

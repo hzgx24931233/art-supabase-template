@@ -235,7 +235,6 @@
     DataSelectFetchParams,
     DataSelectRecord
   } from '@/components/core/forms/art-data-select/types'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import {
     fetchBoms,
     fetchBomStructure,
@@ -254,8 +253,6 @@
   defineOptions({ name: 'MdmBomStructure' })
   const { focusMode } = useWorkspaceFocus()
   const treeRef = ref<TreeInstance>()
-  const { effectiveTenantId } = storeToRefs(useTenantScopeStore())
-  const tenantId = computed(() => effectiveTenantId.value ?? '')
   const selectedMaterialId = ref<string | number>()
   const selectedMaterial = ref<MaterialArchive>()
   const selectedBom = ref<BomRecord>()
@@ -542,7 +539,6 @@
     fetchMaterialArchives({
       current: params.page,
       size: params.pageSize,
-      tenantId: tenantId.value,
       keyword: params.keyword,
       status: 'enabled'
     })
@@ -563,7 +559,6 @@
       const result = await fetchBoms({
         current: 1,
         size: 50,
-        tenantId: tenantId.value,
         materialId: selectedMaterial.value.id
       })
       selectedBom.value =
@@ -601,14 +596,6 @@
       if (requestId === structureRequestId) loading.value = false
     }
   }
-  watch(tenantId, () => {
-    structureRequestId += 1
-    structureKeyword.value = ''
-    selectedMaterial.value = undefined
-    selectedMaterialId.value = undefined
-    selectedBom.value = undefined
-    tree.value = []
-  })
 </script>
 
 <style scoped lang="scss">

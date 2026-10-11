@@ -76,7 +76,7 @@ pnpm.cmd exec node .agents/skills/professional-ui-quality/scripts/visual-audit.m
 
 Add `--themes "light,dark"`, `--box-modes "border-mode,shadow-mode"`, and `--storage-state "playwright/.auth/user.json"` when those variants are relevant. Read the generated JSON report and inspect every screenshot at 100% scale. The script is evidence collection, not a substitute for visual judgment.
 
-Use test or sanitized data for screenshots. Keep generated evidence under the ignored `.artifacts` directory; do not commit or share screenshots that contain tenant, customer, credential, financial, or personal data.
+Use test or sanitized data for screenshots. Keep generated evidence under the ignored `.artifacts` directory; do not commit or share screenshots that contain customer, credential, financial, or personal data.
 
 Check at minimum:
 

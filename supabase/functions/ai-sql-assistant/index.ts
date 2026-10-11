@@ -407,7 +407,7 @@ Deno.serve(async (req) => {
 
     const sharedModel =
       Deno.env.get('AI_MODEL') || Deno.env.get('OPENAI_MODEL') || 'gpt-4.1-mini'
-    const runtimeConfig = await loadAiRuntimeConfig(admin, appUser.tenant_id, FEATURE, {
+    const runtimeConfig = await loadAiRuntimeConfig(admin, FEATURE, {
       enabled: true,
       provider: 'openai_compatible',
       model: Deno.env.get('AI_SQL_MODEL') || sharedModel,
@@ -431,7 +431,6 @@ Deno.serve(async (req) => {
     await checkRateLimit(admin, user.id, runtimeConfig)
     const publishedPrompt = await loadPublishedAiPrompt(
       admin,
-      appUser.tenant_id,
       FEATURE,
       { content: DEFAULT_PROMPT, version: runtimeConfig.promptVersion }
     )
@@ -454,13 +453,12 @@ Deno.serve(async (req) => {
       .from('ai_run')
       .insert({
         auth_user_id: user.id,
-        tenant_id: appUser.tenant_id,
         feature: FEATURE,
         model: resolvedModel,
         prompt_version: publishedPrompt.version,
         metadata: {
           mode,
-          accessMode: isPlatformSuper ? 'platform_write' : 'tenant_read_only',
+          accessMode: isPlatformSuper ? 'platform_write' : 'read_only',
           promptLength: prompt.length,
           currentSqlLength: currentSql.length,
           schemaCount: metadata.schemas.length,

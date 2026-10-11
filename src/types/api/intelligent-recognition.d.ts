@@ -25,7 +25,6 @@ declare namespace Api {
       id: string
       aiRunId: string
       authUserId: string
-      tenantId?: string | null
       feature: Feature
       artifactType: string
       status: ArtifactStatus

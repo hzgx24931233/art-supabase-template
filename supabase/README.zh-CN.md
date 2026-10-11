@@ -164,7 +164,7 @@ New-Item -ItemType Directory -Path 'D:\supabase-transfer' -Force | Out-Null
 - 在目标项目重新填写 Edge Function Secrets 的**值**；`metadata/edge-function-secret-names.json` 只有名称，没有值。重新配置 Auth/OAuth、SMTP、邮件模板、站点 URL、回调地址、自定义域名及其他 Dashboard 专属设置。
 - 查看 `database/managed-schema-snapshot.sql`，人工核对原项目对 `auth`、`storage` 托管结构做过的自定义策略、触发器等变更；脚本不会自动重放整个托管 schema。如果使用 Vault 或列加密，先按 [Supabase 官方迁移指南](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore) 迁移加密根密钥。自定义 `LOGIN` 角色密码也要单独设置。
 - 原项目的函数 import map、`deno.json` 等额外文件可能无法从已部署函数中完整还原。需要时从受控的源代码另行部署。脚本恢复的是**备份时远端已部署**的函数，并不会把此后对仓库 `supabase/functions/` 的本地修改自动发布到目标。
-- 检查目标的 API 暴露配置、Storage 文件类型与缓存设置、Realtime、Auth 登录，以及关键业务表数量和租户权限。`storage cp` 不支持把本地文件上传到远端（仅支持从远端下载），脚本会自动改用 Storage API 逐个上传，并按对象名推断 Content-Type，因此设置了 `allowed_mime_types` 的桶（如 `ai-ui-design-reference`）也能正常写入；但 API 回退不会写入自定义缓存策略，需要时请复核缓存设置。
+- 检查目标的 API 暴露配置、Storage 文件类型与缓存设置、Realtime、Auth 登录，以及关键业务表数量和角色/菜单权限配置。`storage cp` 不支持把本地文件上传到远端（仅支持从远端下载），脚本会自动改用 Storage API 逐个上传，并按对象名推断 Content-Type，因此设置了 `allowed_mime_types` 的桶（如 `ai-ui-design-reference`）也能正常写入；但 API 回退不会写入自定义缓存策略，需要时请复核缓存设置。
 - 要让前端连接新项目，另行更新前端环境中的 Supabase URL 和公开 key；不要把 `service_role` 或 `sb_secret_` key 放进前端。
 
 ## 常见问题

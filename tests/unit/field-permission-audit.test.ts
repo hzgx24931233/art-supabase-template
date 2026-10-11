@@ -28,7 +28,7 @@ test('field permission audit changes keep labels and before/after levels', () =>
       action: 'replace',
       beforeValue: { contactPhone: 'masked', contractAmount: 'read' },
       afterValue: { contactPhone: 'hidden', contractAmount: 'edit' },
-      actorName: '租户管理员',
+      actorName: '系统管理员',
       createTime: '2026-08-22T00:00:00Z'
     },
     fields
@@ -57,7 +57,7 @@ test('field permission audit changes represent inherited or cleared entries with
       action: 'clear',
       beforeValue: { contactPhone: 'read' },
       afterValue: {},
-      actorName: '租户管理员',
+      actorName: '系统管理员',
       createTime: '2026-08-22T00:00:00Z'
     },
     fields

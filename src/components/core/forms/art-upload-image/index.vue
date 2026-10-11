@@ -88,7 +88,6 @@
     <ArtResourcePicker
       v-if="canPickResource"
       v-model:visible="isOpenResource"
-      :resource-tenant-id="resourceTenantId"
       :multiple="multiple"
       :limit="limit"
       @confirm="handleConfirm"
@@ -109,7 +108,6 @@
   } from '@/components/core/forms/upload-model-utils'
   import ResourceListItem = Api.DataCenter.Resources.ResourceListItem
   import { uploadAttachment } from '@/api/attachments'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
 
   defineOptions({ name: 'ArtUploadImage', inheritAttrs: false })
 
@@ -127,7 +125,6 @@
     readonly = false,
     disabled = false,
     showResourcePicker = true,
-    resourceTenantId = '',
     uploadRequest
   } = defineProps<{
     modelValue?: string | string[] | null
@@ -143,7 +140,6 @@
     readonly?: boolean
     disabled?: boolean
     showResourcePicker?: boolean
-    resourceTenantId?: string
     uploadRequest?: (file: File) => Promise<Api.DataCenter.Resources.ResourceListItem[]>
   }>()
 
@@ -155,14 +151,8 @@
   const uploadBtnRef = ref<HTMLElement>()
   const uploadRef = ref<{ $el?: HTMLElement }>()
   const isOpenResource = ref<boolean>(false)
-  const tenantScopeStore = useTenantScopeStore()
-  const missingTenantTarget = computed(
-    () => tenantScopeStore.isAllTenants && !resourceTenantId.trim()
-  )
-  const uploadDisabled = computed(() => disabled || (missingTenantTarget.value && !uploadRequest))
-  const canPickResource = computed(
-    () => showResourcePicker && !readonly && !uploadDisabled.value && !missingTenantTarget.value
-  )
+  const uploadDisabled = computed(() => disabled)
+  const canPickResource = computed(() => showResourcePicker && !readonly && !uploadDisabled.value)
   const previewList = ref<string[]>([])
   const ElImageRefs = ref<Array<{ $el?: HTMLElement }> | { $el?: HTMLElement } | null>(null)
 
@@ -184,9 +174,6 @@
           { 'has-resource-picker': canPickResource.value, 'is-disabled': uploadDisabled.value }
         ]}
         style={getSize.value}
-        title={
-          missingTenantTarget.value && !uploadRequest ? '请先在页头选择业务所属租户' : undefined
-        }
       >
         {canPickResource.value && (
           <ArtTooltip content="打开资源选择器">
@@ -208,9 +195,7 @@
           <span class="upload-prompt__icon" aria-hidden="true">
             <ArtSvgIcon icon="ri-add-line" />
           </span>
-          <span class="upload-prompt__title">
-            {missingTenantTarget.value && !uploadRequest ? '先选择租户' : (title ?? '上传图片')}
-          </span>
+          <span class="upload-prompt__title">{title ?? '上传图片'}</span>
         </div>
       </div>
     )
@@ -330,11 +315,7 @@
   }
 
   const handleConfirm = (selected: ResourceListItem[]) => {
-    if (readonly || uploadDisabled.value || missingTenantTarget.value) return
-    if (resourceTenantId && selected.some((resource) => resource.tenantId !== resourceTenantId)) {
-      ElMessage.warning('所选图片不属于当前目标租户，请重新选择')
-      return
-    }
+    if (readonly || uploadDisabled.value) return
     fileList.value = selected.map((item) => {
       return { name: item.originName ?? item.objectName ?? '资源文件', url: item.url }
     })
@@ -343,8 +324,7 @@
   }
 
   const handleUpload = async (options: UploadRequestOptions): Promise<unknown> => {
-    return await (uploadRequest?.(options.file) ??
-      uploadAttachment(options.file, { targetTenantId: resourceTenantId || undefined }))
+    return await (uploadRequest?.(options.file) ?? uploadAttachment(options.file))
   }
 </script>
 

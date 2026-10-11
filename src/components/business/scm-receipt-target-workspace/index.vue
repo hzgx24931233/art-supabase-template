@@ -116,7 +116,6 @@
 <script setup lang="tsx">
   import { ElTag } from 'element-plus'
   import { useRoute, useRouter } from 'vue-router'
-  import { storeToRefs } from 'pinia'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import ArtAsyncState from '@/components/core/feedback/art-async-state/index.vue'
   import ArtDrawer from '@/components/core/drawers/art-drawer/index.vue'
@@ -135,8 +134,6 @@
   import { useAuth } from '@/hooks/core/useAuth'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useDictionaryOptions } from '@/hooks/core/useDictionaryOptions'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { useUserStore } from '@/store/modules/user'
   import {
     fetchScmReceiptTargets,
     fetchScmReceiptTargetLines,
@@ -186,8 +183,6 @@
   const route = useRoute()
   const router = useRouter()
   const { confirmAction } = useArtFeedback()
-  const { isPlatformSuper } = storeToRefs(useUserStore())
-  const { effectiveTenantId, tenantOptions } = storeToRefs(useTenantScopeStore())
   const tableRef = ref<ArtTableQueryExpose>()
   const detailRef = ref<ArtDrawerExpose<ScmReceiptTargetDocument>>()
   const serialDialogRef = ref<InstanceType<typeof ReceiptSerialDialog>>()
@@ -207,27 +202,6 @@
   const savingScope = ref(false)
   const search = ref<ScmReceiptTargetQuery>({ keyword: '' })
   const searchItems = computed<SearchFormItem[]>(() => [
-    ...(isPlatformSuper.value && !effectiveTenantId.value
-      ? [
-          {
-            label: '所属租户',
-            key: 'tenantId',
-            type: 'select' as const,
-            props: {
-              clearable: true,
-              filterable: true,
-              onChange: () => {
-                search.value.projectId = undefined
-                search.value.constructionNo = undefined
-              },
-              options: tenantOptions.value.map((item) => ({
-                label: `${item.tenantName}（${item.tenantCode}）`,
-                value: item.id
-              }))
-            }
-          }
-        ]
-      : []),
     {
       label: '单据编号',
       key: 'keyword',
@@ -254,21 +228,10 @@
               filterable: true,
               placeholder: '全部项目',
               onChange: () => (search.value.constructionNo = undefined),
-              options: projectOptions.value
-                .filter(
-                  (row) => !effectiveTenantId.value || row.tenantId === effectiveTenantId.value
-                )
-                .filter((row) => !search.value.tenantId || row.tenantId === search.value.tenantId)
-                .map((row) => {
-                  const tenantName =
-                    isPlatformSuper.value && !effectiveTenantId.value && !search.value.tenantId
-                      ? tenantOptions.value.find((tenant) => tenant.id === row.tenantId)?.tenantName
-                      : undefined
-                  return {
-                    label: `${row.projectName} · ${row.projectCode}${tenantName ? ` · ${tenantName}` : ''}`,
-                    value: row.id
-                  }
-                })
+              options: projectOptions.value.map((row) => ({
+                label: `${row.projectName} · ${row.projectCode}`,
+                value: row.id
+              }))
             }
           },
           {
@@ -319,12 +282,6 @@
       // API 层已提示加载失败，单号和状态查询仍可使用。
     }
   }
-  watch(effectiveTenantId, () => {
-    search.value.projectId = undefined
-    search.value.constructionNo = undefined
-    projectOptions.value = []
-    void loadProjectOptions()
-  })
   onMounted(() => void loadProjectOptions())
   const headerActions = computed<ArtTableQueryHeaderAction[]>(() => [
     {
@@ -345,7 +302,6 @@
       exportData: async () => {
         const { data } = await fetchScmReceiptTargets(props.kind, {
           ...search.value,
-          tenantId: effectiveTenantId.value || search.value.tenantId,
           from: 0,
           to: 9999
         })
@@ -366,10 +322,7 @@
     )
   }
   function fetchPage(query: ScmReceiptTargetQuery) {
-    return fetchScmReceiptTargets(props.kind, {
-      ...query,
-      tenantId: effectiveTenantId.value || query.tenantId
-    })
+    return fetchScmReceiptTargets(props.kind, { ...query })
   }
   async function loadDetail(): Promise<void> {
     const row = activeDocument.value
@@ -415,7 +368,6 @@
     try {
       const { data } = await fetchScmReceiptTargets(props.kind, {
         id: targetId,
-        tenantId: effectiveTenantId.value || undefined,
         from: 0,
         to: 0
       })
@@ -434,7 +386,6 @@
   function openBinDialog(line: ScmReceiptTargetLine): void {
     if (!activeDocument.value || activeDocument.value.status !== 'draft') return
     void binDialogRef.value?.handleOpen({
-      tenantId: activeDocument.value.tenantId,
       documentNo: activeDocument.value.documentNo,
       line
     })

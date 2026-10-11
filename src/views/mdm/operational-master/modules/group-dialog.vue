@@ -40,15 +40,12 @@
   import ArtForm, { type FormItem } from '@/components/core/forms/art-form/index.vue'
   import ArtEntitySummary from '@/components/core/surfaces/art-entity-summary/index.vue'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import type { MasterGroup, MasterGroupDomain } from '@/api/mdm'
   import { saveMasterGroup } from '@/api/mdm'
   import { buildMasterGroupWriteInput, type MasterGroupFormModel } from './group-payload'
 
   export interface GroupDialogOpenData {
     domain: MasterGroupDomain
-    tenantId: string
-    tenantOptions: Array<{ label: string; value: string }>
     groups: MasterGroup[]
     row?: MasterGroup
     parent?: MasterGroup
@@ -57,11 +54,9 @@
   const emit = defineEmits<{ success: [] }>()
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { isPlatformScope } = storeToRefs(useTenantScopeStore())
   const dialogRef = ref<ArtDialogExpose<GroupDialogOpenData>>()
   const formRef = ref<InstanceType<typeof ArtForm>>()
   const initialModel = (): MasterGroupFormModel => ({
-    tenantId: '',
     domain: 'customer',
     parentId: null,
     code: '',
@@ -74,9 +69,7 @@
     id: undefined as string | undefined,
     model: initialModel(),
     groups: [] as MasterGroup[],
-    tenantOptions: [] as Array<{ label: string; value: string }>,
     rules: {
-      tenantId: [{ required: true, message: '请选择所属租户', trigger: 'change' }],
       code: [{ required: true, message: '请输入分组编码', trigger: 'blur' }],
       name: [{ required: true, message: '请输入分组名称', trigger: 'blur' }]
     }
@@ -113,20 +106,12 @@
   const items = computed<FormItem[]>(() => [
     { key: 'hierarchy', label: '分组层级', type: 'divider', span: 24 },
     {
-      key: 'tenantId',
-      label: '所属租户',
-      type: 'select',
-      span: 24,
-      options: form.tenantOptions,
-      props: { disabled: !!form.id || !!form.model.parentId, filterable: true }
-    },
-    {
       key: 'parentId',
       label: '上级分组',
       type: 'treeSelect',
       span: 24,
       options: form.groups
-        .filter((row) => row.id !== form.id && row.tenantId === form.model.tenantId)
+        .filter((row) => row.id !== form.id)
         .map((row) => ({
           label: `${row.name}（${row.code}）`,
           value: row.id,
@@ -161,13 +146,11 @@
   const handleOpen = async (data: GroupDialogOpenData): Promise<void> => {
     form.id = data.row?.id
     form.groups = data.groups
-    form.tenantOptions = data.tenantOptions
     form.model = data.row
       ? cloneDeep(data.row)
       : {
           ...initialModel(),
           domain: data.domain,
-          tenantId: data.parent?.tenantId || data.tenantId,
           parentId: data.parent?.id || null
         }
     await dialogRef.value?.handleOpen(data, {
@@ -178,13 +161,7 @@
       onConfirm: async () => {
         try {
           await formRef.value?.validate()
-          await saveMasterGroup(
-            buildMasterGroupWriteInput(form.model, {
-              editing: Boolean(form.id),
-              isPlatformScope: isPlatformScope.value
-            }),
-            form.id
-          )
+          await saveMasterGroup(buildMasterGroupWriteInput(form.model), form.id)
           emit('success')
           return true
         } catch {

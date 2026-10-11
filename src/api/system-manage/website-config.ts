@@ -33,7 +33,6 @@ const parseWebsiteConfigParam = (row: SystemParamItem | null): WebsiteConfigItem
     return {
       ...parsed,
       id: row.id,
-      tenantId: row.tenantId,
       paramMeta: getWebsiteConfigParamMeta(row),
       createBy: row.createBy,
       createTime: row.createTime,
@@ -72,7 +71,6 @@ export async function saveWebsiteConfig(params: WebsiteConfigItem) {
   const { id, paramMeta } = params
   const payload = omit(params, [
     'id',
-    'tenantId',
     'paramMeta',
     'createBy',
     'createTime',

@@ -445,9 +445,6 @@
   import type { ArtDialogExpose, ArtDialogSize } from '@/components/core/dialogs/art-dialog/types'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import TreeUtils from '@/utils/tree'
-  import { storeToRefs } from 'pinia'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { filterTenantDimensionDescriptors } from '@/utils/tenant-dimension-visibility'
   import type {
     ArtDataSelectEmits,
     ArtDataSelectExpose,
@@ -469,7 +466,6 @@
   })
 
   const emit = defineEmits<ArtDataSelectEmits>()
-  const { isPlatformScope } = storeToRefs(useTenantScopeStore())
 
   const tableRef = ref<ArtTableExpose>()
   const treeRef = ref<InstanceType<typeof ElTree>>()
@@ -543,7 +539,7 @@
   }))
 
   const normalizedColumns = computed<DataSelectColumn[]>(() => {
-    const columns = props.columns.length
+    return props.columns.length
       ? props.columns
       : [
           {
@@ -552,7 +548,6 @@
             minWidth: 180
           }
         ]
-    return filterTenantDimensionDescriptors(columns, isPlatformScope.value)
   })
 
   const isComponentValue = (value: unknown): value is Component => {
@@ -995,7 +990,7 @@
     () => props.apiFn,
     () => {
       ++loadGeneration
-      // The dialog can remain visible while its tenant/source-specific loader changes.
+      // The dialog can remain visible while its source-specific loader changes.
       if (isOpen.value) handleSearch()
       else loading.value = false
     }

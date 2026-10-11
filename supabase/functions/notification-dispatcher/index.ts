@@ -5,7 +5,6 @@ type JsonRecord = Record<string, unknown>
 
 interface DeliveryJob {
   id: string
-  tenantId: string
   recipientUserId: string
   recipientEmail?: string | null
   recipientPhone?: string | null
@@ -169,7 +168,6 @@ Deno.serve(async (request: Request) => {
 
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
   const cronToken = request.headers.get('x-notification-dispatch-token')?.trim() || ''
-  let tenantScope: string | null = null
 
   if (cronToken) {
     const { data: validToken, error: tokenError } = await admin.rpc(
@@ -184,18 +182,27 @@ Deno.serve(async (request: Request) => {
       auth: { persistSession: false },
       global: { headers: { Authorization: authorization } }
     })
-    const { data: scope, error: scopeError } = await userClient.rpc(
-      'get_notification_dispatch_scope'
-    )
-    if (scopeError || !scope) return json({ error: 'Dispatch permission denied' }, 403)
-    tenantScope = String(scope)
+    const [dispatchPermission, testChannelPermission] = await Promise.all([
+      userClient.rpc('current_has_permission', {
+        p_permission: 'System:NotificationReminder:Dispatch'
+      }),
+      userClient.rpc('current_has_permission', {
+        p_permission: 'System:NotificationReminder:TestChannel'
+      })
+    ])
+    if (
+      dispatchPermission.error ||
+      testChannelPermission.error ||
+      (dispatchPermission.data !== true && testChannelPermission.data !== true)
+    ) {
+      return json({ error: 'Dispatch permission denied' }, 403)
+    }
   }
 
   const requestBody = (await request.json().catch(() => ({}))) as JsonRecord
   const limit = Math.min(Math.max(Number(requestBody.limit) || 50, 1), 200)
   const { data, error } = await admin.rpc('claim_notification_deliveries', {
-    p_limit: limit,
-    p_tenant_id: tenantScope
+    p_limit: limit
   })
   if (error) return json({ error: 'Unable to claim deliveries', detail: error.message }, 500)
 

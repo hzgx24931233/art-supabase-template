@@ -5,7 +5,7 @@
         <span><ArtSvgIcon icon="ri:user-shared-line" /></span>
         <div>
           <strong>审批委托</strong>
-          <p>请假或暂时离岗时，把时间段内的新待办和当前待办交给同租户同事处理。</p>
+          <p>请假或暂时离岗时，把时间段内的新待办和当前待办交给同事处理。</p>
         </div>
       </section>
 
@@ -140,7 +140,6 @@
   const { promptReason } = useArtFeedback()
   const state = reactive({
     userId: '',
-    tenantId: '',
     loading: false,
     records: [] as Api.Workflow.WorkflowDelegationRecord[],
     users: [] as Api.Workflow.WorkflowUserOption[]
@@ -185,7 +184,7 @@
         type: 'userSelect',
         span: 12,
         props: {
-          placeholder: '选择同租户在职同事',
+          placeholder: '选择在职同事',
           filterable: true,
           options: state.users.filter((user) => user.id !== state.userId).map(toUserSelectOption)
         }
@@ -254,7 +253,7 @@
     try {
       const [delegations, users] = await Promise.all([
         fetchWorkflowDelegations(state.userId),
-        fetchWorkflowUserOptions({ tenantId: state.tenantId })
+        fetchWorkflowUserOptions()
       ])
       state.records = delegations.data ?? []
       state.users = users.data ?? []
@@ -295,9 +294,8 @@
     emit('success')
   }
 
-  async function handleOpen(userId: string, tenantId: string): Promise<void> {
+  async function handleOpen(userId: string): Promise<void> {
     state.userId = userId
-    state.tenantId = tenantId
     Object.assign(form.data, { delegateUserId: '', period: [], reason: '' })
     await dialogRef.value?.handleOpen(undefined, {
       title: '审批委托与离岗安排',

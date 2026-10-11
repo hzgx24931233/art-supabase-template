@@ -89,7 +89,7 @@
           <article>
             <span class="is-success"><ArtSvgIcon icon="ri:shield-check-line" /></span>
             <div>
-              <strong>RLS 租户隔离</strong>
+              <strong>RLS 行级隔离</strong>
               <small>
                 {{ snapshot.security.rlsEnabledTables }} / {{ snapshot.security.publicTables }} 张
                 public 表已启用 RLS

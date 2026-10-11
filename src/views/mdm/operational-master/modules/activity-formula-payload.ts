@@ -8,7 +8,6 @@ export function buildActivityFormulaWriteInput(
   translation: string
 ): OperationalMasterInput {
   return {
-    tenantId: model.tenantId,
     code: normalizeNonNullableText(model.code),
     name: normalizeNonNullableText(model.name),
     purpose: model.purpose,

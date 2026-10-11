@@ -29,7 +29,6 @@ export type ActivityFormulaToken =
 
 export interface ActivityFormulaParameter {
   id: string
-  tenantId: string
   purpose: ActivityFormulaPurpose
   parentId: string | null
   nodeType: 'group' | 'parameter'
@@ -45,7 +44,6 @@ export interface ActivityFormulaParameter {
 export type ActivityFormulaParameterInput = Omit<ActivityFormulaParameter, 'id'>
 
 export interface MasterGroupInput {
-  tenantId?: string
   domain: MasterGroupDomain
   parentId: string | null
   code: string
@@ -57,7 +55,6 @@ export interface MasterGroupInput {
 
 export interface OperationalMasterRecord {
   id: string
-  tenantId: string
   code?: string
   name?: string
   customerCode?: string
@@ -131,7 +128,6 @@ export type OperationalMasterInput = Omit<
 >
 
 export interface OperationalMasterQuery {
-  tenantId?: string | null
   current: number
   size: number
   keyword?: string
@@ -144,7 +140,6 @@ export interface MasterReferenceOption {
   id: string
   code: string
   name: string
-  tenantId: string
   parentId?: string | null
   departmentId?: string | null
 }

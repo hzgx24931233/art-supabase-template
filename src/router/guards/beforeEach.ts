@@ -335,12 +335,12 @@ async function handleDynamicRoutes(
   startRouteLoading(to, true)
 
   try {
-    // 1. 每次应用启动都刷新一次持久化用户资料，确保租户、角色与内置身份变更及时生效
+    // 1. 每次应用启动都刷新一次持久化用户资料，确保角色与内置身份变更及时生效
     const hasUserProfile = await runRouteInitializationStage(
       'user-profile',
       userStore.ensureUserInfo
     )
-    
+
     if (!hasUserProfile) {
       throw new RouteInitializationAccessError('当前账号缺少有效的业务用户资料')
     }

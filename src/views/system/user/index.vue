@@ -7,12 +7,9 @@
       class="user-page__overview"
       eyebrow="ACCOUNT GOVERNANCE"
       title="用户管理"
-      description="统一维护登录身份、联系方式、租户归属与角色授权，及时识别异常或停用账号。"
+      description="统一维护登录身份、联系方式、组织归属与角色授权，及时识别异常或停用账号。"
       icon="ri:user-settings-line"
-      :tags="[
-        { label: '账号按租户隔离', type: 'success', effect: 'light' },
-        { label: '角色独立授权', type: 'primary', effect: 'plain' }
-      ]"
+      :tags="[{ label: '角色独立授权', type: 'primary', effect: 'plain' }]"
       :metrics="workspaceMetrics"
     >
       <template #actions>
@@ -29,7 +26,6 @@
               :loading="organizationFilterLoading"
               :selected-key="selectedOrganizationKey"
               :include-descendants="includeDescendantOrganizations"
-              :global-scope="isAllTenants"
               @select="handleOrganizationSelect"
               @refresh="handleOrganizationRefresh"
               @update:include-descendants="handleIncludeDescendantsChange"
@@ -79,7 +75,6 @@
         :loading="organizationFilterLoading"
         :selected-key="selectedOrganizationKey"
         :include-descendants="includeDescendantOrganizations"
-        :global-scope="isAllTenants"
         @select="handleOrganizationSelect"
         @refresh="handleOrganizationRefresh"
         @update:include-descendants="handleIncludeDescendantsChange"
@@ -113,7 +108,6 @@
   import { formatWithDayjs } from '@/utils/time'
   import { pageInfoHandler } from '@/utils/table/tableUtils'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import {
     deactivateUser,
     fetchGetUserList,
@@ -145,7 +139,6 @@
 
   const userStore = useUserStore()
   const { getDictMap, getUserInfo } = storeToRefs(userStore)
-  const { effectiveTenantId, isAllTenants } = storeToRefs(useTenantScopeStore())
   const { loadPasswordPolicy, createTemporaryPassword } = useSystemParam()
   const { hasAuth } = useAuth()
   const organizationTreeUtils = new TreeUtils({
@@ -181,7 +174,6 @@
   const isDesktopOrganizationLayout = useMediaQuery('(min-width: 1201px)')
   const organizationTree = ref<OrganizationFilterItem[]>([])
   const organizationFilterLoading = ref(false)
-  const selectedTenantId = computed(() => effectiveTenantId.value ?? '')
   const selectedOrganizationKey = ref(ALL_ORGANIZATIONS_KEY)
   const includeDescendantOrganizations = ref(true)
   const overview = reactive<{ total: number; rows: UserOverviewRow[] }>({
@@ -344,7 +336,6 @@
     })
     return fetchGetUserList({
       ...params,
-      tenantId: selectedTenantId.value || undefined,
       organizationIds: selectedOrganizationIds.value,
       organizationUnassigned: selectedOrganizationKey.value === UNASSIGNED_ORGANIZATION_KEY,
       from,
@@ -355,9 +346,7 @@
   const loadOrganizationTree = async (): Promise<void> => {
     organizationFilterLoading.value = true
     try {
-      const response = await fetchGetUserOrganizationTree({
-        tenantId: selectedTenantId.value || undefined
-      })
+      const response = await fetchGetUserOrganizationTree()
       organizationTree.value = response.data ?? []
 
       if (
@@ -461,18 +450,6 @@
       label: '用户类型',
       minWidth: 110,
       dict: { code: 'userType', display: 'auto' }
-    },
-    {
-      prop: 'tenant',
-      label: '所属租户',
-      minWidth: 180,
-      formatter: (row: UserListItem) =>
-        h('div', { class: 'user-organization-cell' }, [
-          h('p', { title: row.tenant?.tenantName }, row.tenant?.tenantName || '--'),
-          row.tenant?.tenantCode
-            ? h('small', { title: row.tenant.tenantCode }, row.tenant.tenantCode)
-            : null
-        ])
     },
     {
       prop: 'organization',

@@ -143,7 +143,6 @@
   const props = defineProps<{
     record: OperationalMasterRecord
     parameters: ActivityFormulaParameter[]
-    tenantOptions: Array<{ label: string; value: string }>
   }>()
 
   const userStore = useUserStore()
@@ -182,13 +181,6 @@
             .join('、') || '—'
         )
       }
-    },
-    {
-      key: 'tenantId',
-      label: '所属租户',
-      field: 'tenantId',
-      formatter: (value) =>
-        props.tenantOptions.find((item) => item.value === value)?.label || '当前租户'
     },
     {
       key: 'isDefault',

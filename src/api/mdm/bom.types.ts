@@ -6,7 +6,6 @@ export type BomStatus = 'design' | 'review' | 'effective' | 'changing' | 'archiv
 export type BomMaterialReference = Pick<
   MaterialArchive,
   | 'id'
-  | 'tenantId'
   | 'materialCode'
   | 'materialName'
   | 'specificationModel'
@@ -30,7 +29,6 @@ export type BomMaterialReference = Pick<
 
 export interface BomGroup {
   id: string
-  tenantId: string
   code: string
   name: string
   parentId?: string | null
@@ -42,7 +40,6 @@ export interface BomGroup {
 
 export interface BomGroupInput {
   id?: string
-  tenantId: string
   parentId?: string | null
   code: string
   name: string
@@ -53,7 +50,6 @@ export interface BomGroupInput {
 
 export interface BomItem {
   id: string
-  tenantId: string
   bomId: string
   componentMaterialId: string
   componentTypeId?: string | null
@@ -88,7 +84,6 @@ export interface BomItem {
 
 export interface BomRecord {
   id: string
-  tenantId: string
   bomCode: string
   projectId?: string | null
   project?: { id: string; projectCode: string; projectName: string } | null
@@ -119,7 +114,6 @@ export interface BomRecord {
 export interface BomQuery {
   current: number
   size: number
-  tenantId?: string | null
   id?: string
   keyword?: string
   materialId?: string
@@ -130,7 +124,6 @@ export interface BomQuery {
 
 export interface BomInput {
   id?: string
-  tenantId: string
   bomCode?: string
   materialId: string
   processRouteId?: string | null
@@ -170,7 +163,6 @@ export interface BomInput {
 
 export interface BomProcessRouteOption {
   id: string
-  tenantId: string
   materialId: string
   code: string
   name: string
@@ -181,7 +173,6 @@ export interface BomProcessRouteOption {
 
 export interface BomProcessRouteStepOption {
   id: string
-  tenantId: string
   routeId: string
   code: string
   name: string

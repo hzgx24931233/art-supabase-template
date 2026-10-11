@@ -5,7 +5,6 @@ export type ScmReceiptTargetStatus = 'draft' | 'confirmed' | 'approved'
 
 export interface ScmReceiptTargetDocument {
   id: string
-  tenantId: string
   targetKind: ScmReceiptTargetKind
   documentNo: string
   sourceReceiptId: string
@@ -48,7 +47,6 @@ export interface ScmReceiptTargetQuery {
   id?: string
   keyword?: string
   status?: string
-  tenantId?: string
   projectId?: string
   constructionNo?: string
   from?: number
@@ -57,7 +55,6 @@ export interface ScmReceiptTargetQuery {
 
 export interface ScmReceiptProjectOption {
   id: string
-  tenantId: string
   projectCode: string
   projectName: string
 }
@@ -94,7 +91,6 @@ export async function fetchScmReceiptTargets(
     .range(query.from ?? 0, query.to ?? 999)
   if (query.status) request = request.eq('status', query.status)
   if (query.id) request = request.eq('id', query.id)
-  if (query.tenantId) request = request.eq('tenant_id', query.tenantId)
   if (query.projectId) request = request.eq('project_id', query.projectId)
   if (query.constructionNo) request = request.eq('construction_no', query.constructionNo)
   if (query.keyword?.trim()) {
@@ -156,13 +152,12 @@ export async function setScmReceiptLineSerials(lineId: string, serialNos: string
   )
 }
 
-export async function fetchScmReceiptPlacementWarehouse(tenantId: string, warehouseId: string) {
+export async function fetchScmReceiptPlacementWarehouse(warehouseId: string) {
   const { data } = await responseHandle<ScmReceiptPlacementWarehouse>(
     () =>
       supabase
         .from('mdm_warehouse')
         .select('id,warehouse_code,warehouse_name,enable_locations')
-        .eq('tenant_id', tenantId)
         .eq('id', warehouseId)
         .single(),
     { breakReturn: true, showErrorMessage: true, errorMessage: '收料仓库加载失败，请重试' }
@@ -170,13 +165,12 @@ export async function fetchScmReceiptPlacementWarehouse(tenantId: string, wareho
   return data
 }
 
-export async function fetchScmReceiptPlacementBins(tenantId: string, warehouseId: string) {
+export async function fetchScmReceiptPlacementBins(warehouseId: string) {
   const { data } = await responseHandle<ScmReceiptPlacementBin[]>(
     () =>
       supabase
         .from('mdm_warehouse_bin')
         .select('id,warehouse_id,bin_code,bin_name,supports_serial')
-        .eq('tenant_id', tenantId)
         .eq('warehouse_id', warehouseId)
         .eq('status', 'available')
         .order('bin_code')
@@ -186,13 +180,12 @@ export async function fetchScmReceiptPlacementBins(tenantId: string, warehouseId
   return data ?? []
 }
 
-export async function fetchScmReceiptPlacementBin(tenantId: string, binId: string) {
+export async function fetchScmReceiptPlacementBin(binId: string) {
   const { data } = await responseHandle<ScmReceiptPlacementBin>(
     () =>
       supabase
         .from('mdm_warehouse_bin')
         .select('id,warehouse_id,bin_code,bin_name,supports_serial')
-        .eq('tenant_id', tenantId)
         .eq('id', binId)
         .eq('status', 'available')
         .single(),
@@ -302,11 +295,7 @@ export async function fetchScmReceiptProjectSections(projectId: string) {
 
 export async function fetchScmReceiptProjectOptions(): Promise<ScmReceiptProjectOption[]> {
   const { data } = await responseHandle<ScmReceiptProjectOption[]>(
-    () =>
-      supabase
-        .from('mdm_project')
-        .select('id,tenant_id,project_code,project_name')
-        .order('project_code'),
+    () => supabase.from('mdm_project').select('id,project_code,project_name').order('project_code'),
     { breakReturn: true, showErrorMessage: true, errorMessage: '项目选项加载失败，请重试' }
   )
   return data ?? []

@@ -51,15 +51,9 @@
       </header>
     </template>
 
-    <div class="workflow-canvas-editor__guide" :class="{ 'is-warning': !tenantId }" role="status">
-      <ArtSvgIcon :icon="tenantId ? 'ri:mouse-line' : 'ri:information-line'" />
-      <span v-if="tenantId"
-        >指针模式拖动节点 · 手型模式平移画布 · 右键打开菜单 · 卡片序号表示审批顺序</span
-      >
-      <span v-else>请先在基础信息选择所属租户，随后即可搜索该租户的成员和角色。</span>
-      <ElButton v-if="!tenantId" link type="primary" @click="emit('request-step', 1)">
-        去选择租户
-      </ElButton>
+    <div class="workflow-canvas-editor__guide" role="status">
+      <ArtSvgIcon icon="ri:mouse-line" />
+      <span>指针模式拖动节点 · 手型模式平移画布 · 右键打开菜单 · 卡片序号表示审批顺序</span>
     </div>
 
     <div
@@ -316,14 +310,6 @@
 
         <ElScrollbar always>
           <div class="workflow-canvas-editor__inspector-content">
-            <ElAlert
-              v-if="!tenantId"
-              class="workflow-canvas-editor__tenant-alert"
-              type="warning"
-              :closable="false"
-              show-icon
-              title="选择租户后才能加载审批成员和角色"
-            />
             <ElTabs v-model="activeInspectorTab">
               <ElTabPane label="审批设置" name="approval">
                 <ArtForm
@@ -459,8 +445,7 @@
     redo: WorkflowCanvasSnapshot[]
   }
 
-  const props = defineProps<{ tenantId?: string; businessType: string }>()
-  const emit = defineEmits<{ 'request-step': [step: 1] }>()
+  const props = defineProps<{ businessType: string }>()
   const config = defineModel<Api.Workflow.WorkflowConfig>({ required: true })
   const nodes = computed<Api.Workflow.WorkflowNode[]>({
     get: () => config.value.nodes,
@@ -633,7 +618,7 @@
         label: '审批人来源',
         key: 'assignee.type',
         type: 'select',
-        help: '角色会在流程启动时解析为当前租户内的有效用户。',
+        help: '角色会在流程启动时解析为当前有效用户。',
         props: { options: dictOptions('workflowAssigneeType') }
       },
       {
@@ -641,13 +626,9 @@
         key: 'assignee.userIds',
         type: 'userSelect',
         hidden: assigneeType !== 'users',
-        help: props.tenantId
-          ? '仅展示当前流程所属租户的有效成员。'
-          : '请先在基础信息中选择所属租户。',
+        help: '仅展示有效的系统成员。',
         api: fetchWorkflowUserOptions,
         immediate: false,
-        beforeFetch: (params) => ({ ...params, tenantId: props.tenantId }),
-        shouldFetch: () => Boolean(props.tenantId),
         resultField: 'data',
         valueField: 'id',
         labelFn: (option) =>
@@ -657,9 +638,8 @@
           filterable: true,
           collapseTags: true,
           collapseTagsTooltip: true,
-          disabled: !props.tenantId,
-          placeholder: props.tenantId ? '搜索并选择租户成员' : '请先选择所属租户',
-          noDataText: props.tenantId ? '该租户暂无可选成员' : '请先选择所属租户'
+          placeholder: '搜索并选择成员',
+          noDataText: '暂无可选成员'
         }
       },
       {
@@ -667,13 +647,9 @@
         key: 'assignee.roleCodes',
         type: 'select',
         hidden: assigneeType !== 'roles',
-        help: props.tenantId
-          ? '角色会在流程启动时解析为该租户内的有效成员。'
-          : '请先在基础信息中选择所属租户。',
+        help: '角色会在流程启动时解析为有效成员。',
         api: fetchWorkflowRoleOptions,
         immediate: false,
-        beforeFetch: (params) => ({ ...params, tenantId: props.tenantId }),
-        shouldFetch: () => Boolean(props.tenantId),
         resultField: 'data',
         labelField: 'roleName',
         valueField: 'roleCode',
@@ -682,9 +658,8 @@
           filterable: true,
           collapseTags: true,
           collapseTagsTooltip: true,
-          disabled: !props.tenantId,
-          placeholder: props.tenantId ? '搜索并选择租户角色' : '请先选择所属租户',
-          noDataText: props.tenantId ? '该租户暂无可选角色' : '请先选择所属租户'
+          placeholder: '搜索并选择角色',
+          noDataText: '暂无可选角色'
         }
       },
       {
@@ -1118,9 +1093,9 @@
     { deep: true, immediate: true }
   )
   watch(
-    () => [selectedNodeKey.value, props.tenantId, selectedNode.value?.assignee.type],
+    () => [selectedNodeKey.value, selectedNode.value?.assignee.type],
     () => {
-      if (props.tenantId) void reloadAssigneeOptions()
+      void reloadAssigneeOptions()
     },
     { immediate: true }
   )
@@ -1190,15 +1165,6 @@
       .el-button {
         flex: none;
         margin-left: auto;
-      }
-
-      &.is-warning {
-        color: var(--el-color-warning-dark-2);
-        background: var(--el-color-warning-light-9);
-
-        > svg {
-          color: var(--el-color-warning);
-        }
       }
     }
 
@@ -1591,10 +1557,6 @@
 
     &__inspector-content {
       padding: 0 var(--art-space-4) var(--art-space-4);
-    }
-
-    &__tenant-alert {
-      margin-top: var(--art-space-3);
     }
 
     :deep(.vue-flow__node) {

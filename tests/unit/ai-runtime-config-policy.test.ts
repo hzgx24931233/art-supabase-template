@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   disableAiRuntimeConfig,
-  resolveAiConfigTenantScope,
   type AiRuntimeConfig
 } from '../../supabase/functions/_shared/ai-runtime-config-policy'
 
@@ -29,17 +28,4 @@ test('missing AI governance disables the feature without mutating provider defau
   assert.equal(result.visionModel, defaults.visionModel)
   assert.equal(defaults.enabled, true)
   assert.notEqual(result, defaults)
-})
-
-test('ordinary tenants inherit platform AI configuration after their tenant override', () => {
-  assert.deepEqual(resolveAiConfigTenantScope('tenant-a', 'platform-tenant'), [
-    'tenant-a',
-    'platform-tenant'
-  ])
-})
-
-test('platform tenant reads only its own AI configuration', () => {
-  assert.deepEqual(resolveAiConfigTenantScope('platform-tenant', 'platform-tenant'), [
-    'platform-tenant'
-  ])
 })

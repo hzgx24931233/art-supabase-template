@@ -307,18 +307,6 @@
       dict: { code: 'organizationType', display: 'auto' }
     },
     {
-      prop: 'tenant',
-      label: '所属租户',
-      minWidth: 160,
-      formatter: (row) =>
-        h('div', { class: 'organization-tenant-cell' }, [
-          h('span', { title: row.tenant?.tenantName }, row.tenant?.tenantName || '当前租户'),
-          row.tenant?.tenantCode
-            ? h('small', { title: row.tenant.tenantCode }, row.tenant.tenantCode)
-            : null
-        ])
-    },
-    {
       prop: 'leader',
       label: '负责人',
       minWidth: 150,
@@ -661,7 +649,6 @@
     }
 
     :deep(.organization-identity-cell__meta small),
-    :deep(.organization-tenant-cell small),
     :deep(.organization-leader-cell small) {
       display: block;
       overflow: hidden;
@@ -704,7 +691,6 @@
       }
     }
 
-    :deep(.organization-tenant-cell),
     :deep(.organization-leader-cell) {
       display: grid;
       min-width: 0;

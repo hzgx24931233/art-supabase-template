@@ -6,7 +6,6 @@ import {
 } from '@/views/mdm/operational-master/modules/activity-formula-parameter'
 
 const baseModel = (): ActivityFormulaParameterFormModel => ({
-  tenantId: '11111111-1111-4111-8111-111111111111',
   purpose: 'plan_preparation',
   parentId: null,
   nodeType: 'group',

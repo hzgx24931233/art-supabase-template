@@ -235,7 +235,6 @@
       name: definition.name,
       businessType: definition.businessType,
       description: definition.description,
-      tenantId: definition.tenantId,
       changeNote: `从 V${version.versionNo} 恢复为草稿`,
       config: structuredClone(version.config)
     })

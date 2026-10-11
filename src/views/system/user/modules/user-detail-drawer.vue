@@ -73,7 +73,6 @@
       dictCode: 'sysUserIdentityType'
     },
     { key: 'userType', label: '用户类型', field: 'userType', dictCode: 'userType' },
-    { key: 'tenant', label: '所属租户', value: (row: UserListItem) => row.tenant?.tenantName },
     {
       key: 'organization',
       label: '所属组织',

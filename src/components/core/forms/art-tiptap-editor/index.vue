@@ -389,7 +389,6 @@
 
           <MediaPopover
             v-if="isFeatureVisible('image')"
-            :resource-tenant-id="resourceTenantId"
             kind="image"
             label="插入图片"
             icon="ri:image-add-line"
@@ -403,7 +402,6 @@
           />
           <MediaPopover
             v-if="isFeatureVisible('video')"
-            :resource-tenant-id="resourceTenantId"
             kind="video"
             label="插入视频"
             icon="ri:video-add-line"
@@ -417,7 +415,6 @@
           />
           <MediaPopover
             v-if="isFeatureVisible('audio')"
-            :resource-tenant-id="resourceTenantId"
             kind="audio"
             label="插入音频"
             icon="ri:volume-up-line"
@@ -431,7 +428,6 @@
           />
           <MediaPopover
             v-if="isFeatureVisible('file')"
-            :resource-tenant-id="resourceTenantId"
             kind="file"
             label="插入附件"
             icon="ri:attachment-2"
@@ -625,7 +621,6 @@
   defineOptions({ name: 'ArtTiptapEditor' })
 
   const props = withDefaults(defineProps<ArtTiptapEditorProps>(), {
-    resourceTenantId: '',
     height: '500px',
     placeholder: '请输入内容…',
     disabled: false,
@@ -1123,9 +1118,7 @@
     }
 
     try {
-      const resources = await uploadAttachment(validFiles, {
-        targetTenantId: props.resourceTenantId || undefined
-      })
+      const resources = await uploadAttachment(validFiles)
       let insertPosition = position
       resources.forEach((resource) => {
         const normalized = getUploadedResource(resource)

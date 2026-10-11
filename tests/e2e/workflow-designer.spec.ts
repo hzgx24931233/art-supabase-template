@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('普通租户只读查看流程且无法进入设计器', async ({ page }) => {
+test('普通用户只读查看流程且无法进入设计器', async ({ page }) => {
   test.setTimeout(120_000)
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
@@ -10,7 +10,7 @@ test('普通租户只读查看流程且无法进入设计器', async ({ page }) 
   await expect(page.locator('.workflow-definition')).toBeVisible({ timeout: 60_000 })
   await expect(page.locator('.el-loading-mask:visible')).toHaveCount(0, { timeout: 60_000 })
 
-  await expect(page.getByText('租户只读', { exact: true })).toBeVisible()
+  await expect(page.getByText('只读模式', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '新建流程', exact: true })).toHaveCount(0)
 
   await page.goto('/#/workflow/definition?designer=new&template=custom', {

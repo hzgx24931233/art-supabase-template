@@ -240,8 +240,6 @@
   import { ElImage, ElTag } from 'element-plus'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
   import { useUserStore } from '@/store/modules/user'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
-  import { resolveTenantWorkspaceId } from '@/utils/tenant-scope-context'
   import ArtPermissionGuard from '@/components/core/feedback/art-permission-guard/index.vue'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
@@ -290,16 +288,12 @@
   interface DialogExpose {
     handleOpen: (data: ArchiveDialogOpenData) => Promise<void>
   }
-  type QueryParams = Omit<MaterialArchiveQuery, 'tenantId'> & Api.Common.PaginationParams
+  type QueryParams = MaterialArchiveQuery & Api.Common.PaginationParams
   const { confirmDelete } = useArtFeedback()
   const { deleteGuardRef, inspectDeleteReferences } = useRecordDeleteGuard('mdm_material', '物料')
   const deleteBusy = ref(false)
   const userStore = useUserStore()
   const { getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId } = storeToRefs(useTenantScopeStore())
-  const tenantId = computed(() =>
-    resolveTenantWorkspaceId(effectiveTenantId.value, userStore.getUserInfo.tenantId)
-  )
   const tableRef = ref<ArtTableQueryExpose>()
   const dialogRef = ref<DialogExpose>()
   const detailDrawerRef = ref<ArtDrawerExpose<MaterialArchive>>()
@@ -329,7 +323,7 @@
     {
       label: '物料总数',
       value: overview.total,
-      description: '当前租户可见',
+      description: '当前物料主档',
       icon: 'ri:archive-drawer-line'
     },
     {
@@ -381,7 +375,6 @@
     row,
     copy,
     presetCategoryId: !row ? selectedCategoryId.value || undefined : undefined,
-    tenantId: row?.tenantId || tenantId.value,
     categories: categories.value,
     materialTypes: materialTypes.value,
     units: units.value,
@@ -849,20 +842,20 @@
     optionsError.value = ''
     try {
       const [categoryRows, typeRows, unitRows, groupRows, ruleRows] = await Promise.all([
-        fetchMaterialCategories(tenantId.value),
-        fetchMaterialReferenceOptions<MaterialType>('material-type', tenantId.value),
-        fetchMaterialReferenceOptions<UnitOfMeasure>('unit-of-measure', tenantId.value),
-        fetchMaterialReferenceOptions<MaterialAttributeGroup>('attribute-group', tenantId.value),
-        fetchMaterialReferenceOptions<MaterialCodeRule>('code-rule', tenantId.value)
+        fetchMaterialCategories(),
+        fetchMaterialReferenceOptions<MaterialType>('material-type'),
+        fetchMaterialReferenceOptions<UnitOfMeasure>('unit-of-measure'),
+        fetchMaterialReferenceOptions<MaterialAttributeGroup>('attribute-group'),
+        fetchMaterialReferenceOptions<MaterialCodeRule>('code-rule')
       ])
       const [locationRows, masterGroupRows, supplierRows, warehouseRows, outboundRows, supplyRows] =
         await Promise.all([
-          fetchMaterialStorageOptions(tenantId.value).catch(() => []),
-          fetchMaterialGroupOptions(tenantId.value).catch(() => []),
-          fetchMaterialSupplierOptions(tenantId.value).catch(() => []),
-          fetchMaterialWarehouseOptions(tenantId.value).catch(() => []),
-          fetchMaterialOutboundRuleOptions(tenantId.value).catch(() => []),
-          fetchMaterialSupplyRuleOptions(tenantId.value).catch(() => [])
+          fetchMaterialStorageOptions().catch(() => []),
+          fetchMaterialGroupOptions().catch(() => []),
+          fetchMaterialSupplierOptions().catch(() => []),
+          fetchMaterialWarehouseOptions().catch(() => []),
+          fetchMaterialOutboundRuleOptions().catch(() => []),
+          fetchMaterialSupplyRuleOptions().catch(() => [])
         ])
       categories.value = categoryRows
       materialTypes.value = typeRows
@@ -882,10 +875,9 @@
     }
   }
   const fetchData = async (params: QueryParams) => {
-    if (!categories.value.length && tenantId.value) await loadOptions()
+    if (!categories.value.length) await loadOptions()
     const result = await fetchMaterialArchives({
       ...params,
-      tenantId: tenantId.value,
       categoryIds: selectedCategoryId.value
         ? descendantCategoryIds(selectedCategoryId.value)
         : undefined

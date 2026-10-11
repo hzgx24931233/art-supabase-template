@@ -15,7 +15,7 @@
 
       <ArtSectionCard
         title="上传与识别"
-        subtitle="原件与逐件草图保存在当前租户的私有文件区。"
+        subtitle="原件与逐件草图保存在私有文件区。"
         :preserve-content-structure="true"
       >
         <template #actions>
@@ -26,23 +26,6 @@
         </template>
         <div class="grid gap-4 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)]">
           <div class="min-w-0 space-y-3">
-            <label class="block text-sm font-medium">目标租户</label>
-            <ElSelect
-              v-if="isPlatformSuper && !effectiveTenantId"
-              v-model="workspace.tenantId"
-              filterable
-              placeholder="先选择清单所属租户"
-              class="w-full"
-              @change="resetUpload"
-            >
-              <ElOption
-                v-for="tenant in tenantOptions"
-                :key="tenant.id"
-                :label="tenant.tenantName || tenant.tenantCode"
-                :value="tenant.id"
-              />
-            </ElSelect>
-            <p v-else class="text-sm text-gray-500 dark:text-gray-400">{{ activeTenantName }}</p>
             <ArtUploadFile
               v-model="workspace.sourceUrl"
               title="选择加工清单"
@@ -50,7 +33,7 @@
               accept=".png,.jpg,.jpeg,.webp,.pdf,.docx"
               tip="支持图片、PDF、DOCX；每次识别前 3 页，单文件不超过 20 MB。旧版 DOC 请先另存为 DOCX。"
               :file-size="20 * 1024 * 1024"
-              :disabled="!workspace.tenantId || workspace.recognizing || workspace.saving"
+              :disabled="workspace.recognizing || workspace.saving"
               :show-resource-picker="false"
               :upload-request="uploadSource"
               @resource-change="onSourceUploaded"
@@ -435,7 +418,7 @@
       </ArtSectionCard>
 
       <ArtSectionCard
-        :title="isPlatformSuper ? '当前租户识别记录' : '我的识别记录'"
+        title="我的识别记录"
         subtitle="识别结果可继续校对；点击保存后才会成为下方业务清单。"
         :loading="workspace.recognitionsLoading"
         :error="workspace.recognitionsError"
@@ -570,7 +553,6 @@
   import type { ColumnOption } from '@/types/component'
   import { useUserStore } from '@/store/modules/user'
   import { useAuth } from '@/hooks/core/useAuth'
-  import { useTenantScopeStore } from '@/store/modules/tenantScope'
   import { getFriendlySupabaseErrorMessage } from '@/utils/supabase'
   import { createDateTimeFormatter } from '@/utils/ui/format'
   import {
@@ -603,11 +585,9 @@
   const templateUrl = new URL('../assets/accessory-processing-template.docx', import.meta.url).href
   const { hasAuth } = useAuth()
   const userStore = useUserStore()
-  const { isPlatformSuper, getDictMap } = storeToRefs(userStore)
-  const { effectiveTenantId, tenantOptions } = storeToRefs(useTenantScopeStore())
+  const { getDictMap } = storeToRefs(userStore)
   const formatDateTime = createDateTimeFormatter()
   interface WorkspaceState {
-    tenantId: string
     sourceUrl: string
     sourcePath: string
     sourceName: string
@@ -644,7 +624,6 @@
     items: AccessoryProcessingItem[]
   }
   const workspace = reactive<WorkspaceState>({
-    tenantId: effectiveTenantId.value ?? '',
     sourceUrl: '',
     sourcePath: '',
     sourceName: '',
@@ -936,11 +915,6 @@
       lengthSummary: group.entries.map(({ item }) => `${item.lengthM.toFixed(3)} m`).join(' / ')
     }))
   })
-  const activeTenantName = computed(
-    () =>
-      tenantOptions.value.find((tenant) => tenant.id === workspace.tenantId)?.tenantName ||
-      '当前租户'
-  )
   const orderCards = computed(() =>
     draft.items.flatMap((item) =>
       (item.workOrders ?? []).map((order) => ({
@@ -965,43 +939,10 @@
     link.click()
   }
 
-  function resetUpload(): void {
-    editingIndex.value = null
-    Object.assign(workspace, {
-      recognitionError: '',
-      sourceUrl: '',
-      sourcePath: '',
-      sourceName: '',
-      groupId: crypto.randomUUID(),
-      pages: [],
-      sketchUrls: []
-    })
-    Object.assign(draft, {
-      id: undefined,
-      projectName: '',
-      drawingName: '',
-      projectId: null,
-      customerId: null,
-      categoryId: null,
-      status: 'draft',
-      confidence: 0,
-      warnings: [],
-      items: []
-    })
-    void loadProjects()
-  }
-
   async function uploadSource(file: File): Promise<Api.DataCenter.Resources.ResourceListItem[]> {
-    if (!workspace.tenantId) throw new Error('请先选择目标租户')
     const pages = await rasterizeProcessingList(file)
     const groupId = crypto.randomUUID()
-    const resources = await uploadAccessoryFile(
-      workspace.tenantId,
-      groupId,
-      'source',
-      file,
-      file.name
-    )
+    const resources = await uploadAccessoryFile(groupId, 'source', file, file.name)
     workspace.groupId = groupId
     workspace.pages = pages
     return resources
@@ -1031,7 +972,7 @@
   }
 
   async function recognize(): Promise<void> {
-    if (!workspace.pages.length || !workspace.tenantId) return
+    if (!workspace.pages.length) return
     workspace.recognizing = true
     workspace.recognitionError = ''
     try {
@@ -1039,7 +980,6 @@
       for (const [index, page] of workspace.pages.entries()) {
         const blob = await (await fetch(page.dataUrl)).blob()
         const [resource] = await uploadAccessoryFile(
-          workspace.tenantId,
           workspace.groupId,
           'page',
           blob,
@@ -1060,7 +1000,6 @@
           try {
             const blob = await cropSketch(page, item.sketch)
             const [resource] = await uploadAccessoryFile(
-              workspace.tenantId,
               workspace.groupId,
               'sketch',
               blob,
@@ -1116,7 +1055,6 @@
     index: number
   ): Promise<Api.DataCenter.Resources.ResourceListItem[]> {
     return uploadAccessoryFile(
-      workspace.tenantId,
       workspace.groupId,
       'sketch',
       file,
@@ -1157,12 +1095,7 @@
 
   async function saveDraft(notify = true): Promise<boolean> {
     if (draft.status !== 'draft' || workspace.saving) return false
-    if (
-      !workspace.tenantId ||
-      !workspace.sourcePath ||
-      !draft.projectName.trim() ||
-      !draft.items.length
-    ) {
+    if (!workspace.sourcePath || !draft.projectName.trim() || !draft.items.length) {
       ElMessage.warning('请先上传清单，填写项目名称并确认加工件')
       return false
     }
@@ -1183,7 +1116,6 @@
       draft.id = await saveAccessoryDraft({
         id: draft.id,
         mode: 'SaveDraft',
-        tenantId: workspace.tenantId,
         sourcePath: workspace.sourcePath,
         sourceName: workspace.sourceName,
         projectName: draft.projectName.trim(),
@@ -1244,9 +1176,7 @@
     workspace.loading = true
     workspace.error = ''
     try {
-      workspace.lists = (await fetchAccessoryLists(effectiveTenantId.value)).filter((list) =>
-        Boolean(list.sourcePath)
-      )
+      workspace.lists = (await fetchAccessoryLists()).filter((list) => Boolean(list.sourcePath))
     } catch (error) {
       workspace.error = getFriendlySupabaseErrorMessage(error, '清单加载失败，请重试')
     } finally {
@@ -1257,12 +1187,8 @@
   async function loadRecognitions(): Promise<void> {
     workspace.recognitionsLoading = true
     workspace.recognitionsError = ''
-    const tenantId = effectiveTenantId.value
-    const includeTenantRecords = isPlatformSuper.value
     try {
-      const records = await fetchAccessoryRecognitions(tenantId, includeTenantRecords)
-      if (tenantId === effectiveTenantId.value && includeTenantRecords === isPlatformSuper.value)
-        workspace.recognitions = records
+      workspace.recognitions = await fetchAccessoryRecognitions()
     } catch (error) {
       workspace.recognitionsError = getFriendlySupabaseErrorMessage(
         error,
@@ -1290,7 +1216,6 @@
           getFriendlySupabaseErrorMessage(error, '已打开识别文字，原件和草图暂时无法预览')
         )
       }
-      workspace.tenantId = record.tenantId
       Object.assign(workspace, {
         recognitionError: '',
         sourcePath: files.sourcePath,
@@ -1339,22 +1264,18 @@
     workspace.categories = []
     workspace.types = []
     workspace.units = []
-    if (!workspace.tenantId) return
-    const tenantId = workspace.tenantId
     workspace.projectsLoading = true
     try {
-      const projects = await fetchAccessoryProjects(tenantId)
-      if (workspace.tenantId !== tenantId) return
+      const projects = await fetchAccessoryProjects()
       workspace.projects = projects
       const selectedProject = projects.find((project) => project.id === draft.projectId)
       if (selectedProject && !draft.customerId) draft.customerId = selectedProject.customerId
       const [customers, categories, types, units] = await Promise.all([
-        fetchAccessoryCustomers(tenantId),
-        fetchMaterialCategories(tenantId),
-        fetchMaterialReferenceOptions<MaterialType>('material-type', tenantId),
-        fetchMaterialReferenceOptions<UnitOfMeasure>('unit-of-measure', tenantId)
+        fetchAccessoryCustomers(),
+        fetchMaterialCategories(),
+        fetchMaterialReferenceOptions<MaterialType>('material-type'),
+        fetchMaterialReferenceOptions<UnitOfMeasure>('unit-of-measure')
       ])
-      if (workspace.tenantId !== tenantId) return
       workspace.customers = customers
       workspace.categories = categories.filter((category) => category.status === 'enabled')
       workspace.types = types
@@ -1369,7 +1290,6 @@
   async function openList(list: AccessoryProcessingList): Promise<void> {
     if (!list.sourcePath) return
     editingIndex.value = null
-    workspace.tenantId = list.tenantId
     Object.assign(workspace, {
       recognitionError: '',
       sourcePath: list.sourcePath,
@@ -1405,14 +1325,6 @@
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  watch(effectiveTenantId, (tenantId) => {
-    workspace.tenantId = tenantId ?? ''
-    resetUpload()
-    void Promise.all([loadLists(), loadRecognitions()])
-  })
-  watch(isPlatformSuper, () => {
-    void Promise.all([loadProjects(), loadRecognitions()])
-  })
   watch(
     () => draft.items,
     () => {

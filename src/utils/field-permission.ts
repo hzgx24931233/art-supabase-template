@@ -96,7 +96,6 @@ export const omitNonEditableFields = <
 }
 
 const WRITE_METADATA_FIELDS = [
-  'tenantId',
   'createBy',
   'createTime',
   'updateBy',
