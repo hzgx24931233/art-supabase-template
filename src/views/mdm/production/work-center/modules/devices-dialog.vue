@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg"
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close
     ><ArtSectionCard
       title="设备列表"
       :subtitle="center ? `${center.code} · ${center.name}` : ''"

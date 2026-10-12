@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="xl">
+  <ArtDialog ref="dialogRef" size="xl" confirm-on-close>
     <div class="operational-master-dialog">
       <ArtEntitySummary
         class="operational-master-dialog__context"

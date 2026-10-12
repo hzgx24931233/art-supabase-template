@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="sm">
+  <ArtDialog ref="dialogRef" size="sm" confirm-on-close>
     <div class="master-group-dialog">
       <ArtEntitySummary
         :icon="groupIcon"

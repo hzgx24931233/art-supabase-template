@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg">
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
     <div class="system-param-dialog">
       <ArtSectionCard class="system-param-dialog__form" preserve-content-structure>
         <template #header>

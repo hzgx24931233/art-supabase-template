@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="sm">
+  <ArtDialog ref="dialogRef" size="sm" confirm-on-close>
     <div class="esop-category-dialog">
       <ArtEntitySummary
         class="esop-category-dialog__context"

@@ -55,6 +55,26 @@ onOpen: async (_data, api) => {
 - 关闭完成后默认重置运行时数据和 Loading 状态
 - 内容区域默认最大高度为 `min(70vh, calc(100vh - 200px))`，超过后由弹窗内的 `ElScrollbar` 滚动，避免外层遮罩出现滚动条
 - 未封装的 `ElDialog` Props、事件和属性可以直接透传
+- 关闭入口统一：确认按钮、取消按钮、右上角关闭按钮、`ESC`、点击遮罩、`handleClose()` 与路由切换都会先经过 `onClose` 拦截与未保存修改确认
+
+## 关闭前未保存确认
+
+单据编辑窗口（表单承载业务数据、保存后落库）应显式开启 `confirm-on-close`，避免用户误关窗口丢失录入内容：
+
+```vue
+<ArtDialog ref="dialogRef" confirm-on-close>
+  <ArtForm ref="formRef" v-model="form.data" :items="form.items" :show-reset="false" :show-submit="false" />
+</ArtDialog>
+```
+
+开启后的行为：
+
+- 变更检测：弹窗内每个 `ArtForm` 的模型与其基线快照深比较；查询类表单（`ArtSearchBar`）不参与。业务侧还可以用 `isDirty` 选项补充非表单状态（子表格、勾选结果等）。
+- 关闭时若存在未保存修改，弹窗内显示三选一提示：**保存**（执行确认流程，校验或接口失败则留在弹窗并定位第一个错误字段）、**不保存**（丢弃并关闭）、**取消**（继续编辑，`ESC` 等同取消）。
+- 路由切换时仍会提示，但只提供「保存并关闭 / 不保存并关闭」，避免弹窗悬停在新页面上。
+- 不提示的场景：内容仍在加载（用户无法编辑）、保存进行中（关闭请求被忽略，由保存结果决定）、保存成功后的自动关闭、`force=true` 的强制关闭。
+- 基线在弹窗打开流程结束（`onOpen` resolve 后）自动采集。若业务在 `onOpen` 之外异步填充表单数据，请在数据落地后调用 `dialogRef.value?.markPristine()`。
+- 保存进度由弹窗自身的确认 Loading 呈现（`confirmText` 按钮），提示面板在点击后立即收起。
 
 ## 配置方式与优先级
 
@@ -320,6 +340,9 @@ dialogRef.value?.handleOpen(user, {
 | `autoClose` | `boolean` | `true` | 确认成功后是否自动关闭 |
 | `resetOnClose` | `boolean` | `true` | 关闭完成后是否重置 |
 | `closeOnConfirmError` | `boolean` | `false` | 确认回调抛错时是否强制关闭 |
+| `confirmOnClose` | `boolean` | `false` | 关闭前检测未保存修改并确认 |
+| `confirmOnCloseMessage` | `string` | `'表单内容已修改，是否保存后关闭？'` | 未保存修改的提示主文案 |
+| `isDirty` | `() => boolean` | `undefined` | 业务自定义变更检测，与表单检测取并集 |
 | `scrollbarAlways` | `boolean` | `false` | 是否始终显示滚动条 |
 | `nativeScrollbar` | `boolean` | `false` | 是否使用原生滚动条 |
 | `content` | `Component` | `undefined` | 动态内容组件 |
@@ -332,20 +355,22 @@ dialogRef.value?.handleOpen(user, {
 
 ## Ref 方法
 
-| 方法                          | 说明                                    |
-| ----------------------------- | --------------------------------------- |
-| `handleOpen(data?, options?)` | 打开弹窗并传入本次数据和配置            |
-| `handleClose(force?)`         | 关闭弹窗；`force=true` 时跳过 `onClose` |
-| `handleConfirm()`             | 主动执行确认流程                        |
-| `handleReset()`               | 恢复打开时的数据并清除 Loading          |
-| `setLoading(value)`           | 设置内容区域 Loading                    |
-| `setConfirmLoading(value)`    | 设置确定按钮 Loading                    |
-| `setOptions(options)`         | 在弹窗打开期间增量修改配置              |
-| `setData(data)`               | 替换当前数据                            |
-| `updateData(data)`            | 浅合并当前对象数据                      |
-| `getData()`                   | 获取当前数据                            |
-| `getDialogInstance()`         | 获取底层 `ElDialog` 实例                |
-| `scrollTo(options)`           | 控制内容滚动位置                        |
+| 方法                          | 说明                                                     |
+| ----------------------------- | -------------------------------------------------------- |
+| `handleOpen(data?, options?)` | 打开弹窗并传入本次数据和配置                             |
+| `handleClose(force?)`         | 关闭弹窗；`force=true` 时跳过 `onClose` 与未保存修改确认 |
+| `handleConfirm()`             | 主动执行确认流程                                         |
+| `handleReset()`               | 恢复打开时的数据并清除 Loading                           |
+| `isDirty()`                   | 当前是否存在未保存修改（每次调用重新判定）               |
+| `markPristine()`              | 重新采集变更基线，用于异步填充数据或外部提交成功后       |
+| `setLoading(value)`           | 设置内容区域 Loading                                     |
+| `setConfirmLoading(value)`    | 设置确定按钮 Loading                                     |
+| `setOptions(options)`         | 在弹窗打开期间增量修改配置                               |
+| `setData(data)`               | 替换当前数据                                             |
+| `updateData(data)`            | 浅合并当前对象数据                                       |
+| `getData()`                   | 获取当前数据                                             |
+| `getDialogInstance()`         | 获取底层 `ElDialog` 实例                                 |
+| `scrollTo(options)`           | 控制内容滚动位置                                         |
 
 ## 事件
 
@@ -389,38 +414,38 @@ dialogRef.value?.handleOpen(data, {
 
 ### ElDialog Props 完整列表
 
-| 属性                    | 说明                                      |
-| ----------------------- | ----------------------------------------- |
-| `append-to-body`        | 是否插入至 body                           |
-| `append-to`             | 挂载目标，默认 `body`                     |
-| `before-close`          | 关闭前回调；命令式场景优先用 `onClose`    |
-| `destroy-on-close`      | 关闭后销毁内容；`ArtDialog` 默认 `true`   |
-| `close-on-click-modal`  | 点击遮罩关闭                              |
-| `close-on-press-escape` | 按 ESC 关闭                               |
-| `lock-scroll`           | 打开时锁定 body 滚动                      |
-| `modal`                 | 是否显示遮罩                              |
-| `modal-penetrable`      | 遮罩是否穿透                              |
-| `open-delay`            | 打开延迟                                  |
-| `close-delay`           | 关闭延迟                                  |
-| `top`                   | 顶部距离                                  |
-| `modal-class`           | 遮罩 class                                |
-| `header-class`          | header class                              |
-| `body-class`            | body class                                |
-| `footer-class`          | footer class                              |
-| `width`                 | 弹窗宽度；也可用 `ArtDialog.width`        |
-| `z-index`               | 层级                                      |
-| `trap-focus`            | 是否启用焦点陷阱                          |
-| `header-aria-level`     | header aria level                         |
-| `transition`            | 过渡动画                                  |
-| `center`                | header/footer 是否居中                    |
-| `align-center`          | 是否水平垂直居中；`ArtDialog` 默认 `true` |
-| `close-icon`            | 自定义关闭图标                            |
-| `draggable`             | 是否可拖拽；`ArtDialog` 默认 `true`       |
-| `overflow`              | 拖拽是否可超出视口                        |
-| `fullscreen`            | 是否全屏                                  |
-| `show-close`            | 是否显示关闭按钮                          |
-| `title`                 | 标题；也可用 `ArtDialog.title`            |
-| `aria-level`            | aria level                                |
+| 属性 | 说明 |
+| --- | --- |
+| `append-to-body` | 是否插入至 body |
+| `append-to` | 挂载目标，默认 `body` |
+| `before-close` | 关闭前回调；由 `ArtDialog` 接管并先于统一关闭流程调用，命令式场景优先用 `onClose` |
+| `destroy-on-close` | 关闭后销毁内容；`ArtDialog` 默认 `true` |
+| `close-on-click-modal` | 点击遮罩关闭 |
+| `close-on-press-escape` | 按 ESC 关闭 |
+| `lock-scroll` | 打开时锁定 body 滚动 |
+| `modal` | 是否显示遮罩 |
+| `modal-penetrable` | 遮罩是否穿透 |
+| `open-delay` | 打开延迟 |
+| `close-delay` | 关闭延迟 |
+| `top` | 顶部距离 |
+| `modal-class` | 遮罩 class |
+| `header-class` | header class |
+| `body-class` | body class |
+| `footer-class` | footer class |
+| `width` | 弹窗宽度；也可用 `ArtDialog.width` |
+| `z-index` | 层级 |
+| `trap-focus` | 是否启用焦点陷阱 |
+| `header-aria-level` | header aria level |
+| `transition` | 过渡动画 |
+| `center` | header/footer 是否居中 |
+| `align-center` | 是否水平垂直居中；`ArtDialog` 默认 `true` |
+| `close-icon` | 自定义关闭图标 |
+| `draggable` | 是否可拖拽；`ArtDialog` 默认 `true` |
+| `overflow` | 拖拽是否可超出视口 |
+| `fullscreen` | 是否全屏 |
+| `show-close` | 是否显示关闭按钮 |
+| `title` | 标题；也可用 `ArtDialog.title` |
+| `aria-level` | aria level |
 
 ### ElDialog Events
 

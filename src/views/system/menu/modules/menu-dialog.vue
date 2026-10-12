@@ -1,5 +1,11 @@
 <template>
-  <ArtDialog size="lg" ref="dialogRef" show-fullscreen-button @opened="handleDialogOpened">
+  <ArtDialog
+    size="lg"
+    ref="dialogRef"
+    show-fullscreen-button
+    @opened="handleDialogOpened"
+    confirm-on-close
+  >
     <div class="menu-dialog-content">
       <ElAlert v-if="treeError" type="error" :closable="false" show-icon>
         <template #title>菜单层级加载失败</template>

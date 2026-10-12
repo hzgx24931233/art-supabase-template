@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="sm">
+  <ArtDialog ref="dialogRef" size="sm" confirm-on-close>
     <div class="workflow-cancel">
       <div class="workflow-cancel__summary">
         <span><ArtSvgIcon icon="ri:stop-circle-line" /></span>

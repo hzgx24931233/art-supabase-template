@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { useArtOverlay, type ArtOverlayOptions } from '../../src/hooks/core/useArtOverlay'
+import {
+  useArtOverlay,
+  type ArtOverlayDirtySource,
+  type ArtOverlayOptions,
+  type ArtUnsavedPromptRequest
+} from '../../src/hooks/core/useArtOverlay'
 
 interface TestData {
   id?: string
@@ -10,7 +15,8 @@ type TestOptions = ArtOverlayOptions<TestData, { setLoading: (value: boolean) =>
 
 const createOverlay = (
   emitError: (error: unknown) => void = () => undefined,
-  onConfirmRejected?: () => void
+  onConfirmRejected?: () => void,
+  confirmUnsaved?: (request: ArtUnsavedPromptRequest) => Promise<'save' | 'discard' | 'cancel'>
 ) => {
   let setLoading: (value: boolean) => void = () => undefined
   const overlay = useArtOverlay<TestData, { setLoading: (value: boolean) => void }, TestOptions>({
@@ -20,10 +26,33 @@ const createOverlay = (
     emitConfirm: () => undefined,
     emitReset: () => undefined,
     emitError,
-    onConfirmRejected
+    onConfirmRejected,
+    confirmUnsaved
   })
   setLoading = overlay.setLoading
   return overlay
+}
+
+const createDirtySource = (initial = true) => {
+  let dirty = initial
+  let pristineCalls = 0
+  const source: ArtOverlayDirtySource = {
+    isDirty: () => dirty,
+    markPristine: () => {
+      pristineCalls += 1
+      dirty = false
+    },
+    getDirtyFieldLabels: () => (dirty ? ['业务编号'] : [])
+  }
+  return {
+    source,
+    setDirty: (value: boolean) => {
+      dirty = value
+    },
+    get pristineCalls() {
+      return pristineCalls
+    }
+  }
 }
 
 test('closing an overlay invalidates a pending open callback and suppresses its stale error', async () => {
@@ -110,4 +139,186 @@ test('rejected validation requests focus unless the overlay closes on error', as
   assert.equal(overlay.visible.value, false)
   assert.equal(overlay.confirmLoading.value, false)
   assert.deepEqual(errors, [failure, failure])
+})
+
+test('registered dirty sources drive isDirty and markPristine', async () => {
+  const overlay = createOverlay()
+  const form = createDirtySource(false)
+  const unregister = overlay.registerDirtySource(form.source)
+
+  assert.equal(overlay.isDirty(), false)
+  form.setDirty(true)
+  assert.equal(overlay.isDirty(), true)
+  assert.deepEqual(overlay.getDirtyFieldLabels(), ['业务编号'])
+
+  overlay.markPristine()
+  assert.equal(form.pristineCalls, 1)
+  assert.equal(overlay.isDirty(), false)
+
+  unregister()
+  form.setDirty(true)
+  assert.equal(overlay.isDirty(), false)
+})
+
+test('closing with unsaved changes asks before closing and saves on request', async () => {
+  const requests: ArtUnsavedPromptRequest[] = []
+  const overlay = createOverlay(undefined, undefined, async (request) => {
+    requests.push(request)
+    return 'save'
+  })
+  const form = createDirtySource(false)
+  overlay.registerDirtySource(form.source)
+
+  let submitCount = 0
+  await overlay.handleOpen(
+    { id: 'document' },
+    {
+      confirmOnClose: true,
+      onConfirm: () => {
+        submitCount += 1
+      }
+    }
+  )
+  form.setDirty(true)
+
+  assert.equal(await overlay.handleClose(), true)
+  assert.equal(submitCount, 1)
+  assert.equal(form.pristineCalls, 1)
+  assert.equal(overlay.visible.value, false)
+  assert.deepEqual(requests, [{ message: '表单内容已修改，是否保存后关闭？', allowCancel: true }])
+})
+
+test('discarding unsaved changes closes without submitting', async () => {
+  const overlay = createOverlay(undefined, undefined, async () => 'discard')
+  const form = createDirtySource(true)
+  overlay.registerDirtySource(form.source)
+
+  let submitCount = 0
+  await overlay.handleOpen(
+    { id: 'document' },
+    { confirmOnClose: true, onConfirm: () => (submitCount += 1) }
+  )
+
+  assert.equal(await overlay.handleClose(), true)
+  assert.equal(submitCount, 0)
+  assert.equal(overlay.visible.value, false)
+})
+
+test('cancelling the unsaved prompt keeps the overlay open', async () => {
+  const overlay = createOverlay(undefined, undefined, async () => 'cancel')
+  const form = createDirtySource(true)
+  overlay.registerDirtySource(form.source)
+  let closeCalls = 0
+
+  await overlay.handleOpen(
+    { id: 'document' },
+    {
+      confirmOnClose: true,
+      onClose: () => {
+        closeCalls += 1
+      }
+    }
+  )
+
+  assert.equal(await overlay.handleClose(), false)
+  assert.equal(overlay.visible.value, true)
+  assert.equal(closeCalls, 0)
+})
+
+test('a failed save keeps the overlay open and preserves the unsaved state', async () => {
+  const overlay = createOverlay(undefined, undefined, async () => 'save')
+  const form = createDirtySource(true)
+  overlay.registerDirtySource(form.source)
+
+  await overlay.handleOpen({ id: 'document' }, { confirmOnClose: true, onConfirm: () => false })
+  assert.equal(await overlay.handleClose(), false)
+  assert.equal(overlay.visible.value, true)
+  assert.equal(overlay.isDirty(), true)
+  assert.equal(overlay.confirmLoading.value, false)
+})
+
+test('forced closes and pristine documents skip the unsaved prompt', async () => {
+  let promptCount = 0
+  const overlay = createOverlay(undefined, undefined, async () => {
+    promptCount += 1
+    return 'cancel'
+  })
+  const form = createDirtySource(false)
+  overlay.registerDirtySource(form.source)
+
+  await overlay.handleOpen({ id: 'document' }, { confirmOnClose: true })
+  form.setDirty(true)
+
+  assert.equal(await overlay.handleClose(true), true)
+  assert.equal(promptCount, 0)
+
+  await overlay.handleOpen({ id: 'document' }, { confirmOnClose: true })
+  form.setDirty(false)
+  assert.equal(await overlay.handleClose(), true)
+  assert.equal(promptCount, 0)
+})
+
+test('content loading and an enabled prompt without unsaved changes never interrupt closing', async () => {
+  let promptCount = 0
+  const overlay = createOverlay(undefined, undefined, async () => {
+    promptCount += 1
+    return 'cancel'
+  })
+  const form = createDirtySource(true)
+  overlay.registerDirtySource(form.source)
+
+  await overlay.handleOpen({ id: 'document' }, { confirmOnClose: true, loading: true })
+  assert.equal(await overlay.handleClose(), true)
+  assert.equal(promptCount, 0)
+
+  await overlay.handleOpen({ id: 'document' }, { confirmOnClose: false })
+  assert.equal(await overlay.handleClose(), true)
+  assert.equal(promptCount, 0)
+})
+
+test('closing during a route change keeps the prompt but does not offer cancel', async () => {
+  const requests: ArtUnsavedPromptRequest[] = []
+  const overlay = createOverlay(undefined, undefined, async (request) => {
+    requests.push(request)
+    return 'discard'
+  })
+  const form = createDirtySource(true)
+  overlay.registerDirtySource(form.source)
+
+  await overlay.handleOpen({ id: 'document' }, { confirmOnClose: true })
+  assert.equal(await overlay.confirmUnsavedClose(false), true)
+
+  assert.deepEqual(requests, [{ message: '表单内容已修改，是否保存后关闭？', allowCancel: false }])
+})
+
+test('a business-provided isDirty predicate participates in the unsaved guard', async () => {
+  let customDirty = false
+  let promptCount = 0
+  const overlay = createOverlay(undefined, undefined, async () => {
+    promptCount += 1
+    return 'discard'
+  })
+
+  await overlay.handleOpen(
+    { id: 'document' },
+    {
+      confirmOnClose: true,
+      isDirty: () => customDirty
+    }
+  )
+
+  assert.equal(await overlay.handleClose(), true)
+  assert.equal(promptCount, 0)
+
+  await overlay.handleOpen(
+    { id: 'document' },
+    {
+      confirmOnClose: true,
+      isDirty: () => customDirty
+    }
+  )
+  customDirty = true
+  assert.equal(overlay.isDirty(), true)
+  assert.equal(await overlay.handleClose(), true)
+  assert.equal(promptCount, 1)
 })

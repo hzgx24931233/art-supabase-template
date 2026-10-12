@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="xl">
+  <ArtDialog ref="dialogRef" size="xl" confirm-on-close>
     <div class="esop-document-dialog">
       <ArtEntitySummary
         class="esop-document-dialog__identity"

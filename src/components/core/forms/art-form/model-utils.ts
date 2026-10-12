@@ -1,5 +1,5 @@
 import { toRaw } from 'vue'
-import { cloneDeep, set, unset } from 'lodash-es'
+import { cloneDeep, isEqual, set, unset } from 'lodash-es'
 
 // ArtForm accepts business-owned models, including nested arrays and arbitrary records.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,6 +16,18 @@ export interface SanitizeOutputOptions {
 
 export function cloneModelValue(value: FormRecord | undefined): FormRecord {
   return value ? cloneDeep(toRaw(value)) : {}
+}
+
+/**
+ * 与基线快照做深比较，判断是否存在未保存修改。
+ * 传入响应式模型本身（不要 toRaw），比较过程会读取每个字段，使调用方的 computed 能感知字段变化。
+ * 与 lodash 一致：值为 undefined 的键等同于缺失的键。
+ */
+export function isModelDirty(
+  model: FormRecord | undefined,
+  baseline: FormRecord | undefined
+): boolean {
+  return !isEqual(model ?? {}, baseline ?? {})
 }
 
 export function updateFormFieldValue(model: FormRecord, path: string, value: unknown): FormRecord {

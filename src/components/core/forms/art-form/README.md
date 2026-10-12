@@ -89,6 +89,7 @@
 | `isExpand` | `boolean` | `false` | 是否强制展开全部表单项 |
 | `defaultExpanded` | `boolean` | `false` | 非强制展开时，初始是否展开 |
 | `showExpand` | `boolean` | `true` | 是否显示展开/收起按钮 |
+| `trackDirty` | `boolean` | `true` | 是否向所在弹层上报未保存修改；查询类表单需设为 `false` |
 | `sanitizeOutput` | `Partial<SanitizeOutputOptions>` | `{}` | 提交输出清洗策略 |
 
 ## ElForm Props 透传
@@ -172,6 +173,9 @@
 | `clearValidate(...args)` | `FormInstance['clearValidate']` | 清除校验状态 |
 | `scrollToField(...args)` | `FormInstance['scrollToField']` | 滚动定位到指定字段，适用于长表单或跨页签校验 |
 | `reset()` | `() => void` | 执行组件重置逻辑并触发 `reset` |
+| `isDirty` | `ComputedRef<boolean>` | 模型与变更基线是否不一致 |
+| `markPristine()` | `() => void` | 重新采集变更基线，用于异步填充数据或外部提交成功后 |
+| `getDirtyFieldLabels()` | `() => string[]` | 已修改字段的 `label` 列表，用于关闭前提示 |
 | `fetchOptions(item)` | `(item: FormItem) => Promise<Record<string, any>[]>` | 加载单个字段的异步选项 |
 | `reloadOptions(key?)` | `(key?: string) => Promise<unknown>` | 重新加载指定字段或全部异步选项 |
 | `getOutput()` | `() => Record<string, any>` | 获取按 `sanitizeOutput` 清洗后的表单输出 |

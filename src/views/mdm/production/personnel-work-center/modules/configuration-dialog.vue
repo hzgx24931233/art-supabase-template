@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg">
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
     <div class="personnel-center-dialog">
       <ElAlert v-if="form.error" :title="form.error" type="error" show-icon :closable="false" />
       <ElAlert

@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="xl">
+  <ArtDialog ref="dialogRef" size="xl" confirm-on-close>
     <div class="material-category-dialog">
       <div class="material-category-dialog__notice">
         <span><ArtSvgIcon icon="ri:node-tree" /></span>

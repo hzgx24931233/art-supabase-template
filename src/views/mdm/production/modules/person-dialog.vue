@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg">
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
     <ElAlert
       v-if="!form.sourceError"
       title="优先从员工花名册选择人员，系统会自动带入可访问的身份资料；未建档人员也可直接录入。"

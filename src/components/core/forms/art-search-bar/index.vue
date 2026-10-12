@@ -14,6 +14,7 @@
     :submit-loading="searchLoading"
     :show-submit="showSearch"
     :disabled-submit="disabledSearch"
+    :track-dirty="false"
     :sanitize-output="sanitizeOutput"
     :enable-expand="true"
     :is-expand="isExpand"

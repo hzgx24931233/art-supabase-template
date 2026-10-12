@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="md">
+  <ArtDialog ref="dialogRef" size="md" confirm-on-close>
     <div class="role-edit-dialog">
       <section class="role-edit-dialog__context">
         <div class="role-edit-dialog__context-icon" aria-hidden="true">

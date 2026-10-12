@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg">
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
     <div class="workflow-delegation">
       <section class="workflow-delegation__intro">
         <span><ArtSvgIcon icon="ri:user-shared-line" /></span>

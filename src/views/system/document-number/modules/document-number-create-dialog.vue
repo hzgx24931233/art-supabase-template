@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg" :dialog-props="{ appendToBody: true }">
+  <ArtDialog ref="dialogRef" size="lg" :dialog-props="{ appendToBody: true }" confirm-on-close>
     <div class="number-rule-create">
       <ArtSectionCard class="number-rule-create__form" preserve-content-structure>
         <template #header>

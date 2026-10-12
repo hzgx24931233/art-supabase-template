@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="md">
+  <ArtDialog ref="dialogRef" size="md" confirm-on-close>
     <ElAlert
       :title="`${form.shift.name} · ${form.shift.startTime} — ${form.shift.endTime}，休息时段需按时间先后填写。`"
       type="info"

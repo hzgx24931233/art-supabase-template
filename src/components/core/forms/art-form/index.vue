@@ -243,7 +243,7 @@
 <script setup lang="ts">
   import { useWindowSize } from '@vueuse/core'
   import { useI18n } from 'vue-i18n'
-  import { get, unset } from 'lodash-es'
+  import { get, isEqual, unset } from 'lodash-es'
   import {
     inject,
     onMounted,
@@ -290,7 +290,7 @@
   } from '@element-plus/icons-vue'
   import ArtIconPicker from '@/components/core/forms/art-icon-picker/index.vue'
   import ArtTagStyleSelect from '@/components/core/forms/art-tag-style-select/index.vue'
-  import { artFormFocusKey } from './focus'
+  import { artFormOverlayKey } from './overlay'
   import ArtDataSelect from '@/components/core/forms/art-data-select/index.vue'
   import ArtUserSelect from '@/components/core/forms/art-user-select/index.vue'
   import ArtUploadFile from '@/components/core/forms/art-upload-file/index.vue'
@@ -300,6 +300,7 @@
   import { calculateResponsiveSpan, type ResponsiveBreakpoint } from '@/utils/form/responsive'
   import {
     cloneModelValue,
+    isModelDirty,
     sanitizeFormValue,
     type FormRecord,
     type SanitizeOutputOptions,
@@ -555,6 +556,8 @@
     showExpand?: boolean
     /** 是否允许 divider 分区标题折叠其下方字段 */
     collapsibleSections?: boolean
+    /** 是否向所在弹层上报未保存修改；查询类表单应关闭 */
+    trackDirty?: boolean
     /** 提交时是否清洗空值 */
     sanitizeOutput?: Partial<SanitizeOutputOptions>
   }
@@ -581,9 +584,10 @@
     defaultExpanded: false,
     showExpand: true,
     collapsibleSections: true,
+    trackDirty: true,
     sanitizeOutput: () => ({})
   })
-  const overlayFocus = inject(artFormFocusKey, undefined)
+  const overlayFocus = inject(artFormOverlayKey, undefined)
   const activeLabelTooltipKey = ref<string | null>(null)
   const showOverflowLabelTooltip = (event: MouseEvent, key: string): void => {
     const label = event.currentTarget
@@ -607,6 +611,7 @@
     overlayFocus?.focusMode.value ? Math.min(props.gutter, 16) : props.gutter
   )
   let unregisterOverlayForm: (() => void) | undefined
+  let unregisterDirtySource: (() => void) | undefined
 
   export interface ArtFormEmits {
     reset: []
@@ -625,6 +630,26 @@
   const asyncRequestSignatureMap = ref<Record<string, string>>({})
 
   initialModelValue.value = cloneModelValue(modelValue.value)
+
+  // 变更基线：挂载时采集，打开弹窗完成与保存成功后会重新采集。
+  const pristineModel = ref<FormRecord>(cloneModelValue(modelValue.value))
+
+  const isDirty = computed(() => isModelDirty(modelValue.value, pristineModel.value))
+
+  const markPristine = () => {
+    pristineModel.value = cloneModelValue(modelValue.value)
+  }
+
+  const getDirtyFieldLabels = (): string[] => {
+    if (!isDirty.value) return []
+
+    return props.items
+      .filter((item) => Boolean(item.key) && Boolean(item.label) && !isDividerItem(item))
+      .filter(
+        (item) => !isEqual(get(modelValue.value, item.key), get(pristineModel.value, item.key))
+      )
+      .map((item) => String(item.label))
+  }
 
   const rootProps = [
     'label',
@@ -1251,11 +1276,21 @@
 
   onMounted(() => {
     unregisterOverlayForm = overlayFocus?.registerForm()
+    if (props.trackDirty !== false) {
+      unregisterDirtySource = overlayFocus?.registerDirtySource?.({
+        isDirty: () => isDirty.value,
+        markPristine,
+        getDirtyFieldLabels
+      })
+    }
     resetCollapsedSections()
     loadImmediateOptions()
   })
 
-  onUnmounted(() => unregisterOverlayForm?.())
+  onUnmounted(() => {
+    unregisterOverlayForm?.()
+    unregisterDirtySource?.()
+  })
 
   watch(
     () =>
@@ -1302,6 +1337,12 @@
     reset: handleReset,
     fetchOptions,
     reloadOptions,
+    /** 当前是否存在未保存修改 */
+    isDirty,
+    /** 重新采集变更基线，用于异步加载数据完成或外部提交成功后 */
+    markPristine,
+    /** 已修改字段的用户可读名称 */
+    getDirtyFieldLabels,
     expandAllSections: () => {
       collapsedSectionKeys.value = new Set()
     },

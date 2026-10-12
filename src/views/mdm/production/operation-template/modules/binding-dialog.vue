@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="md">
+  <ArtDialog ref="dialogRef" size="md" confirm-on-close>
     <div class="template-binding-dialog">
       <ElAlert
         :title="`将为 ${ids.length} 个工艺工序绑定同一模板，原绑定会被替换。`"

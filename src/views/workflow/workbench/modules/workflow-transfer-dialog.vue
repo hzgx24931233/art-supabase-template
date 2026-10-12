@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="sm">
+  <ArtDialog ref="dialogRef" size="sm" confirm-on-close>
     <div class="workflow-transfer">
       <section class="workflow-transfer__summary">
         <span><ArtSvgIcon icon="ri:user-received-2-line" /></span>

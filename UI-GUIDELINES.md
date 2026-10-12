@@ -5,6 +5,7 @@
 业务页面统一使用项目封装组件：
 
 - 弹窗使用 `ArtDialog`，抽屉使用 `ArtDrawer`。
+- 承载业务单据或资料编辑、保存后落库的弹窗必须开启 `confirm-on-close`，由弹窗统一处理未保存修改的保存、放弃与取消；只做查看、单次动作或导入的弹窗不开启。
 - 列表使用 `ArtTable`；带查询条件和分页的列表优先使用 `ArtTableQuery`。
 - 表单使用 `ArtForm`。复杂品牌配置、可视化编排等特殊布局使用 `custom-layout`，校验和 Ref API 仍由 `ArtForm` 承载。
 - 登录、注册、示例和组件演示页允许直接使用 Element Plus 原生容器。

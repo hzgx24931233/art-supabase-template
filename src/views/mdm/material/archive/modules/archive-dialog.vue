@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="xl">
+  <ArtDialog ref="dialogRef" size="xl" confirm-on-close>
     <template #content-top>
       <ElTabs v-model="activeTab" class="material-archive-dialog__tabs">
         <ElTabPane v-for="tab in tabs" :key="tab.name" :name="tab.name">

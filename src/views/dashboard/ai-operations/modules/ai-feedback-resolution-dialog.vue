@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef">
+  <ArtDialog ref="dialogRef" confirm-on-close>
     <div class="ai-feedback-resolution">
       <section v-if="current" class="ai-feedback-resolution__summary art-card-xs">
         <div class="ai-feedback-resolution__summary-icon">

@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="md">
+  <ArtDialog ref="dialogRef" size="md" confirm-on-close>
     <div class="notification-channel-dialog">
       <ElAlert
         :title="channelHelp.title"

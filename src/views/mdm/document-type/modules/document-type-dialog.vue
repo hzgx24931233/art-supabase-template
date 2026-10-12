@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg">
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
     <div class="document-type-dialog">
       <ArtEntitySummary
         :icon="modeIcon"

@@ -9,6 +9,26 @@ export type ArtScrollOptions =
       behavior?: 'auto' | 'smooth'
     }
 
+/** 未保存数据的处理结果；cancel 表示取消本次关闭 */
+export type ArtUnsavedDecision = 'save' | 'discard' | 'cancel'
+
+export interface ArtUnsavedPromptRequest {
+  /** 提示主文案 */
+  message: string
+  /** 是否允许取消（路由切换等被动关闭场景为 false） */
+  allowCancel: boolean
+}
+
+/** 变更来源：即编辑表单等可编辑区域的脏状态提供方 */
+export interface ArtOverlayDirtySource {
+  /** 当前是否存在未保存修改 */
+  isDirty: () => boolean
+  /** 保存成功或重新取基线后，清除未保存标记 */
+  markPristine: () => void
+  /** 已修改字段的用户可读名称；没有可用名称时返回空数组 */
+  getDirtyFieldLabels?: () => string[]
+}
+
 export interface ArtOverlayOptions<TData, TApi> {
   /** 内容区域是否显示加载遮罩 */
   loading?: boolean
@@ -40,6 +60,12 @@ export interface ArtOverlayOptions<TData, TApi> {
   resetOnClose?: boolean
   /** 确认回调抛出异常时是否仍然关闭 */
   closeOnConfirmError?: boolean
+  /** 关闭前是否检测未保存修改，默认 false */
+  confirmOnClose?: boolean
+  /** 未保存修改的提示文案 */
+  confirmOnCloseMessage?: string
+  /** 业务自定义变更检测；与已注册变更来源取并集 */
+  isDirty?: () => boolean
   /** 是否始终显示滚动条 */
   scrollbarAlways?: boolean
   /** 是否使用原生滚动条 */
@@ -69,12 +95,16 @@ export interface ArtOverlayExpose<TData, TOptions> {
   data: Readonly<Ref<TData>>
   /** 当前合并后的运行时配置 */
   options: Readonly<Ref<TOptions>>
-  /** 关闭；force=true 时跳过 onClose */
+  /** 当前是否存在未保存修改；每次调用都重新判定，避免 computed 缓存导致状态陈旧 */
+  isDirty: () => boolean
+  /** 关闭；force=true 时跳过 onClose 拦截与未保存提示 */
   handleClose: (force?: boolean) => Promise<boolean>
   /** 执行确认流程 */
   handleConfirm: () => Promise<boolean>
   /** 恢复打开时的数据快照并清理加载状态 */
   handleReset: () => void
+  /** 清除所有变更来源的未保存标记 */
+  markPristine: () => void
   /** 设置内容加载状态 */
   setLoading: (value: boolean) => void
   /** 设置确认按钮加载状态 */
@@ -98,6 +128,10 @@ interface UseArtOverlayConfig<TData, TOptions, TApi> {
   emitError: (error: unknown) => void
   /** 确认被表单校验阻止时，由具体弹层定位其内容中的错误字段。 */
   onConfirmRejected?: () => void
+  /** 未保存修改的确认交互；由具体弹层渲染。返回 undefined 表示无法询问，按放弃修改处理。 */
+  confirmUnsaved?: (request: ArtUnsavedPromptRequest) => Promise<ArtUnsavedDecision>
+  /** 打开流程结束后重新采集变更基线，避免把异步加载的初始数据判定为修改。 */
+  onOpenSettled?: () => void
 }
 
 export const cloneOverlayData = <TValue>(value: TValue): TValue => {
@@ -132,7 +166,33 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
   const initialData = shallowRef<TData>({} as TData) as ShallowRef<TData>
   const options = ref<TOptions>(config.getDefaultOptions()) as Ref<TOptions>
   const closePending = ref(false)
+  const unsavedSavePending = ref(false)
+  const dirtySources = new Set<ArtOverlayDirtySource>()
   let openSequence = 0
+
+  const registerDirtySource = (source: ArtOverlayDirtySource): (() => void) => {
+    dirtySources.add(source)
+    return () => {
+      dirtySources.delete(source)
+    }
+  }
+
+  const isDirty = (): boolean => {
+    if (options.value.isDirty?.()) return true
+    return Array.from(dirtySources).some((source) => source.isDirty())
+  }
+
+  const getDirtyFieldLabels = (): string[] => {
+    const labels = new Set<string>()
+    dirtySources.forEach((source) => {
+      source.getDirtyFieldLabels?.().forEach((label) => labels.add(label))
+    })
+    return Array.from(labels)
+  }
+
+  const markPristine = () => {
+    dirtySources.forEach((source) => source.markPristine())
+  }
 
   const setLoading = (value: boolean) => {
     loading.value = value
@@ -176,6 +236,7 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     initialData.value = cloneOverlayData(data)
     openData.value = cloneOverlayData(data)
     closePending.value = false
+    unsavedSavePending.value = false
     visible.value = true
 
     await nextTick()
@@ -186,6 +247,55 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     } catch (error) {
       if (sequence === openSequence && visible.value) config.emitError(error)
     }
+
+    if (sequence !== openSequence || !visible.value) return
+    await nextTick()
+    if (sequence !== openSequence || !visible.value) return
+
+    config.onOpenSettled?.()
+  }
+
+  /**
+   * 关闭前的未保存修改确认；返回 false 表示关闭被取消。
+   * 选择保存时由确认流程负责关闭弹窗，本函数不再继续关闭。
+   */
+  const confirmUnsavedClose = async (allowCancel = true): Promise<boolean> => {
+    if (options.value.confirmOnClose !== true) return true
+    // 由「保存」触发的后续关闭不再重复确认
+    if (unsavedSavePending.value) return true
+    // 没有未保存修改：直接放行，包括保存成功后的自动关闭
+    if (!isDirty()) return true
+    // 内容仍在加载时用户无法编辑，避免把异步初始数据判定为修改
+    if (loading.value) return true
+    // 保存进行中：关闭请求交由保存结果决定，避免中途丢弃正在提交的数据
+    if (confirmLoading.value) return false
+
+    const confirmUnsaved = config.confirmUnsaved
+    // 弹层未提供确认交互时保持原有关闭行为
+    if (!confirmUnsaved) return true
+
+    const decision = await confirmUnsaved({
+      message: options.value.confirmOnCloseMessage ?? '表单内容已修改，是否保存后关闭？',
+      allowCancel
+    })
+
+    if (decision === 'cancel') return false
+
+    if (decision === 'save') {
+      // 释放关闭锁，允许确认流程自行关闭弹窗
+      closePending.value = false
+      unsavedSavePending.value = true
+      try {
+        const saved = await handleConfirm()
+        if (saved && visible.value) await handleClose(false)
+      } finally {
+        unsavedSavePending.value = false
+      }
+      // 本次关闭请求的结论取决于弹窗是否已经关闭
+      return !visible.value
+    }
+
+    return true
   }
 
   const handleClose = async (force = false): Promise<boolean> => {
@@ -193,9 +303,13 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     closePending.value = true
 
     try {
-      if (!force && options.value.onClose) {
-        const canClose = await options.value.onClose(openData.value, config.getApi())
-        if (canClose === false) return false
+      if (!force) {
+        if (!(await confirmUnsavedClose(true))) return false
+
+        if (options.value.onClose) {
+          const canClose = await options.value.onClose(openData.value, config.getApi())
+          if (canClose === false) return false
+        }
       }
 
       ++openSequence
@@ -214,7 +328,10 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
 
     config.emitConfirm(openData.value)
     if (!options.value.onConfirm) {
-      if (options.value.autoClose) await handleClose()
+      if (options.value.autoClose) {
+        markPristine()
+        await handleClose()
+      }
       return true
     }
 
@@ -225,7 +342,11 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
         await nextTick()
         config.onConfirmRejected?.()
       }
-      if (result !== false && options.value.autoClose) await handleClose()
+      if (result !== false) {
+        // 保存成功后清除未保存标记，避免自动关闭时重复提示
+        markPristine()
+        if (options.value.autoClose) await handleClose()
+      }
       return result !== false
     } catch (error) {
       config.emitError(error)
@@ -253,6 +374,7 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     ++openSequence
     visible.value = false
     closePending.value = false
+    unsavedSavePending.value = false
     if (options.value.resetOnClose) handleReset()
   }
 
@@ -262,6 +384,7 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     confirmLoading,
     openData,
     options,
+    isDirty,
     handleOpen,
     handleClose,
     handleConfirm,
@@ -273,6 +396,10 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     setOptions,
     setData,
     updateData,
-    getData
+    getData,
+    registerDirtySource,
+    markPristine,
+    getDirtyFieldLabels,
+    confirmUnsavedClose
   }
 }

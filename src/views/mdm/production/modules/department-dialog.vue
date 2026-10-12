@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="md">
+  <ArtDialog ref="dialogRef" size="md" confirm-on-close>
     <ElAlert
       title="生产组织用于人员、工作中心与工厂日历的业务范围。可关联系统部门，也可独立维护生产层级。"
       type="info"

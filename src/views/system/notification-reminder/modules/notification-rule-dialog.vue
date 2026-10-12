@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="md">
+  <ArtDialog ref="dialogRef" size="md" confirm-on-close>
     <div class="notification-rule-dialog">
       <section class="notification-rule-dialog__context">
         <span aria-hidden="true"><ArtSvgIcon icon="ri:timer-flash-line" /></span>

@@ -4,6 +4,7 @@
     size="xl"
     show-fullscreen-button
     @fullscreen-change="dialogFullscreen = $event"
+    confirm-on-close
   >
     <div class="center-dialog" :class="{ 'is-fullscreen': dialogFullscreen }">
       <ElAlert v-if="form.error" :title="form.error" type="error" :closable="false" show-icon />

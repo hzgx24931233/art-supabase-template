@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="md">
+  <ArtDialog ref="dialogRef" size="md" confirm-on-close>
     <div class="bom-group-dialog">
       <ArtEntitySummary
         icon="ri:folder-settings-line"

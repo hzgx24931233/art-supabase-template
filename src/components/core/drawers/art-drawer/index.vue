@@ -136,7 +136,7 @@
   import { mergeOverlayRecords, useArtOverlay } from '@/hooks/core/useArtOverlay'
   import { focusFirstInvalidFormField } from '@/utils/form/validation'
   import { handoffVerticalWheel } from '@/utils/ui/wheel-scroll'
-  import { artFormFocusKey } from '@/components/core/forms/art-form/focus'
+  import { artFormOverlayKey } from '@/components/core/forms/art-form/overlay'
 
   defineOptions({
     name: 'ArtDrawer',
@@ -185,7 +185,7 @@
   const isFocusMode = ref(false)
   const wasFullscreenBeforeFocus = ref(false)
 
-  provide(artFormFocusKey, {
+  provide(artFormOverlayKey, {
     focusMode: readonly(isFocusMode),
     registerForm: () => {
       formCount.value += 1
@@ -262,6 +262,7 @@
     confirmLoading,
     openData,
     options,
+    isDirty,
     handleOpen,
     handleClose,
     handleConfirm,
@@ -272,8 +273,21 @@
     setOptions,
     setData,
     updateData,
-    getData
+    getData,
+    registerDirtySource,
+    markPristine
   } = overlay
+
+  provide(artFormOverlayKey, {
+    focusMode: readonly(isFocusMode),
+    registerForm: () => {
+      formCount.value += 1
+      return () => {
+        formCount.value = Math.max(0, formCount.value - 1)
+      }
+    },
+    registerDirtySource
+  })
 
   const normalizedContentHeight = computed(() => {
     if (isFullscreen.value) return 'calc(100vh - 86px)'
@@ -423,10 +437,12 @@
     scrollbarRef: readonly(scrollbarRef),
     fullscreen: readonly(isFullscreen),
     focusMode: readonly(isFocusMode),
+    isDirty,
     handleOpen,
     handleClose,
     handleConfirm,
     handleReset,
+    markPristine,
     setLoading,
     setConfirmLoading,
     setOptions,

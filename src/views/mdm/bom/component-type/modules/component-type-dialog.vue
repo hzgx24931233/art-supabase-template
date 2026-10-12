@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg">
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
     <div class="grid gap-4">
       <ArtEntitySummary
         icon="ri:price-tag-3-line"

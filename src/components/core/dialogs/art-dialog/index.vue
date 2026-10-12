@@ -31,7 +31,7 @@
       "
       #header="{ titleId, titleClass }"
     >
-      <div class="art-dialog__header">
+      <div class="art-dialog__header" :inert="unsavedPromptOpen">
         <div
           class="art-dialog__header-main"
           :class="{ 'has-header-actions': $slots['header-actions'] || formCount }"
@@ -68,7 +68,7 @@
         />
       </div>
     </template>
-    <div v-if="$slots['content-top']" class="art-dialog__content-top">
+    <div v-if="$slots['content-top']" class="art-dialog__content-top" :inert="unsavedPromptOpen">
       <slot name="content-top" :data="openData" :loading="contentLoading" :api="exposedApi" />
     </div>
     <ElScrollbar
@@ -79,6 +79,7 @@
       :always="options.scrollbarAlways"
       :native="false"
       class="art-dialog__scrollbar"
+      :inert="unsavedPromptOpen"
       @wheel.capture="handleWheelBoundary"
     >
       <div ref="contentRef" class="art-dialog__content">
@@ -100,7 +101,7 @@
       </div>
     </ElScrollbar>
 
-    <div v-else ref="contentRef" class="art-dialog__content">
+    <div v-else ref="contentRef" class="art-dialog__content" :inert="unsavedPromptOpen">
       <ArtOverlayLoading
         :loading="contentLoading"
         :text="options.loadingText"
@@ -118,16 +119,30 @@
       </ArtOverlayLoading>
     </div>
 
+    <ArtUnsavedChangesPanel
+      :open="unsavedPromptOpen"
+      :message="unsavedPrompt?.message"
+      :detail="unsavedPrompt?.detail"
+      :allow-cancel="unsavedPrompt?.allowCancel !== false"
+      @save="handleUnsavedSave"
+      @discard="handleUnsavedDiscard"
+      @cancel="handleUnsavedCancel"
+    />
+
     <template v-if="options.showFooter" #footer>
       <slot name="footer" :data="openData" :loading="confirmLoading" :api="exposedApi">
-        <div class="art-dialog__footer" :class="{ 'has-left': $slots['footer-left'] }">
+        <div
+          class="art-dialog__footer"
+          :class="{ 'has-left': $slots['footer-left'] }"
+          :inert="unsavedPromptOpen"
+        >
           <div v-if="$slots['footer-left']" class="art-dialog__footer-left">
             <slot name="footer-left" :data="openData" :loading="confirmLoading" :api="exposedApi" />
           </div>
           <div class="art-dialog__footer-actions">
             <ElButton
               v-if="options.showCancelButton"
-              :disabled="contentLoading || confirmLoading"
+              :disabled="contentLoading || confirmLoading || unsavedPromptOpen"
               @click="() => handleClose()"
             >
               {{ options.cancelText }}
@@ -136,7 +151,7 @@
               v-if="options.showConfirmButton"
               type="primary"
               :loading="confirmLoading"
-              :disabled="contentLoading || options.confirmDisabled"
+              :disabled="contentLoading || unsavedPromptOpen || options.confirmDisabled"
               @click="handleConfirm"
             >
               {{ options.confirmText }}
@@ -161,10 +176,16 @@
   import ArtIconButton from '@/components/core/widget/art-icon-button/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import ArtOverlayLoading from '@/components/core/feedback/art-overlay-loading/index.vue'
-  import { mergeOverlayRecords, useArtOverlay } from '@/hooks/core/useArtOverlay'
+  import ArtUnsavedChangesPanel from './unsaved-changes-panel.vue'
+  import {
+    mergeOverlayRecords,
+    useArtOverlay,
+    type ArtUnsavedDecision,
+    type ArtUnsavedPromptRequest
+  } from '@/hooks/core/useArtOverlay'
   import { focusFirstInvalidFormField } from '@/utils/form/validation'
   import { handoffVerticalWheel } from '@/utils/ui/wheel-scroll'
-  import { artFormFocusKey } from '@/components/core/forms/art-form/focus'
+  import { artFormOverlayKey } from '@/components/core/forms/art-form/overlay'
 
   defineOptions({
     name: 'ArtDialog',
@@ -198,6 +219,7 @@
     autoClose: true,
     resetOnClose: true,
     closeOnConfirmError: false,
+    confirmOnClose: false,
     scrollbarAlways: false,
     nativeScrollbar: false
   })
@@ -217,7 +239,51 @@
   const isFocusMode = ref(false)
   const wasFullscreenBeforeFocus = ref(false)
 
-  provide(artFormFocusKey, {
+  interface UnsavedPromptState {
+    message: string
+    detail: string
+    allowCancel: boolean
+  }
+
+  const unsavedPrompt = ref<UnsavedPromptState>()
+  const unsavedPromptOpen = computed(() => Boolean(unsavedPrompt.value))
+  let settleUnsavedDecision: ((decision: ArtUnsavedDecision) => void) | undefined
+
+  const setUnsavedPrompt = (request: ArtUnsavedPromptRequest): Promise<ArtUnsavedDecision> => {
+    // 已有提示未决时不叠加，按取消关闭处理
+    if (unsavedPrompt.value) return Promise.resolve('cancel')
+
+    const labels = getDirtyFieldLabels()
+    const detail = labels.length
+      ? `已修改：${labels.slice(0, 3).join('、')}${labels.length > 3 ? ` 等 ${labels.length} 项` : ''}`
+      : ''
+    unsavedPrompt.value = {
+      message: request.message,
+      detail,
+      allowCancel: request.allowCancel
+    }
+
+    return new Promise<ArtUnsavedDecision>((resolve) => {
+      settleUnsavedDecision = resolve
+    })
+  }
+
+  const clearUnsavedPrompt = () => {
+    const resolve = settleUnsavedDecision
+    settleUnsavedDecision = undefined
+    unsavedPrompt.value = undefined
+    // 弹窗被强制关闭时，未决提示按取消关闭处理，避免关闭流程悬挂
+    resolve?.('cancel')
+  }
+
+  const settleUnsavedPrompt = (decision: ArtUnsavedDecision) => {
+    const resolve = settleUnsavedDecision
+    settleUnsavedDecision = undefined
+    unsavedPrompt.value = undefined
+    resolve?.(decision)
+  }
+
+  provide(artFormOverlayKey, {
     focusMode: readonly(isFocusMode),
     registerForm: () => {
       formCount.value += 1
@@ -254,6 +320,9 @@
     autoClose: props.autoClose,
     resetOnClose: props.resetOnClose,
     closeOnConfirmError: props.closeOnConfirmError,
+    confirmOnClose: props.confirmOnClose,
+    confirmOnCloseMessage: props.confirmOnCloseMessage,
+    isDirty: props.isDirty,
     scrollbarAlways: props.scrollbarAlways,
     nativeScrollbar: props.nativeScrollbar,
     content: props.content,
@@ -289,7 +358,10 @@
       if (!props.onReset || options.value.onReset !== props.onReset) emit('reset')
     },
     emitError: (error) => emit('error', error),
-    onConfirmRejected: () => focusFirstInvalidFormField(contentRef)
+    onConfirmRejected: () => focusFirstInvalidFormField(contentRef),
+    confirmUnsaved: setUnsavedPrompt,
+    // 打开流程结束后重新采集基线，避免把异步加载的初始数据判定为修改
+    onOpenSettled: () => overlay.markPristine()
   })
 
   const {
@@ -298,6 +370,7 @@
     confirmLoading,
     openData,
     options,
+    isDirty,
     handleOpen,
     handleClose,
     handleConfirm,
@@ -308,8 +381,23 @@
     setOptions,
     setData,
     updateData,
-    getData
+    getData,
+    registerDirtySource,
+    markPristine,
+    getDirtyFieldLabels,
+    confirmUnsavedClose
   } = overlay
+
+  provide(artFormOverlayKey, {
+    focusMode: readonly(isFocusMode),
+    registerForm: () => {
+      formCount.value += 1
+      return () => {
+        formCount.value = Math.max(0, formCount.value - 1)
+      }
+    },
+    registerDirtySource
+  })
 
   const normalizeSize = (value?: string | number) => {
     return typeof value === 'number' ? `${value}px` : value
@@ -426,10 +514,40 @@
         visible.value &&
         options.value.closeOnRouteChange !== false
       ) {
-        void handleClose(true)
+        // 路由已切换：只保留保存/放弃两个选择，避免弹窗悬停在新页面上
+        void confirmUnsavedClose(false).then((canClose) => {
+          if (canClose) void handleClose(true)
+        })
       }
     }
   )
+
+  // 选择保存后交给确认流程：面板收起，由弹窗自己的确认 loading 反映保存进度
+  const handleUnsavedSave = () => {
+    settleUnsavedPrompt('save')
+  }
+  const handleUnsavedDiscard = () => {
+    settleUnsavedPrompt('discard')
+  }
+  const handleUnsavedCancel = () => {
+    settleUnsavedPrompt('cancel')
+  }
+
+  /**
+   * X、ESC 与遮罩点击统一转交关闭流程，保证 onClose 拦截与未保存提示对所有关闭入口生效。
+   * Element Plus 只在本回调调用 done() 时才关闭弹窗，这里改为由统一的关闭流程处理。
+   */
+  const handleDialogBeforeClose = () => {
+    const userBeforeClose = options.value.dialogProps?.beforeClose ?? props.beforeClose
+    if (typeof userBeforeClose === 'function') {
+      userBeforeClose((cancel?: boolean) => {
+        if (cancel) return
+        void handleClose()
+      })
+      return
+    }
+    void handleClose()
+  }
 
   const dialogBindings = computed<Record<string, unknown>>(() => {
     const runtimeProps = options.value.dialogProps ?? {}
@@ -453,6 +571,8 @@
       draggable: true,
       ...inheritedAttrs,
       ...runtimeBindings,
+      // Element Plus 的 beforeClose 是普通 prop；统一入口后由 handleDialogBeforeClose 决定是否关闭
+      beforeClose: handleDialogBeforeClose,
       title: dialogTitle.value,
       width: normalizedDialogWidth.value,
       fullscreen: Boolean(options.value.fullscreen)
@@ -484,6 +604,7 @@
       emit('focus-change', false)
     }
     wasFullscreenBeforeFocus.value = false
+    clearUnsavedPrompt()
     overlay.handleClosed()
     emit('closed')
   }
@@ -498,10 +619,12 @@
     options: readonly(options) as Readonly<Ref<ArtDialogOptions<T>>>,
     dialogRef: readonly(dialogRef),
     scrollbarRef: readonly(scrollbarRef),
+    isDirty,
     handleOpen,
     handleClose,
     handleConfirm,
     handleReset,
+    markPristine,
     setLoading,
     setConfirmLoading,
     setFullscreen,
@@ -553,6 +676,7 @@
   }
 
   :global(.art-dialog > .el-dialog__body) {
+    position: relative;
     overscroll-behavior: contain;
   }
 

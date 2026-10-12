@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" width="1440px" show-fullscreen-button>
+  <ArtDialog ref="dialogRef" width="1440px" show-fullscreen-button confirm-on-close>
     <div class="bom-dialog">
       <ArtEntitySummary
         icon="ri:git-merge-line"

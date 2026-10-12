@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { computed, reactive, ref } from 'vue'
 import {
+  cloneModelValue,
+  isModelDirty,
   updateFormFieldValue,
   type FormRecord
 } from '../../src/components/core/forms/art-form/model-utils'
@@ -29,4 +32,71 @@ test('支持嵌套字段更新和清除', () => {
 
   updateFormFieldValue(form, 'contact.phone', undefined)
   assert.deepEqual(form.contact, { name: '李四' })
+})
+
+test('与基线一致时不判定为修改', () => {
+  const model = { name: '张三', amount: 120, lines: [{ code: 'A', quantity: 2 }] }
+  const baseline = cloneModelValue(model)
+
+  assert.equal(isModelDirty(model, baseline), false)
+  assert.deepEqual(baseline.lines, [{ code: 'A', quantity: 2 }])
+})
+
+test('识别字段、嵌套结构与数组变化', () => {
+  const model: FormRecord = {
+    name: '张三',
+    contact: { phone: '13800000000' },
+    lines: [{ code: 'A', quantity: 2 }]
+  }
+  const baseline = cloneModelValue(model)
+
+  model.name = '李四'
+  assert.equal(isModelDirty(model, baseline), true)
+
+  model.name = '张三'
+  assert.equal(isModelDirty(model, baseline), false)
+
+  model.contact.phone = '13900000000'
+  assert.equal(isModelDirty(model, baseline), true)
+
+  model.contact.phone = '13800000000'
+  model.lines.push({ code: 'B', quantity: 1 })
+  assert.equal(isModelDirty(model, baseline), true)
+})
+
+test('新增字段与置空字符串都视为修改', () => {
+  const model: FormRecord = { remark: '说明' }
+  const baseline = cloneModelValue(model)
+
+  model.extra = '新增'
+  assert.equal(isModelDirty(model, baseline), true)
+
+  delete model.extra
+  assert.equal(isModelDirty(model, baseline), false)
+
+  model.remark = ''
+  assert.equal(isModelDirty(model, baseline), true)
+})
+
+test('响应式模型的字段变化会驱动 isDirty computed 重新计算', async () => {
+  const model = reactive<FormRecord>({ name: '张三', contact: { phone: '13800000000' } })
+  const baseline = ref(cloneModelValue(model))
+  const dirty = computed(() => isModelDirty(model, baseline.value))
+
+  assert.equal(dirty.value, false)
+
+  model.name = '李四'
+  assert.equal(dirty.value, true)
+
+  model.name = '张三'
+  assert.equal(dirty.value, false)
+
+  model.contact.phone = '13900000000'
+  assert.equal(dirty.value, true)
+
+  baseline.value = cloneModelValue(model)
+  assert.equal(dirty.value, false)
+
+  model.newField = 'x'
+  assert.equal(dirty.value, true)
 })

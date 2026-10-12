@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="md">
+  <ArtDialog ref="dialogRef" size="md" confirm-on-close>
     <div class="grid gap-4">
       <ArtEntitySummary
         icon="ri:folder-3-line"

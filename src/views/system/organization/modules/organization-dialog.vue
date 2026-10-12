@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg">
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
     <div class="organization-dialog">
       <section class="organization-dialog__context">
         <span class="organization-dialog__context-icon" aria-hidden="true">

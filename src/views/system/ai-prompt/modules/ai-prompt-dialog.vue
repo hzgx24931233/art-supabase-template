@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg">
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
     <div class="ai-prompt-dialog">
       <section class="ai-prompt-dialog__editor">
         <div class="ai-prompt-dialog__head">

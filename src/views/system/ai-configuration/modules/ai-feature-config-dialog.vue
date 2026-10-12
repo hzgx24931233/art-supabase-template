@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg">
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
     <div class="ai-config-dialog">
       <section class="ai-config-dialog__summary">
         <div class="ai-config-dialog__summary-icon">

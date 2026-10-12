@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="xl">
+  <ArtDialog ref="dialogRef" size="xl" confirm-on-close>
     <div class="shift-schedule-dialog">
       <div class="shift-schedule-dialog__scope">
         <span aria-hidden="true"><ArtSvgIcon icon="ri:node-tree" /></span>

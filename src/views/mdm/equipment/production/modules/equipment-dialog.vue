@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="xl">
+  <ArtDialog ref="dialogRef" size="xl" confirm-on-close>
     <div class="equipment-dialog">
       <div class="equipment-dialog__identity">
         <span aria-hidden="true"><ArtSvgIcon icon="ri:tools-line" /></span>

@@ -256,6 +256,8 @@ drawerRef.value?.handleOpen(order, {
 | `handleClose(force?)`         | 关闭；`force=true` 跳过关闭拦截 |
 | `handleConfirm()`             | 主动执行确认流程                |
 | `handleReset()`               | 重置数据与 Loading              |
+| `isDirty()`                   | 抽屉内表单是否存在未保存修改    |
+| `markPristine()`              | 重新采集变更基线                |
 | `setLoading(value)`           | 设置内容 Loading                |
 | `setConfirmLoading(value)`    | 设置确认按钮 Loading            |
 | `setOptions(options)`         | 增量更新配置                    |

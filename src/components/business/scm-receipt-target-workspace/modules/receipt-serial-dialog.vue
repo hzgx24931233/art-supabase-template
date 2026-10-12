@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="md">
+  <ArtDialog ref="dialogRef" size="md" confirm-on-close>
     <div class="space-y-4">
       <ArtEntitySummary
         icon="ri:qr-scan-2-line"

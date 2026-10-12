@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="sm">
+  <ArtDialog ref="dialogRef" size="sm" confirm-on-close>
     <div class="user-role-dialog">
       <section class="user-role-dialog__context">
         <ElAvatar :size="42" :src="userContext?.avatar || undefined">
