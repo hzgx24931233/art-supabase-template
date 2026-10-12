@@ -9,6 +9,7 @@ platform-seed.sql              基线数据（内置角色、平台菜单、字�
 mdm-master-data-menu.sql       增量补丁：已并入主平台的主数据四块菜单（物料 / 工程 / 销售 / 生产）
 mdm-data-model-patch.sql       增量补丁：主数据四块所需的 mdm_* 表与函数
 dict-cascade-relationship.sql  增量补丁：数据字典的计算关联函数（字典页加载失败时使用）
+document-number-counter-patch.sql  增量补丁：编号流水计数器的唯一索引（自动编号新增报 42P10 时使用）
 platform-baseline-report.json  生成报告：保留/丢弃清单、裁剪原因、种子行数
 verify-baseline.ps1            在一次性 Postgres 容器里应用并断言基线
 ```
@@ -198,6 +199,42 @@ select app_private.is_platform_super();   -- 期望 true
 rollback;
 ```
 
+### 带自动编号的业务表新增报 42P10
+
+症状：任何依赖自动编号的新增都失败，网络面板可见
+`ERROR 42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`，
+上下文指向 `app_private.next_document_number()` 里的
+`insert into sys_document_number_counter … on conflict (rule_id, rule_version, period_key)`。
+典型入口是「岗位管理 / 新增岗位」「员工档案 / 新增员工」以及主数据的新增编码。
+
+原因：单组织改造去掉了多组织维度（`sys_document_number_counter` 已无 `tenant_id`），
+连同该维度删除的唯一约束 `sys_document_number_counter_scope_uk`
+（`UNIQUE (rule_id, tenant_id, rule_version, period_key)`）没有用去掉 `tenant_id` 的等价唯一索引补回来，
+表上只剩同列的普通索引 `idx_document_number_counter_rule`，于是 `ON CONFLICT` 推断不出唯一索引，
+语句在规划阶段即报错 —— 与计数器里有没有数据行无关。
+
+```powershell
+supabase db query --linked --file supabase/baseline/document-number-counter-patch.sql
+```
+
+- 内容：补一条与 `ON CONFLICT` 目标一致的唯一索引
+  `sys_document_number_counter_rule_period_uk (rule_id, rule_version, period_key)`。
+- 前提：`period_key` 由 `app_private.document_number_period_key()` 生成，只可能是 `'YYYY'`、`'YYYYMM'`、
+  `'YYYYMMDD'` 或空串，不会为 NULL，所以不需要 `NULLS NOT DISTINCT`。
+- 影响面：插入前触发器 `document_number_*` 调用同一函数的 10 张表 —— `mdm_cargo`、`mdm_carrier`、
+  `mdm_customer`、`mdm_employee`、`mdm_part`、`mdm_part_category`、`mdm_position`、`mdm_station`、
+  `mdm_vehicle`、`tms_invoice`。
+- 幂等：`create unique index if not exists`；若目标库已存在重复计数行，本语句会直接报错而不是静默跳过，
+  需要先人工核对 `sys_document_number_counter` 的重复分组。
+- 生成侧待办：`platform-baseline.sql` 目前同样只有普通索引，重新生成基线时应让该唯一索引进入产物，
+  否则派生项目会重现同一故障。
+
+已执行的验证（2026-10-12，项目 `trthbpyqubyjtkzmcewy` / xmgl）：补索引前的回滚事务里
+`select app_private.next_document_number('hr.position')` 复现 42P10；补索引后同一函数返回
+`POS202610001`、`master.cargo` 返回 `HW202610-0001`，同一规则连续取号 `…002`、`…003` 时计数器仍是
+1 行（`current_value` 递增到 3，不新增重复行），编号触发器开启时插入 `mdm_position` 成功并自动获得
+`position_code`（补索引前该插入直接失败）；计数器重复分组 0 个。
+
 ## 参数设置数据迁移（2026-10-08）
 
 已从源项目 `nvzlwcutsqptngyqfzqs` 的 `public.sys_param` 迁移 10 条记录到当前项目
@@ -263,6 +300,7 @@ pnpm baseline:platform --backup supabase/backups/<时间戳>
 | `hr-schema.sql` | HR 领域 schema：86 张 `hr_*` 表、7 个视图、263 个函数、326 条策略、193 个触发器，以及它们依赖的组织/岗位/职级等主数据表 |
 | `hr-data.sql` | HR 数据：HR 菜单与按钮（app_code=hr）、指向这些菜单的角色授权、HR 字典类型与字典项 |
 | `hr-report.json` | 保留/裁剪清单与原因 |
+| `hr-job-architecture-rpc-patch.sql` | 增量补丁：职务体系（职族 / 职级 / 标准职务）的 3 个列表与 3 个保存 RPC，页面报 `hr_list_job_profiles_secure` 404 时使用 |
 
 生成方式：
 
@@ -277,7 +315,28 @@ supabase db query --linked --file supabase/baseline/platform-baseline.sql
 supabase db query --linked --file supabase/baseline/platform-seed.sql
 supabase db query --linked --file supabase/modules/hr/hr-schema.sql
 supabase db query --linked --file supabase/modules/hr/hr-data.sql
+supabase db query --linked --file supabase/modules/hr/hr-job-architecture-rpc-patch.sql
 ```
+
+`hr-job-architecture-rpc-patch.sql` 的说明：
+
+- 症状：打开「人事管理 / 职务体系」时报 `POST /rest/v1/rpc/hr_list_job_profiles_secure 404`，
+  三个页签都取不到数据。
+- 原因：页面与弹窗调用的 3 个列表 RPC、3 个保存 RPC 从未建过 —— 同域的
+  `hr_list_job_architecture_options_secure` 与 `hr_delete_job_architecture_record_secure` 已存在，
+  所以页面能打开、列表全挂。函数名取自 `modules/art-supabase-hr` 的 `src/api/modules/job-architecture.ts`。
+- 内容：`app_private` 共享实现 2 个（列表分页查询、保存校验与写入）+ `public` 业务 RPC 6 个 + 显式授权。
+  列表按页签校验 `Hr:JobFamily|Grade|JobProfile:View`，保存按新增或编辑校验对应 `Add` / `Edit`，
+  与页面按钮权限和 `hr-data.sql` 种入的按钮菜单一致。
+- 授权：内部实现不对 `public` / `anon` / `authenticated` 开放；6 个业务 RPC 只显式授予
+  `authenticated` 与 `service_role`。
+- 生成侧待办：重新生成 `hr-schema.sql` 后本补丁即为冗余，可随之删除。
+
+已执行的验证（2026-10-12，项目 `trthbpyqubyjtkzmcewy` / xmgl）：应用前在回滚事务里以
+`set local role authenticated` + 平台超管 JWT 身份跑了 39 项断言（列表结构、嵌套职族/职级对象、
+引用计数、关键字与启用过滤、分页、新增/编辑、重复编码与停用引用等服务端校验、删除引用拦截、
+无权限身份被拒）全部通过；应用后再跑一遍幂等重放无副作用；六个 RPC 经 PostgREST 均返回
+`401 42501 permission denied for function …`（`anon` 边界生效）而不再是 404。
 
 幂等性约定：索引补 `IF NOT EXISTS`、策略先 `DROP POLICY IF EXISTS`、约束用
 `DO $$ ... IF NOT EXISTS (pg_constraint)` 包裹、身份列的 `ALTER TABLE ... ADD GENERATED`
