@@ -119,15 +119,42 @@
       </ArtOverlayLoading>
     </div>
 
-    <ArtUnsavedChangesPanel
-      :open="unsavedPromptOpen"
-      :message="unsavedPrompt?.message"
-      :detail="unsavedPrompt?.detail"
-      :allow-cancel="unsavedPrompt?.allowCancel !== false"
-      @save="handleUnsavedSave"
-      @discard="handleUnsavedDiscard"
-      @cancel="handleUnsavedCancel"
-    />
+    <!--
+      未保存修改提示：带标题、图标与拖动条的独立小窗口。
+      v-if 必须有：ArtDialog 自引用渲染提示窗口，无守卫会无限嵌套。
+    -->
+    <ArtDialog
+      v-if="unsavedPrompt"
+      ref="promptDialogRef"
+      class="art-dialog__unsaved-prompt"
+      :show-fullscreen-button="false"
+      @opened="focusUnsavedPromptAction"
+      @closed="handleUnsavedPromptClosed"
+    >
+      <p class="art-dialog__unsaved-message">{{ unsavedPrompt.message }}</p>
+      <p v-if="unsavedPrompt.detail" class="art-dialog__unsaved-detail">
+        {{ unsavedPrompt.detail }}
+      </p>
+      <template #footer>
+        <div class="art-dialog__footer">
+          <div class="art-dialog__footer-actions">
+            <ElButton
+              v-if="unsavedPrompt.allowCancel"
+              ref="promptCancelButtonRef"
+              @click="handleUnsavedCancel"
+            >
+              取消
+            </ElButton>
+            <ElButton @click="handleUnsavedDiscard">
+              {{ unsavedPrompt.allowCancel ? '不保存' : '不保存并关闭' }}
+            </ElButton>
+            <ElButton type="primary" @click="handleUnsavedSave">
+              {{ unsavedPrompt.allowCancel ? '保存' : '保存并关闭' }}
+            </ElButton>
+          </div>
+        </div>
+      </template>
+    </ArtDialog>
 
     <template v-if="options.showFooter" #footer>
       <slot name="footer" :data="openData" :loading="confirmLoading" :api="exposedApi">
@@ -164,7 +191,7 @@
 </template>
 
 <script setup lang="ts" generic="T = Record<string, unknown>">
-  import type { DialogInstance, ScrollbarInstance } from 'element-plus'
+  import type { ButtonInstance, DialogInstance, ScrollbarInstance } from 'element-plus'
   import type {
     ArtDialogEmits,
     ArtDialogExpose,
@@ -176,7 +203,6 @@
   import ArtIconButton from '@/components/core/widget/art-icon-button/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import ArtOverlayLoading from '@/components/core/feedback/art-overlay-loading/index.vue'
-  import ArtUnsavedChangesPanel from './unsaved-changes-panel.vue'
   import {
     mergeOverlayRecords,
     useArtOverlay,
@@ -245,13 +271,18 @@
     allowCancel: boolean
   }
 
+  const promptDialogRef = shallowRef<ArtDialogExpose<unknown>>()
+  const promptCancelButtonRef = ref<ButtonInstance>()
   const unsavedPrompt = ref<UnsavedPromptState>()
-  const unsavedPromptOpen = computed(() => Boolean(unsavedPrompt.value))
+  // 提示窗口打开期间冻结外层弹窗内容，避免未决状态下继续编辑
+  const unsavedPromptOpen = ref(false)
   let settleUnsavedDecision: ((decision: ArtUnsavedDecision) => void) | undefined
 
-  const setUnsavedPrompt = (request: ArtUnsavedPromptRequest): Promise<ArtUnsavedDecision> => {
+  const setUnsavedPrompt = async (
+    request: ArtUnsavedPromptRequest
+  ): Promise<ArtUnsavedDecision> => {
     // 已有提示未决时不叠加，按取消关闭处理
-    if (unsavedPrompt.value) return Promise.resolve('cancel')
+    if (unsavedPrompt.value) return 'cancel'
 
     const labels = getDirtyFieldLabels()
     const detail = labels.length
@@ -262,15 +293,39 @@
       detail,
       allowCancel: request.allowCancel
     }
+    unsavedPromptOpen.value = true
 
-    return new Promise<ArtUnsavedDecision>((resolve) => {
+    // 先建立决解器，再打开窗口，避免窗口刚出现时的点击丢失
+    const decision = new Promise<ArtUnsavedDecision>((resolve) => {
       settleUnsavedDecision = resolve
     })
+
+    await nextTick()
+    await promptDialogRef.value?.handleOpen(undefined, {
+      title: '未保存修改',
+      titleIcon: 'ri:error-warning-line',
+      size: 'sm',
+      loading: false,
+      dialogProps: {
+        // 不加第二层遮罩：窗口可拖开，方便对照被挡住的表单内容
+        modal: false,
+        closeOnClickModal: false,
+        closeOnPressEscape: request.allowCancel,
+        showClose: request.allowCancel
+      },
+      onClose: () => {
+        settleUnsavedPrompt('cancel')
+        return true
+      }
+    })
+
+    return decision
   }
 
   const clearUnsavedPrompt = () => {
     const resolve = settleUnsavedDecision
     settleUnsavedDecision = undefined
+    unsavedPromptOpen.value = false
     unsavedPrompt.value = undefined
     // 弹窗被强制关闭时，未决提示按取消关闭处理，避免关闭流程悬挂
     resolve?.('cancel')
@@ -279,8 +334,19 @@
   const settleUnsavedPrompt = (decision: ArtUnsavedDecision) => {
     const resolve = settleUnsavedDecision
     settleUnsavedDecision = undefined
-    unsavedPrompt.value = undefined
+    // 先解除冻结，再收起提示窗口，让后续保存流程不必等待退场动画
+    unsavedPromptOpen.value = false
     resolve?.(decision)
+    void promptDialogRef.value?.handleClose(true)
+  }
+
+  const handleUnsavedPromptClosed = () => {
+    unsavedPrompt.value = undefined
+  }
+
+  const focusUnsavedPromptAction = () => {
+    // 默认聚焦「取消」，避免回车误触保存
+    void nextTick(() => promptCancelButtonRef.value?.ref?.focus())
   }
 
   provide(artFormOverlayKey, {
@@ -676,7 +742,6 @@
   }
 
   :global(.art-dialog > .el-dialog__body) {
-    position: relative;
     overscroll-behavior: contain;
   }
 
@@ -792,6 +857,22 @@
       margin-top: 3px;
       overflow: hidden;
       text-overflow: ellipsis;
+      font-size: 13px;
+      line-height: 20px;
+      color: var(--el-text-color-secondary);
+      overflow-wrap: anywhere;
+    }
+
+    &__unsaved-message {
+      margin: 0;
+      font-size: 14px;
+      line-height: 22px;
+      color: var(--el-text-color-primary);
+      overflow-wrap: anywhere;
+    }
+
+    &__unsaved-detail {
+      margin: var(--art-space-2) 0 0;
       font-size: 13px;
       line-height: 20px;
       color: var(--el-text-color-secondary);
