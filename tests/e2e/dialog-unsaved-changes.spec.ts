@@ -27,18 +27,35 @@ test.describe('ArtDialog 关闭前未保存确认', () => {
 
     const paramNameInput = (root: Locator) => root.getByPlaceholder('例如：密码最小长度')
 
-    // 1. X 关闭：弹出三选一提示
+    // 1. X 关闭：弹出三选一提示窗口
     let dialogRoot = await openCreateDialog()
     await paramNameInput(dialogRoot).fill('E2E 未保存确认')
     await dialogRoot.getByRole('button', { name: '关闭此对话框' }).click()
 
-    const panel = dialogRoot.locator('.art-unsaved-panel')
+    // 提示是独立的可拖动窗口，位于 body 层级
+    const panel = page.locator('.art-dialog__unsaved-prompt')
     await expect(panel).toBeVisible({ timeout: 10_000 })
     await expect(panel.getByText('未保存修改')).toBeVisible()
+    await expect(panel.locator('.art-dialog__title-icon svg')).toHaveCount(1)
     await expect(panel.getByText('表单内容已修改，是否保存后关闭？')).toBeVisible()
     await expect(panel.getByRole('button', { name: '取消', exact: true })).toBeVisible()
     await expect(panel.getByRole('button', { name: '不保存', exact: true })).toBeVisible()
     await expect(panel.getByRole('button', { name: '保存', exact: true })).toBeVisible()
+
+    // 拖动标题栏可以把提示窗口移开（不遮住表单内容）
+    const beforeDrag = await panel.boundingBox()
+    expect(beforeDrag).not.toBeNull()
+    if (beforeDrag) {
+      await page.mouse.move(beforeDrag.x + beforeDrag.width / 2, beforeDrag.y + 12)
+      await page.mouse.down()
+      await page.mouse.move(beforeDrag.x + beforeDrag.width / 2 - 180, beforeDrag.y + 120, {
+        steps: 10
+      })
+      await page.mouse.up()
+      const afterDrag = await panel.boundingBox()
+      expect(afterDrag).not.toBeNull()
+      expect(Math.abs((afterDrag?.x ?? beforeDrag.x) - beforeDrag.x)).toBeGreaterThan(80)
+    }
 
     // 2. 取消：提示关闭，弹窗与已填内容保留
     await panel.getByRole('button', { name: '取消', exact: true }).click()
@@ -81,7 +98,7 @@ test.describe('ArtDialog 关闭前未保存确认', () => {
     await expect(dialogRoot).toBeVisible({ timeout: 15_000 })
     await dialogRoot.getByRole('button', { name: '关闭此对话框' }).click()
 
-    await expect(page.locator('.art-unsaved-panel')).toHaveCount(0)
+    await expect(page.locator('.art-dialog__unsaved-prompt')).toHaveCount(0)
     await expect(dialogRoot).toBeHidden({ timeout: 15_000 })
   })
 })
