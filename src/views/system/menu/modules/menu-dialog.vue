@@ -101,6 +101,11 @@
   type MenuType = 'folder' | 'menu' | 'button'
   type MenuFormModel = MenuFormData & { type: MenuType }
 
+  const normalizeMenuType = (value: unknown, fallback: MenuType = 'menu'): MenuType => {
+    if (value === 'folder' || value === 'menu' || value === 'button') return value
+    return fallback
+  }
+
   const emit = defineEmits<Emits>()
   const dialogRef = ref<ArtDialogExpose<MenuDialogOpenData>>()
   const formRef = ref()
@@ -498,7 +503,7 @@
     Object.assign(form.value, {
       id,
       parentId,
-      type: type || defaultType,
+      type: normalizeMenuType(type, defaultType),
       title: formatMenuTitle(meta?.title || ''),
       name,
       sort,

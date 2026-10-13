@@ -192,7 +192,7 @@ INSERT INTO "public"."sys_menu" ("name", "path", "component", "meta", "sort", "c
   ('HrPersonnelChange', 'personnel-change', '/hr/personnel/personnel-change', '{"icon":"ri:swap-box-line","roles":["R_SUPER","R_ADMIN"],"title":"人事异动","is_hide":false,"fixed_tab":false,"is_enable":true,"is_iframe":false,"keep_alive":true,"show_badge":false,"active_path":"","is_hide_tab":false,"is_full_page":false,"show_text_badge":""}', '7', 'baseline', '2026-08-22T08:27:17.97919+00:00', 'baseline', '2026-09-04T12:10:59.405206+00:00', 'c0de0000-0000-4000-8000-000000000101', 'aa71d8bd-c141-4aef-9697-8e75433de2c2', 'menu', 'hr'),
   ('HrLifecycle', 'lifecycle', '/hr/personnel/lifecycle', '{"icon":"ri:user-settings-line","roles":["R_SUPER","R_ADMIN"],"title":"入转调离","is_hide":false,"fixed_tab":false,"is_enable":true,"is_iframe":false,"keep_alive":true,"show_badge":false,"active_path":"","is_hide_tab":false,"is_full_page":false,"show_text_badge":""}', '8', 'baseline', '2026-08-22T08:27:17.97919+00:00', 'baseline', '2026-09-04T12:10:59.405206+00:00', 'c0de0000-0000-4000-8000-000000000102', 'aa71d8bd-c141-4aef-9697-8e75433de2c2', 'menu', 'hr'),
   ('Hr:SelfService:Manage', '', '', '{"icon":"","roles":["R_SUPER","R_ADMIN"],"title":"管理员工申请","is_enable":true}', '6', 'baseline', '2026-08-22T08:27:34.574186+00:00', 'baseline', '2026-08-22T11:32:30.825883+00:00', 'c0de0000-0000-4000-8203-000000000006', 'c0de0000-0000-4000-8000-000000000203', 'button', 'hr'),
-  ('HrEmployeeProfile', 'employee-profile/:id?', '/hr/personnel/employee-profile', '{"icon":"ri:file-user-line","link":"","roles":["R_SUPER","R_ADMIN"],"title":"员工档案维护","is_hide":true,"fixed_tab":false,"is_enable":true,"is_iframe":false,"keep_alive":true,"show_badge":false,"active_path":"/hr/personnel/employee-roster","is_hide_tab":false,"is_full_page":false,"show_text_badge":""}', '3', 'baseline', '2026-08-16T03:32:36.545969+00:00', 'baseline', '2026-09-04T12:10:59.405206+00:00', 'f90109a0-7116-4758-aaec-a3609fa3a8c9', 'aa71d8bd-c141-4aef-9697-8e75433de2c2', '1', 'hr'),
+  ('HrEmployeeProfile', 'employee-profile/:id?', '/hr/personnel/employee-profile', '{"icon":"ri:file-user-line","link":"","roles":["R_SUPER","R_ADMIN"],"title":"员工档案维护","is_hide":true,"fixed_tab":false,"is_enable":true,"is_iframe":false,"keep_alive":true,"show_badge":false,"active_path":"/hr/personnel/employee-roster","is_hide_tab":false,"is_full_page":false,"show_text_badge":""}', '3', 'baseline', '2026-08-16T03:32:36.545969+00:00', 'baseline', '2026-09-04T12:10:59.405206+00:00', 'f90109a0-7116-4758-aaec-a3609fa3a8c9', 'aa71d8bd-c141-4aef-9697-8e75433de2c2', 'menu', 'hr'),
   ('HrEmployeeDetail', 'employee-detail/:id', '/hr/personnel/employee-detail', '{"icon":"ri:profile-line","link":"","roles":["R_SUPER","R_ADMIN"],"title":"员工档案详情","is_hide":true,"fixed_tab":false,"is_enable":true,"is_iframe":false,"keep_alive":false,"show_badge":false,"active_path":"/hr/personnel/employee-roster","is_hide_tab":false,"is_full_page":false,"show_text_badge":""}', '5', 'migration', '2026-08-16T05:20:48.074311+00:00', 'baseline', '2026-09-04T12:10:59.405206+00:00', 'c1bb2c25-68ab-4360-9d3e-566aea35075c', 'aa71d8bd-c141-4aef-9697-8e75433de2c2', '1', 'hr'),
   ('HrHeadcount', 'headcount', '/hr/operations/headcount', '{"icon":"ri:organization-chart","roles":["R_SUPER","R_ADMIN"],"title":"编制管理","is_hide":false,"fixed_tab":false,"is_enable":true,"is_iframe":false,"keep_alive":true,"show_badge":false,"active_path":"","is_hide_tab":false,"is_full_page":false,"show_text_badge":""}', '1', 'baseline', '2026-08-22T08:27:34.574186+00:00', 'baseline', '2026-08-22T11:32:30.825883+00:00', 'c0de0000-0000-4000-8000-000000000201', 'c0de0000-0000-4000-8000-000000000200', 'menu', 'hr'),
   ('Hr:SelfService:Submit', '', '', '{"icon":"","roles":["R_SUPER","R_ADMIN"],"title":"提交员工申请","is_enable":true}', '5', 'baseline', '2026-08-22T08:27:34.574186+00:00', 'baseline', '2026-08-22T11:32:30.825883+00:00', 'c0de0000-0000-4000-8203-000000000005', 'c0de0000-0000-4000-8000-000000000203', 'button', 'hr'),
@@ -451,6 +451,77 @@ INSERT INTO "public"."sys_role_menu" ("permission", "create_by", "create_time", 
   ('{}', 'baseline', '2026-09-21T03:00:47.753155+00:00', '486e75a0-bff1-4a4d-a9ce-b65687b8a492', '71c46d59-3f0e-410d-9f26-9f96d34163a7', '8faa8329-67aa-457f-b425-0943e313a594', 'unknown', '2026-10-07T13:53:36.293703+00:00'),
   ('{}', 'baseline', '2026-09-21T03:00:47.753155+00:00', '486e75a0-bff1-4a4d-a9ce-b65687b8a492', '83d8eb9e-7de4-4609-bfee-44c4563039bc', 'd92be497-5d6f-46af-a7d6-764b2c044757', 'unknown', '2026-10-07T13:54:19.455948+00:00')
 on conflict do nothing;
+
+-- hr.employee：员工档案敏感字段权限资源
+-- 仅提供字段权限定义，不预置角色授权；编辑权限由权限管理员按角色配置。
+insert into public.sys_permission_resource (
+  resource_key,
+  resource_label,
+  menu_name,
+  owner_column,
+  enabled,
+  create_by,
+  update_by
+)
+values (
+  'hr.employee',
+  '员工档案敏感信息',
+  'HrEmployeeRoster',
+  'created_by_user_id',
+  true,
+  'baseline',
+  'baseline'
+)
+on conflict (resource_key) do update
+set resource_label = excluded.resource_label,
+    menu_name = excluded.menu_name,
+    owner_column = excluded.owner_column,
+    enabled = excluded.enabled,
+    update_by = excluded.update_by,
+    update_time = now();
+
+insert into public.sys_permission_field (
+  resource_id,
+  field_key,
+  field_label,
+  sensitive,
+  default_access,
+  mask_strategy,
+  owner_override_enabled,
+  sort,
+  enabled,
+  create_by,
+  update_by
+)
+select resource.id,
+       field.field_key,
+       field.field_label,
+       true,
+       'read',
+       'none',
+       true,
+       field.sort,
+       true,
+       'baseline',
+       'baseline'
+from public.sys_permission_resource resource
+cross join (values
+  ('contactDetails', '联系信息', 10),
+  ('identityDetails', '身份信息', 20),
+  ('compensationDetails', '薪资信息', 30),
+  ('careerRecords', '员工履历', 40)
+) as field(field_key, field_label, sort)
+where resource.resource_key = 'hr.employee'
+on conflict (resource_id, field_key) do update
+set field_label = excluded.field_label,
+    sensitive = excluded.sensitive,
+    default_access = excluded.default_access,
+    mask_strategy = excluded.mask_strategy,
+    owner_override_enabled = excluded.owner_override_enabled,
+    sort = excluded.sort,
+    enabled = excluded.enabled,
+    update_by = excluded.update_by,
+    update_time = now();
 
 -- sys_dict_type：HR 命名字典类型及其祖先目录
 INSERT INTO "public"."sys_dict_type" ("id", "name", "code", "status", "create_by", "create_time", "update_by", "update_time", "remark", "parent_id", "node_type", "sort", "cascade_parent_type_id") VALUES
