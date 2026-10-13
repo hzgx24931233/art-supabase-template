@@ -71,7 +71,7 @@
           </div>
         </button>
 
-       <!-- 刷新按钮 -->
+        <!-- 刷新按钮 -->
         <ArtIconButton
           v-if="shouldShowRefreshButton && !isHeaderLeftMenu"
           icon="ri:refresh-line"
@@ -79,8 +79,7 @@
           class="!ml-3 refresh-btn max-sm:!hidden"
           :style="{ marginLeft: !isLeftMenu ? '10px' : '0' }"
           @click="() => reload()"
-        />  
-        
+        />
 
         <!-- 当前路由设计参考（仅平台超级管理员） -->
         <PageDesignReference
@@ -98,8 +97,7 @@
             class="ml-3"
             @click="onTriggerClick"
           />
-        </ArtFastEnter>        
-
+        </ArtFastEnter>
 
         <!-- 全屏按钮 -->
         <ArtIconButton
@@ -148,19 +146,6 @@
             @click="visibleNotice"
           />
         </ElBadge>
-
-        <!-- 聊天按钮 
-        <ArtIconButton
-          v-if="shouldShowChat"
-          icon="ri:message-3-line"
-          label="打开智能助手"
-          class="chat-button relative"
-          @click="openChat"
-        >
-          <div class="breathing-dot absolute top-2 right-2 size-1.5 !bg-success rounded-full"></div>
-        </ArtIconButton>
-       -->
-
 
         <!-- 设置按钮 -->
         <div v-if="shouldShowSettings">
@@ -262,7 +247,6 @@
     shouldShowGlobalSearch,
     shouldShowFullscreen,
     shouldShowNotification,
-    shouldShowChat,
     shouldShowLanguage,
     shouldShowSettings,
     shouldShowThemeToggle,
@@ -406,13 +390,6 @@
 
   const handleUnreadChange = (count: number): void => {
     notificationUnreadCount.value = Math.max(0, count)
-  }
-
-  /**
-   * 打开聊天窗口
-   */
-  const openChat = (): void => {
-    mittBus.emit('openChat')
   }
 </script>
 
