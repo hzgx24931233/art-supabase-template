@@ -31,6 +31,7 @@
     "modules:check": "tsx scripts/manage-modules.ts check",
     "modules:build": "tsx scripts/manage-modules.ts build",
     "modules:setup": "tsx scripts/manage-modules.ts setup",
+    "modules:pack-platform": "tsx scripts/manage-modules.ts pack-platform",
     "repo:pull": "tsx scripts/repository-workflow.ts pull",
     "repo:publish": "tsx scripts/repository-workflow.ts publish",
     "build:analyze": "tsx scripts/analyze-build.ts",

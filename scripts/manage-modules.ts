@@ -6,6 +6,7 @@ import {
   readFileSync,
   readdirSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync
 } from 'node:fs'
@@ -14,9 +15,16 @@ import { createHash } from 'node:crypto'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { hostedModuleSharedDependencies } from './hosted-module-dependencies'
+import {
+  classifyPlatformDependency,
+  platformPackageDirectory,
+  platformPackageFileName,
+  resolveLocalPlatformPackage
+} from './module-platform-dependency'
 import { resolvePnpmInvocationFromProcess } from './pnpm-invocation'
 
-type ModuleAction = 'pull' | 'update' | 'install' | 'check' | 'build' | 'setup' | 'status'
+type ModuleAction =
+  'pull' | 'update' | 'install' | 'check' | 'build' | 'setup' | 'status' | 'pack-platform'
 type ModulePackageAction = 'install' | 'check' | 'build'
 
 interface ModuleDefinition {
@@ -355,7 +363,9 @@ function createPinnedPlatformPackage(module: ModuleDefinition, reference: string
 
   const commit = /\/archive\/([0-9a-f]{40})\.tar\.gz(?:$|[?#])/i.exec(reference)?.[1]
   if (!commit) {
-    throw new Error(`${module.path} 的 art-supabase-pro 依赖不是可识别的锁定提交。`)
+    throw new Error(
+      `${module.path} 的 art-supabase-pro 依赖既不是 file: 交付包，也不是可识别的归档提交：${reference}`
+    )
   }
 
   const commitCheck = executeCommand(
@@ -427,6 +437,40 @@ function createWorkspacePlatformPackage(): string {
   renameSync(packedPath, packagePath)
   preparedWorkspacePlatformPackage = packagePath
   return packagePath
+}
+
+/**
+ * 生成随主仓提交的平台交付包，供声明 `file:..\..\packages\...` 的子仓使用。
+ *
+ * 刷新后子仓锁文件里记录的完整性哈希会失效，需要在子仓重新安装并把锁文件提交到子仓。
+ */
+function packPlatformPackage(): void {
+  const manifest = readPackageManifest(projectRoot)
+  if (!manifest.name || !manifest.version) {
+    throw new Error('主仓 package.json 缺少 name 或 version，无法生成平台交付包。')
+  }
+
+  const packageDirectory = resolve(projectRoot, platformPackageDirectory)
+  ensurePathInside(projectRoot, packageDirectory, '平台交付包目录')
+  mkdirSync(packageDirectory, { recursive: true })
+  const packagePath = join(
+    packageDirectory,
+    platformPackageFileName(manifest.name, manifest.version)
+  )
+  if (existsSync(packagePath)) unlinkSync(packagePath)
+
+  console.log(`[module] 从当前主仓工作区生成平台交付包：${relative(projectRoot, packagePath)}`)
+  runPackageManager(
+    ['pack', '--json', '--pack-destination', packageDirectory],
+    projectRoot,
+    undefined,
+    false
+  )
+  if (!existsSync(packagePath)) throw new Error(`平台交付包生成失败：${packagePath}`)
+
+  const sizeInMb = (statSync(packagePath).size / 1024 / 1024).toFixed(1)
+  console.log(`[module] 已生成 ${relative(projectRoot, packagePath)}（${sizeInMb} MB）。`)
+  console.log('[module] 子仓锁文件记录的完整性哈希随之变化，请在子仓重新安装依赖并提交锁文件。')
 }
 
 function moduleInstallBackupDirectory(module: ModuleDefinition): string {
@@ -881,6 +925,51 @@ function initializeMissingModules(modules: ModuleDefinition[]): void {
   pullModules(missingModules)
 }
 
+interface InstallPlatformPlan {
+  /** 需要 `--config.overrides.art-supabase-pro` 指向的本地包；为空表示按子仓自身锁文件安装。 */
+  packagePath?: string
+  summary: string
+}
+
+/**
+ * 决定子仓安装时用哪个平台包。
+ *
+ * 声明 `file:` 交付包时不生成覆盖：子仓锁文件已经钉住该包的完整性，直接装最忠实。
+ * 声明归档地址时从本地 Git 历史生成锁定提交包；`--workspace-platform` 始终优先用当前工作区。
+ */
+function planInstallPlatformPackage(
+  module: ModuleDefinition,
+  moduleRoot: string,
+  reference: string | undefined
+): InstallPlatformPlan {
+  const dependency = classifyPlatformDependency(reference)
+  if (dependency.kind === 'none') {
+    return { summary: '不声明平台依赖，按自身锁文件安装。' }
+  }
+
+  if (useWorkspacePlatform) {
+    return {
+      packagePath: createWorkspacePlatformPackage(),
+      summary: '使用当前主仓工作区生成的平台包。'
+    }
+  }
+
+  if (dependency.kind === 'local-package') {
+    const declaredPath = resolveLocalPlatformPackage(dependency.reference, moduleRoot)
+    if (!existsSync(declaredPath)) {
+      throw new Error(
+        `${module.path} 声明的平台交付包不存在：${declaredPath}\n请先在主仓执行 pnpm modules:pack-platform 生成它。`
+      )
+    }
+    return { summary: `使用子仓声明的平台交付包（${relative(projectRoot, declaredPath)}）。` }
+  }
+
+  return {
+    packagePath: createPinnedPlatformPackage(module, dependency.reference),
+    summary: '使用本地主仓锁定提交包。'
+  }
+}
+
 function runModulePackageAction(
   module: ModuleDefinition,
   action: ModulePackageAction,
@@ -888,19 +977,13 @@ function runModulePackageAction(
 ): void {
   const moduleRoot = join(projectRoot, module.path)
   const args = action === 'install' ? ['install', '--frozen-lockfile'] : ['run', action]
-  const platformReference = readPlatformPackageReference(manifest)
-  const platformPackage =
-    action === 'install' && platformReference
-      ? createPinnedPlatformPackage(module, platformReference)
+  const plan =
+    action === 'install'
+      ? planInstallPlatformPackage(module, moduleRoot, readPlatformPackageReference(manifest))
       : undefined
+  const platformPackage = plan?.packagePath
 
-  if (action === 'install') {
-    console.log(
-      platformPackage
-        ? `[module] ${module.path} 使用本地主仓精简包。`
-        : `[module] ${module.path} 不依赖主仓包，按自身锁文件安装。`
-    )
-  }
+  if (plan) console.log(`[module] ${module.path} ${plan.summary}`)
   if (!platformPackage) {
     runPackageManager(args, moduleRoot)
     return
@@ -979,18 +1062,24 @@ function printStatus(modules: ModuleDefinition[]): void {
 function printUsage(): void {
   console.log(`
 统一子仓管理命令（每条命令默认作用于 .gitmodules 中的全部子仓）：
-  pnpm modules:status   查看全部子仓状态
-  pnpm modules:pull     快进主仓，发现新增子仓，拉取最新提交并切到各子仓 master
-  pnpm modules:update   更新到各子仓远端配置分支的最新提交
-  pnpm modules:install  自动初始化并按各仓 lockfile 安装依赖
-  pnpm modules:check    自动初始化并执行全部子仓质量门禁
-  pnpm modules:build    自动初始化、修复不完整依赖并构建全部子仓
-  pnpm modules:setup    一次完成拉取、安装和构建
-  pnpm build:all        构建全部子仓和主仓，产物保留在各仓自己的发布目录
+  pnpm modules:status        查看全部子仓状态
+  pnpm modules:pull          快进主仓，发现新增子仓，拉取最新提交并切到各子仓 master
+  pnpm modules:update        更新到各子仓远端配置分支的最新提交
+  pnpm modules:install       自动初始化并按各仓 lockfile 安装依赖
+  pnpm modules:check         自动初始化并执行全部子仓质量门禁
+  pnpm modules:build         自动初始化、修复不完整依赖并构建全部子仓
+  pnpm modules:setup         一次完成拉取、安装和构建
+  pnpm modules:pack-platform 从当前主仓工作区重新生成 packages 下的平台交付包
+  pnpm build:all             构建全部子仓和主仓，产物保留在各仓自己的发布目录
 
 也可以使用 npm run modules:<action>，实际安装始终由项目锁定的 pnpm 执行。
 命令末尾可指定子仓简称，例如：pnpm modules:install -- fms。
 跨主仓与子仓的未提交联调可追加 --workspace-platform，先打包当前主仓工作区再验证。
+
+子仓用 package.json 的 art-supabase-pro 声明构建时面向的平台：
+  file:..\\..\\packages\\art-supabase-pro-<version>.tgz  仓库内交付包，安装按子仓锁文件；
+  归档地址 /archive/<40 位提交>.tar.gz                   从本地 Git 历史生成锁定提交包。
+交付包内容变化后需要重新执行 pnpm modules:pack-platform，并在子仓重装依赖、提交锁文件。
 `)
 }
 
@@ -1003,7 +1092,8 @@ function main(): void {
     'check',
     'build',
     'setup',
-    'status'
+    'status',
+    'pack-platform'
   ]
 
   if (!action || !supportedActions.includes(action)) {
@@ -1020,11 +1110,15 @@ function main(): void {
     const selectors = process.argv
       .slice(3)
       .filter((argument) => argument !== '--' && argument !== '--workspace-platform')
-    const modules = action === 'pull' ? [] : selectModules(allModules, selectors)
+    const modules =
+      action === 'pull' || action === 'pack-platform' ? [] : selectModules(allModules, selectors)
 
     switch (action) {
       case 'pull':
         pullLatestRepositories(selectors)
+        break
+      case 'pack-platform':
+        packPlatformPackage()
         break
       case 'update':
         pullModules(modules, true)
