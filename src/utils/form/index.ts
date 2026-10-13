@@ -15,3 +15,6 @@ export * from './option'
 
 // 数据库文本归一化
 export * from './normalize'
+
+// UUID 标识验证
+export * from './uuid'

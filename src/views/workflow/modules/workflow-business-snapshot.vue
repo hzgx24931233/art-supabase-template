@@ -78,6 +78,7 @@
   import ArtDictDisplay from '@/components/core/base/art-dict-display/index.vue'
   import ArtSectionCard from '@/components/core/surfaces/art-section-card/index.vue'
   import OcrOriginalText from '@/components/business/ocr-original-text/index.vue'
+  import { validateUuid } from '@/utils/form/uuid'
   import { getWorkflowBusinessContract } from './workflow-business-contracts'
 
   defineOptions({ name: 'WorkflowBusinessSnapshot' })
@@ -109,7 +110,8 @@
       return {
         key: `${metadata?.key || field.label}-${index}`,
         label: metadata?.label || normalizeFieldLabel(field.label, index),
-        value: metadata?.referenceType && isUuid(value) ? '已关联，可查看业务原单' : value || '—',
+        value:
+          metadata?.referenceType && validateUuid(value) ? '已关联，可查看业务原单' : value || '—',
         dictCode: metadata?.dictCode
       }
     })
@@ -134,10 +136,6 @@
     const normalized = label.trim()
     if (!normalized || /^[a-z][a-zA-Z0-9]*$/.test(normalized)) return `业务字段 ${index + 1}`
     return normalized.replace(/ID$/i, '')
-  }
-
-  function isUuid(value: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
   }
 </script>
 
