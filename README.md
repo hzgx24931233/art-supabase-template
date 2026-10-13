@@ -82,6 +82,17 @@ pnpm modules:status         # 查看子仓状态
 pnpm build:all              # 构建全部子仓 + 平台
 ```
 
+子仓用 `package.json` 的 `art-supabase-pro` 声明构建时面向的平台，两种写法都受支持：仓库内的
+`file:..\..\packages\art-supabase-pro-<version>.tgz` 交付包（安装直接用子仓锁文件），或主仓提交的
+`/archive/<提交>.tar.gz` 归档地址（运行器从本地 Git 历史生成等价包，离线也能装）。平台代码变化后刷新交付包：
+
+```bash
+pnpm modules:pack-platform  # 从当前工作区重新生成 packages 下的平台交付包
+```
+
+交付包内容变了，子仓锁文件记录的完整性哈希随即失效，需要在子仓重新安装依赖并把锁文件提交到子仓。
+跨主仓与子仓的未提交联调改用 `pnpm modules:check <code> --workspace-platform`，先打包当前工作区再验证。
+
 接入新业务模块需要同步四处：`scripts/hosted-module-dependencies.ts`、`src/bootstrapHostedApplications.ts`、
 `src/config/application.ts`、`tsconfig.json`（以及 `.gitmodules` 的子仓声明）。
 完整的派生步骤见 [docs-template/START-HERE.md](docs-template/START-HERE.md)。

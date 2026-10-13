@@ -109,6 +109,12 @@ supabase functions deploy <name> --project-ref trthbpyqubyjtkzmcewy --use-api
 7. 模块自身的 `vite.config.ts` 用 `scripts/module-vite-config.mjs` 收敛公共依赖；
 8. 用 `pnpm modules:install <code>` / `pnpm modules:build <code>` 验证，最后 `pnpm build:all`。
 
+子仓在 `package.json` 里用 `art-supabase-pro` 声明构建时面向的平台，两种写法都受支持：指向仓库内交付包
+`file:..\..\packages\art-supabase-pro-<version>.tgz`，或指向主仓提交的归档地址
+`/archive/<40 位提交>.tar.gz`（运行器从本地 Git 历史生成等价包，离线也能装）。平台代码变化后先执行
+`pnpm modules:pack-platform` 刷新交付包，再到子仓重新安装依赖、把锁文件提交到子仓，最后在主仓提交
+交付包与子仓指针。
+
 模块页面通过数据库菜单驱动：在 `sys_menu` 中登记页面与按钮权限（命名约定
 `<RouteName>:<Action>`），并在 `scripts/business-button-permission-catalog.ts` 登记按钮，
 `pnpm permissions:audit` 会校验两边一致。
