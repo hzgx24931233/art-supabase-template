@@ -235,6 +235,47 @@ supabase db query --linked --file supabase/baseline/document-number-counter-patc
 1 行（`current_value` 递增到 3，不新增重复行），编号触发器开启时插入 `mdm_position` 成功并自动获得
 `position_code`（补索引前该插入直接失败）；计数器重复分组 0 个。
 
+### 禁止为当前账号分配角色（2026-10-13 起并入基线）
+
+背景：`sys_user` 的更新策略只允许 `authenticated` 用户改**自己**那一行（`canonical_owner_update_v2`：
+`has_table_permission('sys_user','Edit')` 且 `auth_user_id = auth.uid()`），因此登录用户原本可以顺手把自己的
+`user_roles` 改成更高权限；给别的账号分配角色则走 Edge Function（service key）而不经过 RLS。
+
+守卫分三层，基线里只承担数据库这一层：
+
+- **数据库**：`public.trg_guard_sys_user_authorization_fields()`（`sys_user` 的 before update 触发器）在
+  `v_roles_changed` 分支里先判 `v_is_self`，命中即 `raise exception '不能为当前账号分配角色'`，早于
+  `System:User:AssignRole` 权限校验。`service_role` 仍按既有逻辑提前返回，因此**不受**这层约束。
+- **Edge Function**：`supabase/functions/sync-user/index.ts` 在 `assign_roles` 分支前先查目标账号，
+  目标不存在返回 404、目标等于调用者返回 403 —— 因为 service key 路径会绕过上面的触发器。
+- **前端**：`src/views/system/user/index.vue` 对当前账号隐藏「分配角色」入口，自身判定同时比对
+  `id` / `authUserId` / 邮箱。
+
+已建库的项目补这一层（幂等，`create or replace function` 保留属主与授权）：
+
+```powershell
+# 把基线里的整段函数定义重新执行一次
+supabase db query --linked --file supabase/baseline/platform-baseline.sql   # 全量重放，基线整体幂等
+```
+
+只补这一个函数时，从 `platform-baseline.sql` 里取出 `trg_guard_sys_user_authorization_fields` 的完整定义
+单独执行即可；`supabase/modules/hr/hr-schema.sql` 中也有一份逐字一致的副本（HR 交付物），两者不要改歪。
+
+已执行的验证（2026-10-13，项目 `trthbpyqubyjtkzmcewy` / xmgl）：
+
+- 应用前（回滚事务内）：以平台超管自身身份（`authenticated` + `request.jwt.claims.sub` = 该账号
+  `auth_user_id`）修改自己的 `user_roles` **成功**（1 行），确认守卫确实缺失。
+- 应用：以基线定义 `create or replace`，同一事务内断言自助角色修改抛
+  `不能为当前账号分配角色` 才提交，断言失败则整段回滚。
+- 应用后（回滚事务内三条断言）：自助角色修改被拦截（`不能为当前账号分配角色`）；自助资料修改仍放行
+  （1 行，确认未回归）；`service_role` 路径不受影响（1 行，说明 Edge Function 那层不可省）。
+- 改后线上 `pg_get_functiondef` 与基线定义逐字一致（61 行、0 差异）；`supabase db advisors`
+  1189 条告警全部为既有 WARN，无一条涉及该函数。
+- Edge Function `sync-user`（版本 3，`verify_jwt` 保持 `true`）：部署前下载线上源码比对，差异仅为
+  `assign_roles` 自助拦截块；部署后重新下载与本地逐字一致。以发布键调用该函数返回
+  `403 缺少权限：System:User:AssignRole`，确认部署后代码正常执行（自助拦截块在权限校验之后，
+  其 403 路径需要真实登录账号才能端到端验证）。
+
 ## 参数设置数据迁移（2026-10-08）
 
 已从源项目 `nvzlwcutsqptngyqfzqs` 的 `public.sys_param` 迁移 10 条记录到当前项目
