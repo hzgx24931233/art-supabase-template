@@ -13,6 +13,7 @@ import ElementPlus from 'unplugin-element-plus/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import tailwindcss from '@tailwindcss/vite'
 import { fileViewerRenderers } from '@file-viewer/vite-plugin'
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { createBuildLogPolicy } from './scripts/build-log-policy.mjs'
 import { shouldPreloadHtmlDependency } from './scripts/bundle-boundaries.ts'
@@ -279,6 +280,33 @@ export default ({ mode }: { mode: string }) => {
               // Rolldown's native code splitting already preserves renderer-level lazy chunks.
               // Disabling the plugin's Rollup manualChunks avoids an ignored-option warning.
               chunkStrategy: 'none'
+            }),
+            // file-viewer 的 OCCT 供应商包（@file-viewer/geometry-engine/dist/vendor/occt.cjs，
+            // Emscripten 产物）会静态 require("crypto")。浏览器默认把它外部化成空 shim 并打印
+            // 「externalized for browser compatibility」警告，这里为它提供真实实现。
+            // 只覆盖该供应商包用到的内置模块闭包（crypto 及其依赖链的 stream/vm/buffer 等），
+            // 保留 avsc / xmind-parser / jszip 等既有的日志折叠，避免全量 polyfill 增重。
+            // globals 一律关闭：注入全局 process 会让 Emscripten 把 ENVIRONMENT_IS_NODE 判成 true，
+            // 反而把 CAD 渲染带进 Node 分支。
+            ...nodePolyfills({
+              include: [
+                'crypto',
+                'stream',
+                'vm',
+                'buffer',
+                'process',
+                'events',
+                'util',
+                'string_decoder',
+                'assert',
+                'constants',
+                'path',
+                'os',
+                'timers',
+                'tty'
+              ],
+              globals: { Buffer: false, global: false, process: false },
+              protocolImports: true
             })
           ]
         : []),
