@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolvePnpmInvocationFromProcess } from './pnpm-invocation'
 
 interface CommandResult {
   output: string
@@ -184,24 +185,8 @@ function ensureNotBehind(repository: Repository): void {
 function runPnpm(repository: Repository, args: string[], env = process.env): void {
   // 发布只验证现有依赖；构建时自动安装会改写子仓锁文件并依赖远端归档可用性。
   const publishArgs = ['--config.verify-deps-before-run=warn', ...args]
-  const pnpmCliPath = process.env.npm_execpath
-  if (pnpmCliPath?.toLowerCase().includes('pnpm')) {
-    run(process.execPath, [pnpmCliPath, ...publishArgs], repository.path, { env, stream: true })
-    return
-  }
-  if (process.platform === 'win32') {
-    run(
-      process.env.ComSpec ?? 'cmd.exe',
-      ['/d', '/s', '/c', 'pnpm.cmd', ...publishArgs],
-      repository.path,
-      {
-        env,
-        stream: true
-      }
-    )
-    return
-  }
-  run('pnpm', publishArgs, repository.path, { env, stream: true })
+  const invocation = resolvePnpmInvocationFromProcess(publishArgs)
+  run(invocation.command, invocation.args, repository.path, { env, stream: true })
 }
 
 function readBuildCommand(repository: Repository): string {

@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { hostedModuleSharedDependencies } from './hosted-module-dependencies'
+import { resolvePnpmInvocationFromProcess } from './pnpm-invocation'
 
 type ModuleAction = 'pull' | 'update' | 'install' | 'check' | 'build' | 'setup' | 'status'
 type ModulePackageAction = 'install' | 'check' | 'build'
@@ -133,24 +134,8 @@ function runPackageManager(
     args[0] === 'install'
       ? [...pnpmInstallOptions, ...localOverride, ...args]
       : [...localOverride, ...args]
-  const pnpmCliPath = process.env.npm_execpath
-  if (pnpmCliPath?.toLowerCase().includes('pnpm')) {
-    runCommand(process.execPath, [pnpmCliPath, ...pnpmArgs], cwd, printOutput, printOutput)
-    return
-  }
-
-  if (process.platform === 'win32') {
-    runCommand(
-      process.env.ComSpec ?? 'cmd.exe',
-      ['/d', '/s', '/c', 'pnpm.cmd', ...pnpmArgs],
-      cwd,
-      printOutput,
-      printOutput
-    )
-    return
-  }
-
-  runCommand('pnpm', pnpmArgs, cwd, printOutput, printOutput)
+  const invocation = resolvePnpmInvocationFromProcess(pnpmArgs)
+  runCommand(invocation.command, invocation.args, cwd, printOutput, printOutput)
 }
 
 function ensurePathInside(parentPath: string, candidatePath: string, label: string): void {
