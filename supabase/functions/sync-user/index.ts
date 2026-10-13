@@ -320,6 +320,32 @@ Deno.serve(async (req: Request) => {
     })
   }
 
+  if (action === 'assign_roles') {
+    const { data: targetUser, error: targetUserError } = await supabaseDB
+      .from('sys_user')
+      .select('auth_user_id')
+      .eq('id', body.id)
+      .maybeSingle()
+    if (targetUserError) {
+      return new Response(JSON.stringify({ ok: false, error: '用户信息校验失败，请稍后重试' }), {
+        status: 500,
+        headers: corsHeaders(origin)
+      })
+    }
+    if (!targetUser) {
+      return new Response(JSON.stringify({ ok: false, error: '用户不存在或不可用' }), {
+        status: 404,
+        headers: corsHeaders(origin)
+      })
+    }
+    if (callerAuthUserId && targetUser.auth_user_id === callerAuthUserId) {
+      return new Response(JSON.stringify({ ok: false, error: '不能为当前账号分配角色' }), {
+        status: 403,
+        headers: corsHeaders(origin)
+      })
+    }
+  }
+
   try {
     if (action === 'create') {
       const emailFromBody = String(body.email || '')

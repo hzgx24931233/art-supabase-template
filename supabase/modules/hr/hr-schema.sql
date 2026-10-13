@@ -25458,10 +25458,13 @@ begin
     raise exception '用户主键和创建信息不可修改';
   end if;
 
-  if v_roles_changed
-    and not app_private.has_permission('System:User:AssignRole')
-  then
-    raise exception '缺少用户角色分配权限';
+  if v_roles_changed then
+    if v_is_self then
+      raise exception '不能为当前账号分配角色';
+    end if;
+    if not app_private.has_permission('System:User:AssignRole') then
+      raise exception '缺少用户角色分配权限';
+    end if;
   end if;
 
   if v_authorization_changed

@@ -542,7 +542,7 @@
             permission: 'System:User:Edit',
             onClick: () => openDialog(row)
           }),
-          !isCurrentUser(row) && !isProtectedUser(row)
+          !isCurrentUser(row)
             ? h(ArtButtonTable, {
                 type: 'view',
                 icon: 'ri:user-add-line',
@@ -590,9 +590,12 @@
     return displayName.slice(0, 1).toUpperCase() || 'U'
   }
 
-  const isCurrentUser = (row: Pick<UserListItem, 'authUserId' | 'userEmail'>): boolean => {
+  const isCurrentUser = (row: Pick<UserListItem, 'id' | 'authUserId' | 'userEmail'>): boolean => {
+    if (getUserInfo.value.userId && row.id) {
+      if (getUserInfo.value.userId === row.id) return true
+    }
     if (getUserInfo.value.userId && row.authUserId) {
-      return getUserInfo.value.userId === row.authUserId
+      if (getUserInfo.value.userId === row.authUserId) return true
     }
     return Boolean(getUserInfo.value.email && getUserInfo.value.email === row.userEmail)
   }
