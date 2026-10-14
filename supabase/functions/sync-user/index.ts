@@ -236,6 +236,7 @@ function getFriendlyErrorMessage(error: unknown, action: string): string {
       update: '编辑',
       delete: '注销',
       deactivate: '注销',
+      activate: '启用',
       hard_delete: '彻底删除'
     }
     return `当前用户角色没有${actionMap[action] || action}权限，无法执行此操作`
@@ -277,7 +278,9 @@ Deno.serve(async (req: Request) => {
   const body = await json(req)
   const auditId = uuidv4()
   const action = (body.action || '').toLowerCase()
-  if (!['create', 'update', 'assign_roles', 'deactivate', 'hard_delete'].includes(action))
+  if (
+    !['create', 'update', 'assign_roles', 'deactivate', 'activate', 'hard_delete'].includes(action)
+  )
     return new Response(JSON.stringify({ ok: false, error: 'invalid action' }), {
       status: 400,
       headers: corsHeaders(origin)
@@ -311,7 +314,8 @@ Deno.serve(async (req: Request) => {
     update: 'System:User:Edit',
     assign_roles: 'System:User:AssignRole',
     deactivate: 'System:User:Delete',
-      hard_delete: 'System:User:Delete'
+    activate: 'System:User:Enable',
+    hard_delete: 'System:User:Delete'
   }
   const requiredPermission = permissionByAction[action]
   if (!(await hasPermission(callerSupabase, requiredPermission))) {
@@ -660,6 +664,72 @@ Deno.serve(async (req: Request) => {
         deactivated_app_user_id: id,
         auth_user_id: snapshot.auth_user_id || null,
         history_preserved: true
+      }
+      await updateAudit(auditId, result)
+      return new Response(JSON.stringify(result), { status: 200, headers: corsHeaders(origin) })
+    }
+
+    if (action === 'activate') {
+      const id = body.id
+      if (!id)
+        return new Response(JSON.stringify({ ok: false, error: 'id required' }), {
+          status: 400,
+          headers: corsHeaders(origin)
+        })
+      const { data: snapshot } = await supabaseDB.from('sys_user').select('*').eq('id', id).single()
+      if (!snapshot)
+        return new Response(JSON.stringify({ ok: false, error: '用户不存在' }), {
+          status: 404,
+          headers: corsHeaders(origin)
+        })
+      if (snapshot.status !== '2')
+        return new Response(JSON.stringify({ ok: false, error: '该账号当前未处于禁止状态' }), {
+          status: 400,
+          headers: corsHeaders(origin)
+        })
+      const activatedAt = new Date().toISOString()
+      const activatedBy = callerEmail || callerProfile?.user_email || 'system'
+      const { error: activateErr } = await supabaseDB
+        .from('sys_user')
+        .update({
+          status: '1',
+          deleted_at: null,
+          deleted_by: null,
+          update_time: activatedAt,
+          update_by: activatedBy
+        })
+        .eq('id', id)
+      if (activateErr)
+        return new Response(
+          JSON.stringify({ ok: false, error: getFriendlyErrorMessage(activateErr, action) }),
+          { status: 500, headers: corsHeaders(origin) }
+        )
+      if (snapshot.auth_user_id) {
+        const { error: unbanErr } = await supabaseAdmin.auth.admin.updateUserById(
+          snapshot.auth_user_id,
+          { ban_duration: 'none' }
+        )
+        if (unbanErr) {
+          // 解禁失败时恢复账号状态，避免出现「显示启用但仍无法登录」的假成功。
+          await supabaseDB
+            .from('sys_user')
+            .update({
+              status: snapshot.status,
+              deleted_at: snapshot.deleted_at,
+              deleted_by: snapshot.deleted_by,
+              update_time: snapshot.update_time,
+              update_by: snapshot.update_by
+            })
+            .eq('id', id)
+          throw unbanErr
+        }
+      }
+      const result = {
+        ok: true,
+        activated_app_user_id: id,
+        auth_user_id: snapshot.auth_user_id || null,
+        // 禁止时角色授权已清空，启用后需要重新分配角色。
+        user_roles: snapshot.user_roles || []
       }
       await updateAudit(auditId, result)
       return new Response(JSON.stringify(result), { status: 200, headers: corsHeaders(origin) })

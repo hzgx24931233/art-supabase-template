@@ -10,6 +10,7 @@ mdm-master-data-menu.sql       增量补丁：已并入主平台的主数据四�
 mdm-data-model-patch.sql       增量补丁：主数据四块所需的 mdm_* 表与函数
 dict-cascade-relationship.sql  增量补丁：数据字典的计算关联函数（字典页加载失败时使用）
 document-number-counter-patch.sql  增量补丁：编号流水计数器的唯一索引（自动编号新增报 42P10 时使用）
+user-enable-button-permission.sql  增量补丁：用户管理页「启用用户」按钮权限（System:User:Enable）
 platform-baseline-report.json  生成报告：保留/丢弃清单、裁剪原因、种子行数
 verify-baseline.ps1            在一次性 Postgres 容器里应用并断言基线
 ```
@@ -319,6 +320,55 @@ supabase db query --linked --file supabase/baseline/platform-baseline.sql
   WARN，0 条涉及该函数或触发器。
 - `supabase/baseline/verify-baseline.ps1` 新增守卫断言（先造一个平台超管身份，再验证改名 / 停用 / 删除被拦、
   改描述放行）：在干净 Postgres 容器里通过；临时注释掉基线中的触发器语句后同一断言失败，确认断言有效。
+
+### 禁止 / 启用用户按钮权限（2026-10-14 起并入基线）
+
+背景：用户管理页的行操作菜单在账号状态为禁用（`sys_user.status = '2'`）时不再提供「禁止用户」，
+改为提供「启用用户」。启用是一条新的账号生命周期动作，不能借用 `System:User:Delete`（该码同时承担
+禁止与彻底删除），因此单独建码 `System:User:Enable`，并按平台约定在页面与账号写入边界两处校验。
+
+- **数据库**：`sys_menu` 新增 `type = 'button'`、`name = 'System:User:Enable'`、
+  `parent_id = 'fffab24e-4434-4812-b2dd-284411d6408e'`（用户管理页菜单）、`sort = 6`、
+  `meta = {"title":"启用用户","is_enable":true,"is_auth_button":true}`，`app_private.has_permission()`
+  据此解析；授权只补授给**当前已拥有该页面菜单**的角色（当前仅「管理员」），不授予缺少该页面菜单的角色，
+  后续角色需在角色管理里显式分配。
+- **Edge Function**：`sync-user` 新增 `activate` 动作，权限码 `System:User:Enable`：`status` 由 `2` 回到 `1`，
+  清空 `deleted_at` / `deleted_by`，并用 Admin API 解禁登录身份（`ban_duration: 'none'`）。解禁失败时回滚
+  `sys_user` 快照，避免「界面显示已启用但仍无法登录」的假成功；非 `status = '2'` 的账号返回 400。
+  禁止时已清空角色授权，启用后需重新分配角色，确认弹窗与接口文案都已说明。
+- **前端**：`src/views/system/user/index.vue` 的行操作菜单按 `status` 在「禁止用户」与「启用用户」之间切换，
+  `activate` 项显式声明 `auth: 'System:User:Enable'`；禁止、启用、彻底删除共用同一互斥守卫，
+  三项操作不会并发写同一条账号记录。
+
+已建库的项目补这一项（幂等，仅新建按钮与角色授权两处写入）：
+
+```powershell
+supabase db query --linked --file supabase/baseline/user-enable-button-permission.sql
+```
+
+已执行的验证（2026-10-14，项目 `trthbpyqubyjtkzmcewy` / xmgl）：
+
+- 应用前（回滚事务内）：`sys_menu` 中用户管理页下只有 5 个按钮（Add / Edit / Delete / AssignRole /
+  ResetPassword），确认 `System:User:Enable` 确实缺失。
+- 应用：插入按钮 + 补授角色 + 断言同事务执行（按钮标题、`parent_id`、`type`，且按钮授权角色数与页面授权
+  角色数一致）才提交，失败则整段回滚。
+- 应用后：按钮行存在（`sort = 6`、title「启用用户」），授权角色 1 个（管理员）；`supabase db advisors`
+  无涉及 `sys_menu` / `sys_role_menu` 的新增告警。
+- Edge Function `sync-user`（版本 8，`verify_jwt` 保持 `true`）：部署前下载线上源码（版本 6）与本地逐字一致，
+  差异仅为本地新增的 `activate` 分支；部署后重新下载与本地逐字一致。以发布键调用
+  `{"action":"activate"}` 返回 `403 缺少权限：System:User:Enable`，未知动作仍返回 `400 invalid action`，
+  确认新动作在服务端权限边界上生效且未放宽动作白名单。
+- `activate` 写入路径（回滚事务内，对项目里唯一处于禁用状态的账号）：改前该行 `status = '2'` 且
+  `deleted_at` 非空、登录身份 `auth.users.banned_until` 仍在封禁期内；按函数同样的写法更新后
+  `status = '1'`、`deleted_at` / `deleted_by` 为 `NULL`，影响 1 行；再次执行同一条件影响 0 行（禁用态是唯一入口）。
+  `update_by` 由平台审计触发器 `trg_set_update_time_and_by()` 统一写入（与既有 `deactivate` 分支一致）。
+  解禁登录身份这一步走 Admin API，需要真实登录会话才能端到端复核，未包含在本次自动化验证中。
+- `tests/e2e/user-enable-action.spec.ts`（新增，后端全 mock，不写真实项目数据）：在 `desktop-1440` /
+  `desktop-1280` / `tablet-1024` / `desktop-dark-1440` / `desktop-shadow-1280` 全部通过——禁用账号的行菜单为
+  「初始化密码 / 启用用户 / 彻底删除记录」且不含「禁止用户」，启用中账号为「初始化密码 / 禁止用户」且不含
+  「启用用户」；点击「启用用户」后确认弹窗、`sync-user` 收到 `{action:'activate', id, auth_user_id}`、
+  列表刷新后该行菜单恢复「禁止用户」。`mobile-390` 按用例声明跳过（行操作菜单为桌面交互）。
+
 
 ## 参数设置数据迁移（2026-10-08）
 

@@ -1033,7 +1033,8 @@ export const systemButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] = [
     buttons: [
       button('Add', '新增用户'),
       button('Edit', '编辑用户'),
-      button('Delete', '注销用户'),
+      button('Delete', '禁止用户'),
+      button('Enable', '启用用户'),
       button('AssignRole', '分配角色'),
       button('ResetPassword', '初始化密码')
     ]

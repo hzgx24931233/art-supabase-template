@@ -486,6 +486,7 @@ const headerActions = computed<ArtTableQueryHeaderAction[]>(() => [
 | `selectionRequired` | `boolean` | 是否需要选中行。`delete` 默认 `true`。 |
 | `confirm` | `boolean` | 是否点击前确认。`delete` 默认 `true`。 |
 | `confirmTitle` | `string` | 确认框标题。 |
+| `confirmButtonText` | `string` | 确认框按钮文案。未传时 `delete` 为「删除」，其他为「确定」。 |
 | `slot` | `string` | 使用指定 slot 自定义该 action。 |
 | `render` | `Component` | 使用组件自定义该 action。 |
 | `buttonProps` | `Record<string, any>` | 透传给 `ElButton`。 |

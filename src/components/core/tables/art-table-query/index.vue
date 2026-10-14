@@ -594,6 +594,8 @@
     confirm?: boolean
     /** 确认框标题 */
     confirmTitle?: string
+    /** 确认框按钮文案；未传时 delete 为「删除」，其他为「确定」 */
+    confirmButtonText?: string
     /** 自定义 slot 名；传入后不渲染默认按钮 */
     slot?: string
     /** 自定义渲染组件；传入后不渲染默认按钮 */
@@ -1370,7 +1372,8 @@
           action.confirmTitle || '操作确认',
           {
             type: action.type === 'delete' ? 'warning' : 'info',
-            confirmButtonText: action.type === 'delete' ? '删除' : '确定',
+            confirmButtonText:
+              action.confirmButtonText || (action.type === 'delete' ? '删除' : '确定'),
             cancelButtonText: '取消',
             confirmButtonType: action.type === 'delete' ? 'danger' : 'primary'
           }

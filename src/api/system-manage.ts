@@ -36,8 +36,8 @@ type GeofenceConfigItem = Api.SystemManage.GeofenceConfigItem
 const GEOFENCE_CONFIG_PARAM_KEY = 'tms.geofence.config'
 const GEOFENCE_CONFIG_REQUEST_TIMEOUT_MS = 20_000
 
-interface DeleteUserSyncPayload {
-  action: 'deactivate' | 'hard_delete'
+interface UserLifecycleSyncPayload {
+  action: 'deactivate' | 'activate' | 'hard_delete'
   id: string
   auth_user_id?: string
 }
@@ -480,7 +480,7 @@ export async function deactivateUser(
   if (!id) {
     throw new Error('未找到需要注销的用户')
   }
-  const payload: DeleteUserSyncPayload = { action: 'deactivate', id: id }
+  const payload: UserLifecycleSyncPayload = { action: 'deactivate', id: id }
   if (authUserId) {
     payload.auth_user_id = authUserId
   }
@@ -494,6 +494,30 @@ export async function deactivateUser(
   })
 }
 
+/*启用用户：恢复登录能力，角色授权在禁止时已清空，需要重新分配。*/
+export async function activateUser(
+  params: Api.SystemManage.UserListItem,
+  options: { showMessage?: boolean } = {}
+) {
+  const { id, authUserId } = params
+  if (!id) {
+    throw new Error('未找到需要启用的用户')
+  }
+  const payload: UserLifecycleSyncPayload = { action: 'activate', id: id }
+  if (authUserId) {
+    payload.auth_user_id = authUserId
+  }
+  const invokeResp = () =>
+    supabase.functions.invoke('sync-user', {
+      body: payload
+    })
+  await responseHandle(invokeResp, {
+    showMessage: options.showMessage ?? true,
+    breakReturn: true,
+    message: '用户已启用，可重新登录'
+  })
+}
+
 /** 彻底删除已注销用户及其登录身份。服务端会再次校验关联记录与账号状态。 */
 export async function deleteUser(
   params: Api.SystemManage.UserListItem,
@@ -501,7 +525,7 @@ export async function deleteUser(
 ) {
   const { id, authUserId } = params
   if (!id) throw new Error('未找到需要删除的用户')
-  const payload: DeleteUserSyncPayload = { action: 'hard_delete', id }
+  const payload: UserLifecycleSyncPayload = { action: 'hard_delete', id }
   if (authUserId) payload.auth_user_id = authUserId
   const response = await responseHandle<{ deleted_app_user_id?: string }>(
     () => supabase.functions.invoke('sync-user', { body: payload }),

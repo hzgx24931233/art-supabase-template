@@ -110,6 +110,7 @@
   import { pageInfoHandler } from '@/utils/table/tableUtils'
   import { useUserStore } from '@/store/modules/user'
   import {
+    activateUser,
     deactivateUser,
     deleteUser,
     fetchGetUserList,
@@ -178,7 +179,14 @@
   const organizationDrawerRef = ref<ArtDrawerExpose<Record<string, never>>>()
   const deleteGuardRef = ref<InstanceType<typeof MasterDataDeleteGuard>>()
   const activeDeactivationCount = ref(0)
+  const activeActivationCount = ref(0)
   const activeHardDeleteCount = ref(0)
+
+  /** 禁止、启用、彻底删除都改写同一条账号记录，同一时间只允许执行一项。 */
+  const isUserTransitionPending = (): boolean =>
+    activeDeactivationCount.value > 0 ||
+    activeActivationCount.value > 0 ||
+    activeHardDeleteCount.value > 0
   const isDesktopOrganizationLayout = useMediaQuery('(min-width: 1201px)')
   const organizationTree = ref<OrganizationFilterItem[]>([])
   const organizationFilterLoading = ref(false)
@@ -322,12 +330,15 @@
     },
     {
       type: 'delete',
-      label: '批量注销',
+      label: '批量禁止',
       key: 'deactivate-users',
+      icon: 'ri:forbid-2-line',
       permission: 'System:User:Delete',
-      disabled: () => activeHardDeleteCount.value > 0,
+      disabled: isUserTransitionPending,
+      confirmTitle: '禁止用户',
+      confirmButtonText: '确认禁止',
       content: ({ selectedCount }: ArtTableQueryHeaderActionContext) =>
-        `确定注销选中的 ${selectedCount} 个用户吗？这些账号将不能继续登录，历史业务记录仍会保留。`,
+        `确定禁止选中的 ${selectedCount} 个用户吗？这些账号将不能继续登录，历史业务记录仍会保留。`,
       onClick: handleBatchDelete
     },
     {
@@ -335,10 +346,10 @@
       label: '批量彻底删除记录',
       key: 'hard-delete-users',
       permission: 'System:User:Delete',
-      disabled: () => activeDeactivationCount.value > 0,
+      disabled: isUserTransitionPending,
       confirm: false,
       content: ({ selectedCount }: ArtTableQueryHeaderActionContext) =>
-        `确定彻底删除选中的 ${selectedCount} 个已注销用户吗？删除后无法恢复。`,
+        `确定彻底删除选中的 ${selectedCount} 个已禁止用户吗？删除后无法恢复。`,
       onClick: handleBatchHardDelete
     }
   ])
@@ -584,8 +595,11 @@
     return String(row.status) === '2' && Boolean(row.deletedAt)
   }
 
+  const isDisabledUser = (row: Pick<UserListItem, 'status'>): boolean => String(row.status) === '2'
+
   const getMoreActions = (row: UserListItem): ButtonMoreItem[] => {
     const selfExcludeButtonKeys = ['delete', 'hard-delete']
+    const transitionPending = isUserTransitionPending()
     const buttonList: ButtonMoreItem[] = [
       {
         key: 'reset',
@@ -593,14 +607,22 @@
         icon: 'ri-user-received-line',
         auth: 'System:User:ResetPassword'
       },
-      {
-        key: 'delete',
-        label: '注销用户',
-        icon: 'ri:logout-box-r-line',
-        color: 'var(--el-color-danger)',
-        auth: 'System:User:Delete',
-        disabled: activeDeactivationCount.value > 0 || activeHardDeleteCount.value > 0
-      }
+      isDisabledUser(row)
+        ? {
+            key: 'activate',
+            label: '启用用户',
+            icon: 'ri:user-follow-line',
+            auth: 'System:User:Enable',
+            disabled: transitionPending
+          }
+        : {
+            key: 'delete',
+            label: '禁止用户',
+            icon: 'ri:forbid-2-line',
+            color: 'var(--el-color-danger)',
+            auth: 'System:User:Delete',
+            disabled: transitionPending
+          }
     ]
 
     if (isDeactivatedUser(row)) {
@@ -610,7 +632,7 @@
         icon: 'ri:delete-bin-7-line',
         color: 'var(--el-color-danger)',
         auth: 'System:User:Delete',
-        disabled: activeDeactivationCount.value > 0 || activeHardDeleteCount.value > 0
+        disabled: transitionPending
       })
     }
 
@@ -665,6 +687,9 @@
       case 'delete':
         void handleDeleteUser(row)
         break
+      case 'activate':
+        void handleActivateUser(row)
+        break
       case 'hard-delete':
         void handleHardDeleteUser(row)
         break
@@ -695,14 +720,14 @@
   }
 
   const handleDeleteUser = async (row: UserListItem): Promise<void> => {
-    if (activeDeactivationCount.value > 0 || activeHardDeleteCount.value > 0) return
+    if (isUserTransitionPending()) return
     activeDeactivationCount.value += 1
     try {
       await confirmAction(
-        `注销后「${row.nickName || row.userName}」将无法继续登录，历史业务记录不会被删除。`,
-        '注销用户',
+        `禁止后「${row.nickName || row.userName}」将无法继续登录，历史业务记录不会被删除。`,
+        '禁止用户',
         {
-          confirmButtonText: '确认注销',
+          confirmButtonText: '确认禁止',
           cancelButtonText: '取消',
           type: 'warning',
           confirmButtonType: 'danger'
@@ -714,6 +739,28 @@
       // 用户取消时无需额外提示。
     } finally {
       activeDeactivationCount.value -= 1
+    }
+  }
+
+  const handleActivateUser = async (row: UserListItem): Promise<void> => {
+    if (isUserTransitionPending()) return
+    activeActivationCount.value += 1
+    try {
+      await confirmAction(
+        `启用后「${row.nickName || row.userName}」可以重新登录。禁止时已清空角色授权，启用后需要重新分配角色。`,
+        '启用用户',
+        {
+          confirmButtonText: '确认启用',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+      await activateUser(row)
+      await tableQueryRef.value?.refreshUpdate()
+    } catch {
+      // 用户取消时无需额外提示。
+    } finally {
+      activeActivationCount.value -= 1
     }
   }
 
@@ -743,8 +790,7 @@
       !isDeactivatedUser(row) ||
       isCurrentUser(row) ||
       isProtectedUser(row) ||
-      activeDeactivationCount.value > 0 ||
-      activeHardDeleteCount.value > 0
+      isUserTransitionPending()
     )
       return
     activeHardDeleteCount.value += 1
@@ -766,7 +812,7 @@
           confirmButtonType: 'danger'
         }
       )
-      if (activeDeactivationCount.value > 0) return
+      if (activeDeactivationCount.value > 0 || activeActivationCount.value > 0) return
       await deleteUser(row)
       await tableQueryRef.value?.refreshData()
     } catch {
@@ -780,7 +826,7 @@
     selectedRows,
     api
   }: ArtTableQueryHeaderActionContext): Promise<void> {
-    if (activeHardDeleteCount.value > 0) return
+    if (isUserTransitionPending()) return
     const rows = selectedRows as UserListItem[]
     let successCount = 0
     const failures: string[] = []
@@ -796,7 +842,7 @@
           await deactivateUser(row, { showMessage: false })
           successCount += 1
         } catch (error) {
-          const reason = getFriendlySupabaseErrorMessage(error, '注销失败')
+          const reason = getFriendlySupabaseErrorMessage(error, '禁止失败')
           failures.push(`${row.nickName || row.userName}：${reason}`)
         }
       }
@@ -806,7 +852,7 @@
 
     if (successCount) await api.refreshRemove()
     if (!failures.length) {
-      ElMessage.success(`已注销 ${successCount} 个用户，历史业务记录已保留`)
+      ElMessage.success(`已禁止 ${successCount} 个用户，历史业务记录已保留`)
       return
     }
 
@@ -821,8 +867,7 @@
     selectedRows,
     api
   }: ArtTableQueryHeaderActionContext): Promise<void> {
-    if (activeDeactivationCount.value > 0) return
-    if (activeHardDeleteCount.value > 0) return
+    if (isUserTransitionPending()) return
     activeHardDeleteCount.value += 1
     try {
       await runBatchHardDelete(selectedRows, api)
@@ -846,7 +891,7 @@
         continue
       }
       if (!isDeactivatedUser(row)) {
-        failures.push(`${label}：仅可彻底删除已注销用户`)
+        failures.push(`${label}：仅可彻底删除已禁止用户`)
         continue
       }
       try {
@@ -869,7 +914,7 @@
 
     try {
       await confirmAction(
-        `将彻底删除 ${candidates.length} 个已注销用户，删除后无法恢复。确认继续吗？`,
+        `将彻底删除 ${candidates.length} 个已禁止用户，删除后无法恢复。确认继续吗？`,
         '批量彻底删除用户',
         {
           confirmButtonText: '确认彻底删除',
@@ -884,8 +929,8 @@
 
     let successCount = 0
     for (const row of candidates) {
-      if (activeDeactivationCount.value > 0) {
-        failures.push(`${row.nickName || row.userName}：注销操作进行中，已跳过`)
+      if (activeDeactivationCount.value > 0 || activeActivationCount.value > 0) {
+        failures.push(`${row.nickName || row.userName}：账号状态变更进行中，已跳过`)
         continue
       }
       try {

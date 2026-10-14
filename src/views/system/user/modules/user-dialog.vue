@@ -1,32 +1,36 @@
 <template>
   <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
+    <template #content-top>
+      <div class="user-dialog-top">
+        <section class="user-dialog-top__context">
+          <div class="user-dialog-top__context-icon" aria-hidden="true">
+            <ArtSvgIcon :icon="isEdit ? 'ri:user-settings-line' : 'ri:user-add-line'" />
+          </div>
+          <div>
+            <strong>{{ contextTitle }}</strong>
+            <p>{{ contextDescription }}</p>
+          </div>
+          <ElTag
+            :type="isCurrentUser ? 'warning' : isEdit ? 'primary' : 'success'"
+            effect="light"
+            round
+          >
+            {{ isCurrentUser ? '当前账号' : isEdit ? '编辑资料' : '新增账号' }}
+          </ElTag>
+        </section>
+
+        <ElAlert
+          v-if="isCurrentUser"
+          class="user-dialog-top__notice"
+          title="正在维护当前登录账号，保存后的昵称与头像可能立即同步到导航栏。"
+          type="warning"
+          :closable="false"
+          show-icon
+        />
+      </div>
+    </template>
+
     <div class="user-dialog">
-      <section class="user-dialog__context">
-        <div class="user-dialog__context-icon" aria-hidden="true">
-          <ArtSvgIcon :icon="isEdit ? 'ri:user-settings-line' : 'ri:user-add-line'" />
-        </div>
-        <div>
-          <strong>{{ contextTitle }}</strong>
-          <p>{{ contextDescription }}</p>
-        </div>
-        <ElTag
-          :type="isCurrentUser ? 'warning' : isEdit ? 'primary' : 'success'"
-          effect="light"
-          round
-        >
-          {{ isCurrentUser ? '当前账号' : isEdit ? '编辑资料' : '新增账号' }}
-        </ElTag>
-      </section>
-
-      <ElAlert
-        v-if="isCurrentUser"
-        class="user-dialog__notice"
-        title="正在维护当前登录账号，保存后的昵称与头像可能立即同步到导航栏。"
-        type="warning"
-        :closable="false"
-        show-icon
-      />
-
       <ArtForm
         ref="formRef"
         v-model="formData"
@@ -208,7 +212,7 @@
     {
       label: '账号身份',
       key: 'accountIdentityType',
-      type: 'segment',
+      type: 'radioGroup',
       span: 24,
       props: {
         options: identityTypeOptions.value,
@@ -595,6 +599,43 @@
     gap: 16px;
     min-width: 0;
 
+    &__employee-link {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    &__employee-guide {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--el-text-color-secondary);
+      background: var(--el-color-warning-light-9);
+      border: 1px solid var(--el-color-warning-light-8);
+      border-radius: var(--el-border-radius-base);
+
+      .el-button {
+        flex: none;
+        margin: 0;
+      }
+
+      @media (width <= 640px) {
+        align-items: flex-start;
+      }
+    }
+  }
+
+  // 顶部上下文区位于弹窗滚动容器之外，随表单内容一起滚动会让身份与提示丢失
+  .user-dialog-top {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+
     &__context {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr) auto;
@@ -623,6 +664,15 @@
         color: var(--el-text-color-secondary);
         overflow-wrap: anywhere;
       }
+
+      @media (width <= 640px) {
+        grid-template-columns: auto minmax(0, 1fr);
+
+        > :deep(.el-tag) {
+          grid-column: 2;
+          justify-self: start;
+        }
+      }
     }
 
     &__context-icon {
@@ -649,47 +699,6 @@
 
       :deep(.el-alert__title) {
         line-height: 1.6;
-      }
-    }
-
-    &__employee-link {
-      display: grid;
-      gap: 8px;
-      min-width: 0;
-    }
-
-    &__employee-guide {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 12px;
-      align-items: center;
-      justify-content: space-between;
-      padding: 9px 12px;
-      font-size: 12px;
-      line-height: 1.5;
-      color: var(--el-text-color-secondary);
-      background: var(--el-color-warning-light-9);
-      border: 1px solid var(--el-color-warning-light-8);
-      border-radius: var(--el-border-radius-base);
-
-      .el-button {
-        flex: none;
-        margin: 0;
-      }
-    }
-
-    @media (width <= 640px) {
-      &__context {
-        grid-template-columns: auto minmax(0, 1fr);
-
-        > :deep(.el-tag) {
-          grid-column: 2;
-          justify-self: start;
-        }
-      }
-
-      &__employee-guide {
-        align-items: flex-start;
       }
     }
   }
