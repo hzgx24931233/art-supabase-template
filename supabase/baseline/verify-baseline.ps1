@@ -162,11 +162,84 @@ SELECT 'workflow_definition_columns' AS item, count(*)::text AS value
   FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'wf_definition';
 '@
   $helpers = Invoke-Psql -Sql $helperSql
+  # 平台超管角色守卫：改名/停用/删除必须被 sys_role 的触发器拦下。探针先造一个平台超管身份，
+  # 让 platform-super 写入策略放行，从而确认拦住它的是触发器而不是 RLS；对照项证明没有误伤。
+  $guardSql = @'
+begin;
+create temp table baseline_guard_probe(step text primary key, outcome text not null);
+grant insert, select on baseline_guard_probe to authenticated;
+
+insert into public.sys_user (id, auth_user_id, user_name, user_email, status, user_roles, create_by)
+values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
+        '基线守卫探针', 'baseline-guard@example.invalid', '1', array['R_SUPER'], 'verify-baseline');
+
+set local role authenticated;
+-- 镜像自带的 auth.uid() 读 request.jwt.claim.sub，桩 auth.jwt() 读 request.jwt.claims，两者都要设
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000b1","role":"authenticated"}';
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
+
+do $$
+declare
+  v_super_id uuid;
+  v_rows integer := 0;
+  v_control text := 'filtered';
+  v_rename text := 'allowed';
+  v_disable text := 'allowed';
+  v_delete text := 'allowed';
+begin
+  select id into v_super_id from public.sys_role where role_code = 'R_SUPER';
+
+  begin
+    update public.sys_role set description = description where id = v_super_id;
+    get diagnostics v_rows = row_count;
+    if v_rows = 1 then v_control := 'allowed'; end if;
+  exception when others then
+    v_control := 'blocked';
+  end;
+
+  begin
+    update public.sys_role set role_code = 'R_SUPER_RENAMED' where id = v_super_id;
+    get diagnostics v_rows = row_count;
+    if v_rows = 0 then v_rename := 'filtered'; end if;
+  exception when others then
+    v_rename := 'blocked';
+  end;
+
+  begin
+    update public.sys_role set enabled = false where id = v_super_id;
+    get diagnostics v_rows = row_count;
+    if v_rows = 0 then v_disable := 'filtered'; end if;
+  exception when others then
+    v_disable := 'blocked';
+  end;
+
+  begin
+    delete from public.sys_role where id = v_super_id;
+    get diagnostics v_rows = row_count;
+    if v_rows = 0 then v_delete := 'filtered'; end if;
+  exception when others then
+    v_delete := 'blocked';
+  end;
+
+  insert into baseline_guard_probe values
+    ('guard_control_description', v_control),
+    ('guard_rename', v_rename),
+    ('guard_disable', v_disable),
+    ('guard_delete', v_delete);
+end $$;
+
+reset role;
+select step as item, outcome as value from baseline_guard_probe order by step;
+rollback;
+'@
+  $guards = Invoke-Psql -Sql $guardSql -Quiet
 
   Write-Host "`n===== 对象与种子统计 ====="
   $stats | ForEach-Object { Write-Host "  $_" }
   Write-Host "`n===== 助手函数与授权 ====="
   $helpers | ForEach-Object { Write-Host "  $_" }
+  Write-Host "`n===== 平台超管角色守卫 ====="
+  $guards | ForEach-Object { Write-Host "  $_" }
 
   function Read-Stat {
     param([string]$Name)
@@ -231,6 +304,14 @@ SELECT 'workflow_definition_columns' AS item, count(*)::text AS value
     $failures += '基线没有种入任何「角色→平台页面」授权'
   }
 
+  foreach ($probe in @('guard_rename', 'guard_disable', 'guard_delete')) {
+    if (-not ($guards | Where-Object { $_ -match "^$probe\|blocked$" })) {
+      $failures += "平台超管角色守卫未拦住 $probe（期望 blocked）"
+    }
+  }
+  if (-not ($guards | Where-Object { $_ -match '^guard_control_description\|allowed$' })) {
+    $failures += '超管角色守卫误伤了描述修改（对照项未通过）'
+  }
   if ($failures.Count -gt 0) {
     throw "基线校验未通过：`n- $($failures -join "`n- ")"
   }

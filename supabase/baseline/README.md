@@ -276,6 +276,50 @@ supabase db query --linked --file supabase/baseline/platform-baseline.sql   # �
   `403 缺少权限：System:User:AssignRole`，确认部署后代码正常执行（自助拦截块在权限校验之后，
   其 403 路径需要真实登录账号才能端到端验证）。
 
+### 平台超管角色身份守卫（2026-10-13 起并入基线）
+
+背景：`app_private.is_platform_super()` 只认「`sys_user.user_roles` 含 `R_SUPER`，且 `sys_role` 里该角色
+`enabled is true`」，所以 `sys_role` 中 `role_code = 'R_SUPER'` 那一行的编码、启用状态与存在性就是平台超管的
+全部凭据。此前 `app_private.enforce_system_role_rules()` 虽然存在，但**从未挂任何触发器**，旧分支的条件在
+`sys_role_builtin_type_check` 约束下又永远不成立，等于角色表这层没有守卫：`authenticated` 的角色写入
+（由 `canonical_platform_super_write` 策略放行）可以直接把超管角色改名、停用或删除，让全体账号失去平台超管
+能力，且只能靠 SQL 修复。判据用角色编码而不是 `builtin_type`——后者在平台数据里始终为 `NULL`。
+
+守卫分两层：
+
+- **数据库**：`app_private.enforce_system_role_rules()` 补齐超管分支，并挂上
+  `trg_enforce_system_role_rules`（`sys_role` 的 `before update or delete` 触发器）：改名抛
+  `平台超管角色编码不可修改，请改用其他角色编码`、停用抛 `平台超管角色不可停用`、删除抛
+  `平台超管角色不可删除`；其余列（名称 / 描述 / 适用组织）不受影响。函数保持 **security invoker**：
+  `security definer` 下 `current_user` 恒等于属主，`service_role` 白名单会恒真而使守卫失效。
+  `postgres` 与 `service_role`（含 JWT `role = service_role`）按既有约定提前返回，维护通道不受这层约束。
+- **前端**：角色页按角色编码识别内置超管角色（`src/views/system/role/modules/role-builtin.ts`），不再为该行
+  提供「配置菜单权限 / 编辑 / 删除」入口，与 `set_role_menus` 对该角色的拒绝保持一致。
+
+已建库的项目补这一层（幂等，`create or replace function` 保留属主与授权）：
+
+```powershell
+# 从 platform-baseline.sql 取出该函数与触发器定义单独执行，或全量重放基线
+supabase db query --linked --file supabase/baseline/platform-baseline.sql
+```
+
+`supabase/modules/hr/hr-schema.sql` 中的函数副本与平台基线逐字一致；该交付物按既有约定只保留领域触发器，
+`sys_role` 的触发器仍只由平台基线提供。
+
+已执行的验证（2026-10-13，项目 `trthbpyqubyjtkzmcewy` / xmgl）：
+
+- 应用前（回滚事务内）：以平台超管身份（`authenticated` + `request.jwt.claims.sub` = 该账号 `auth_user_id`）
+  对 `R_SUPER` 行改名 / 停用 / 删除**全部成功**（各 1 行），确认角色表这层守卫确实缺失。
+- 应用：`create or replace function` + `create trigger` 与断言同事务执行，断言（停用必须抛
+  `平台超管角色不可停用`）通过才提交，失败则整段回滚。
+- 应用后（回滚事务内六条断言）：改名 / 停用 / 删除被拦截（消息如上）；改描述仍放行（1 行）、普通角色停用与
+  改编码仍放行（各 1 行）、`service_role` 改编码仍放行（1 行），确认既未误伤也未封死维护通道。
+- 改后线上 `pg_get_functiondef` 与 `platform-baseline.sql` 定义逐字一致；触发器为
+  `BEFORE DELETE OR UPDATE ON public.sys_role FOR EACH ROW`；`supabase db advisors` 仍为 1189 条既有
+  WARN，0 条涉及该函数或触发器。
+- `supabase/baseline/verify-baseline.ps1` 新增守卫断言（先造一个平台超管身份，再验证改名 / 停用 / 删除被拦、
+  改描述放行）：在干净 Postgres 容器里通过；临时注释掉基线中的触发器语句后同一断言失败，确认断言有效。
+
 ## 参数设置数据迁移（2026-10-08）
 
 已从源项目 `nvzlwcutsqptngyqfzqs` 的 `public.sys_param` 迁移 10 条记录到当前项目

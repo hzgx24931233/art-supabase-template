@@ -50,6 +50,7 @@
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { addRole, editRole, fetchGetEnableOrganizationTree } from '@/api/system-manage'
   import { uniqueValidator } from '@/utils/form/validator'
+  import { isBuiltinRole } from './role-builtin'
 
   type RoleListItem = Api.SystemManage.RoleListItem
   type DialogType = 'add' | 'edit'
@@ -75,15 +76,13 @@
   const formRef = ref<ArtFormExpose>()
   const dialogType = ref<DialogType>('add')
 
-  const isDefaultRegisterRole = computed(
-    () => dialogType.value === 'edit' && form.builtinType === 'default_register'
-  )
+  // Built-in identity belongs to the record that was opened, so typing a reserved role code into
+  // the form cannot lock or unlock the editor by itself.
+  const openedRole = ref<RoleListItem | null>(null)
 
-  const isSuperRole = computed(
-    () => dialogType.value === 'edit' && form.builtinType === 'platform_super'
+  const isSystemBuiltinRole = computed(() =>
+    openedRole.value ? isBuiltinRole(openedRole.value) : false
   )
-
-  const isSystemBuiltinRole = computed(() => isDefaultRegisterRole.value || isSuperRole.value)
   const contextTitle = computed(() =>
     dialogType.value === 'add' ? '创建新的职责角色' : '调整角色定义与可用状态'
   )
@@ -212,6 +211,7 @@
   ])
 
   const resetForm = async (): Promise<void> => {
+    openedRole.value = null
     Object.assign(form, createInitialForm())
     await nextTick()
     formRef.value?.clearValidate()
@@ -220,6 +220,7 @@
   const initializeForm = async (data: RoleEditDialogOpenData): Promise<void> => {
     await resetForm()
     dialogType.value = data.type
+    openedRole.value = data.roleData ?? null
 
     if (data.roleData) {
       const {

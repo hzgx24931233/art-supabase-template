@@ -68,6 +68,42 @@ function isIgnorableScriptError(message: Event | string, source?: string): boole
 }
 
 /**
+ * SFC 编译器注入到组件定义上的字段；组件实例本身只能打印成 `Proxy(Object)`，
+ * 渲染期崩溃必须靠组件名与源码文件才能定位。
+ */
+interface ComponentDescriptor {
+  __name?: unknown
+  __file?: unknown
+  name?: unknown
+}
+
+function readDescriptorText(
+  descriptor: ComponentDescriptor,
+  key: keyof ComponentDescriptor
+): string | undefined {
+  const value = descriptor[key]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+/**
+ * 把组件定义描述成 `名称 (文件)`；取不到时给出可检索的兜底文案。
+ */
+export function describeComponentType(type: unknown): string {
+  if (typeof type !== 'object' || type === null) {
+    return 'unknown'
+  }
+
+  const descriptor = type as ComponentDescriptor
+  const name =
+    readDescriptorText(descriptor, '__name') ??
+    readDescriptorText(descriptor, 'name') ??
+    'anonymous'
+  const file = readDescriptorText(descriptor, '__file')
+
+  return file ? `${name} (${file})` : name
+}
+
+/**
  * Vue 运行时错误处理
  */
 export function vueErrorHandler(
@@ -75,7 +111,7 @@ export function vueErrorHandler(
   instance: ComponentPublicInstance | null,
   info: string
 ) {
-  console.error('[VueError]', err, info, instance)
+  console.error('[VueError]', err, info, instance, describeComponentType(instance?.$.type))
   // 这里可以上报到服务端，比如：
   // reportError({ type: 'vue', err, info })
 }

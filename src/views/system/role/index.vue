@@ -128,6 +128,7 @@
     type MasterDataDeleteGuardOpenOptions
   } from '@/components/business/master-data-delete-guard/index.vue'
   import MasterDeleteProcessingNotice from '@/components/business/master-delete-processing-notice/index.vue'
+  import { isBuiltinRole, isDefaultRegisterRole, isPlatformSuperRole } from './modules/role-builtin'
 
   defineOptions({ name: 'Role' })
 
@@ -280,13 +281,13 @@
 
   const roleEditDialogRef = ref<RoleEditDialogExpose>()
   const rolePermissionDialogRef = ref<RolePermissionDialogExpose>()
-  const isDefaultRegisterRole = (row: RoleListItem): boolean =>
-    row.builtinType === 'default_register'
-
-  const isSuperRole = (row: RoleListItem): boolean => row.builtinType === 'platform_super'
+  // The super role already owns every permission and `set_role_menus` refuses to allocate menus to
+  // it, so its grant entry stays unavailable instead of failing on save.
+  const isPermissionConfigDisabled = (row: RoleListItem): boolean =>
+    isPlatformSuperRole(row) || (isDefaultRegisterRole(row) && !isPlatformSuper.value)
 
   const getRoleMoreActions = (row: RoleListItem): ButtonMoreItem[] => {
-    if (isSuperRole(row)) {
+    if (isPlatformSuperRole(row)) {
       return []
     }
 
@@ -340,7 +341,7 @@
           minWidth: 230,
           link: {
             permission: 'System:Role:AssignPermission',
-            disabled: (row) => isDefaultRegisterRole(row) && !isPlatformSuper.value,
+            disabled: isPermissionConfigDisabled,
             onClick: showPermissionDialog
           },
           formatter: (row: RoleListItem) =>
@@ -348,10 +349,7 @@
               h(
                 'span',
                 {
-                  class: [
-                    'role-identity-cell__icon',
-                    { 'is-protected': isSuperRole(row) || isDefaultRegisterRole(row) }
-                  ],
+                  class: ['role-identity-cell__icon', { 'is-protected': isBuiltinRole(row) }],
                   'aria-hidden': 'true'
                 },
                 (row.roleName || '角').slice(0, 1)
@@ -359,7 +357,7 @@
               h('div', { class: 'role-identity-cell__copy' }, [
                 h('div', { class: 'role-identity-cell__heading' }, [
                   h('strong', { title: row.roleName }, row.roleName),
-                  isSuperRole(row) || isDefaultRegisterRole(row)
+                  isBuiltinRole(row)
                     ? h('span', { class: 'role-identity-cell__builtin' }, '系统内置')
                     : null
                 ]),
@@ -416,7 +414,7 @@
           width: 120,
           fixed: 'right',
           formatter: (row: RoleListItem) => {
-            if (isSuperRole(row)) {
+            if (isPlatformSuperRole(row)) {
               return h('span', { class: 'role-operation-cell__protected' }, '受保护')
             }
 
@@ -442,9 +440,7 @@
   })
 
   const enabledRoleCount = computed(() => data.value.filter((row) => row.enabled).length)
-  const protectedRoleCount = computed(
-    () => data.value.filter((row) => isSuperRole(row) || isDefaultRegisterRole(row)).length
-  )
+  const protectedRoleCount = computed(() => data.value.filter((row) => isBuiltinRole(row)).length)
   const workspaceMetrics = computed<BusinessWorkspaceMetric[]>(() => [
     {
       label: '当前结果',
@@ -497,7 +493,7 @@
   }
 
   const handleDeleteRole = async (row: RoleListItem): Promise<void> => {
-    if (!row.id || row.builtinType) return
+    if (!row.id || isBuiltinRole(row)) return
     try {
       const blocked = await deleteGuardRef.value?.inspect({
         resourceType: 'role',

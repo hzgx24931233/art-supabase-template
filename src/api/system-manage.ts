@@ -37,7 +37,7 @@ const GEOFENCE_CONFIG_PARAM_KEY = 'tms.geofence.config'
 const GEOFENCE_CONFIG_REQUEST_TIMEOUT_MS = 20_000
 
 interface DeleteUserSyncPayload {
-  action: 'deactivate'
+  action: 'deactivate' | 'hard_delete'
   id: string
   auth_user_id?: string
 }
@@ -90,6 +90,13 @@ export async function fetchGetUserList(params: Api.SystemManage.UserSearchParams
     },
     opsMap
   )
+
+  // 停用账号会同时写入 deleted_at。只有平台超级管理员可以查看这类历史账号，
+  // 不能把“包含已禁用”交给调用方参数决定，避免普通用户通过修改请求绕过可见性边界。
+  const superCheck = await responseHandle<boolean>(() => supabase.rpc('current_is_super'), {
+    showErrorMessage: false
+  })
+  const includeDisabledUsers = superCheck.data === true
   /* const specs = [
         { col: 'user_name', op: 'ilike', val: userName ? `%${userName}%` : undefined },
         { col: 'user_phone', op: 'eq', val: userPhone },
@@ -110,9 +117,10 @@ export async function fetchGetUserList(params: Api.SystemManage.UserSearchParams
       `,
       { count: 'exact' }
     )
-    .is('deleted_at', null)
     .order('create_time', { ascending: false }) // 按创建时间倒序
     .range(from, to)
+
+  if (!includeDisabledUsers) query = query.is('deleted_at', null)
 
   // applyFilters 支持传入 FilterSpec[]（这里 specs 已为 snake_case）
   query = applyFilters(query, specs, { skipEmpty: true, camelToSnake: false })
@@ -484,6 +492,28 @@ export async function deactivateUser(
     showMessage: options.showMessage ?? true,
     breakReturn: true
   })
+}
+
+/** 彻底删除已注销用户及其登录身份。服务端会再次校验关联记录与账号状态。 */
+export async function deleteUser(
+  params: Api.SystemManage.UserListItem,
+  options: { showMessage?: boolean } = {}
+) {
+  const { id, authUserId } = params
+  if (!id) throw new Error('未找到需要删除的用户')
+  const payload: DeleteUserSyncPayload = { action: 'hard_delete', id }
+  if (authUserId) payload.auth_user_id = authUserId
+  const response = await responseHandle<{ deleted_app_user_id?: string }>(
+    () => supabase.functions.invoke('sync-user', { body: payload }),
+    {
+      showMessage: options.showMessage ?? true,
+      breakReturn: true,
+      message: '用户记录已彻底删除'
+    }
+  )
+  if (response.data?.deleted_app_user_id !== id) {
+    throw new Error('服务端未完成彻底删除，请刷新后重试')
+  }
 }
 
 /*新增用户*/

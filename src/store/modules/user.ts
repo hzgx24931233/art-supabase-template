@@ -211,27 +211,29 @@ export const useUserStore = defineStore(
      * 如果不是同一用户登录，清空工作台标签页
      * 应在登录成功后调用
      */
-    const checkAndClearWorkTabs = () => {
+    const checkAndClearWorkTabs = (): boolean => {
       const lastUserId = localStorage.getItem(StorageConfig.LAST_USER_ID_KEY)
       const currentUserId = info.value.userId
 
       // 无法获取当前用户 ID，跳过检查
-      if (!currentUserId) return
+      if (!currentUserId) return false
 
       // 首次登录或缓存已清除，保留现有标签页
       if (!lastUserId) {
-        return
+        return false
       }
 
+      const isUserSwitched = String(currentUserId) !== lastUserId
       // 不同用户登录，清空工作台标签页
-      if (String(currentUserId) !== lastUserId) {
-        const worktabStore = useWorktabStore()
-        worktabStore.opened = []
-        worktabStore.keepAliveExclude = []
+      if (isUserSwitched) {
+        useWorktabStore().clearAll()
+        // 首页路径属于当前用户的菜单权限上下文，切换账号时不得沿用旧账号的首页。
+        useMenuStore().setHomePath('')
       }
 
       // 清除临时存储
       localStorage.removeItem(StorageConfig.LAST_USER_ID_KEY)
+      return isUserSwitched
     }
 
     const getDictLabelByValue = (dictCode: keyof DictMap | string, value?: string) => {

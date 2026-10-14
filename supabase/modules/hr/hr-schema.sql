@@ -1592,10 +1592,29 @@ $function$;
 CREATE OR REPLACE FUNCTION app_private.enforce_system_role_rules()
  RETURNS trigger
  LANGUAGE plpgsql
- SECURITY DEFINER
  SET search_path TO ''
 AS $function$
+declare
+  v_is_service_role boolean := current_user in ('postgres', 'service_role')
+    or coalesce(auth.jwt() ->> 'role', '') = 'service_role';
+  v_is_platform_super_role boolean := old.role_code = 'R_SUPER';
 begin
+  if v_is_service_role then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+
+  if v_is_platform_super_role then
+    if tg_op = 'DELETE' then
+      raise exception '平台超管角色不可删除';
+    end if;
+    if new.role_code is distinct from old.role_code then
+      raise exception '平台超管角色编码不可修改，请改用其他角色编码';
+    end if;
+    if new.enabled is not true then
+      raise exception '平台超管角色不可停用';
+    end if;
+  end if;
+
   if tg_op = 'DELETE' then
     if old.builtin_type is not null
        and old.builtin_type not in ('default_register', 'platform_super') then
@@ -1604,20 +1623,18 @@ begin
     return old;
   end if;
 
-  if tg_op = 'UPDATE' then
-    if old.builtin_type is not null
-       and old.builtin_type not in ('default_register', 'platform_super')
-       and (new.builtin_type is distinct from old.builtin_type
-         or new.role_code is distinct from old.role_code
-         or new.enabled is false) then
-      raise exception '系统预置角色身份不可修改或停用';
-    end if;
+  if old.builtin_type is not null
+     and old.builtin_type not in ('default_register', 'platform_super')
+     and (new.builtin_type is distinct from old.builtin_type
+       or new.role_code is distinct from old.role_code
+       or new.enabled is false) then
+    raise exception '系统预置角色身份不可修改或停用';
+  end if;
 
-    if new.builtin_type is not null
-       and new.builtin_type not in ('default_register', 'platform_super')
-       and new.builtin_type is distinct from old.builtin_type then
-      raise exception '不能将普通角色改为系统预置角色';
-    end if;
+  if new.builtin_type is not null
+     and new.builtin_type not in ('default_register', 'platform_super')
+     and new.builtin_type is distinct from old.builtin_type then
+    raise exception '不能将普通角色改为系统预置角色';
   end if;
 
   return new;

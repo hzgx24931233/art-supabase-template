@@ -406,9 +406,12 @@
         console.error('[Login] 基础字典初始化失败:', error)
       }
     })
+    // 用户资料加载完成后才能可靠判断是否切换了账号；切换账号时不得恢复上一个用户的工作台。
+    const isUserSwitched = userStore.checkAndClearWorkTabs()
     showLoginSuccessNotice()
 
-    const targetPath = await resolvePostLoginPath()
+    // 账号切换时不能沿用退出前保存的旧用户 URL；从根路径重新按新用户菜单初始化。
+    const targetPath = isUserSwitched ? '/' : await resolvePostLoginPath()
     if (isAbsoluteApplicationRedirect(targetPath)) {
       window.location.replace(targetPath)
       return

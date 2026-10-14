@@ -68,6 +68,7 @@
     <UserDialog ref="userDialogRef" @success="handleSaveSuccess" />
     <UserDetailDrawer ref="userDetailRef" />
     <UserRoleDialog ref="userRoleRef" @success="tableQueryRef?.refreshUpdate()" />
+    <MasterDataDeleteGuard ref="deleteGuardRef" />
     <ArtDrawer ref="organizationDrawerRef">
       <OrganizationScopeFilter
         class="user-page__drawer-filter"
@@ -110,6 +111,7 @@
   import { useUserStore } from '@/store/modules/user'
   import {
     deactivateUser,
+    deleteUser,
     fetchGetUserList,
     fetchGetUserOrganizationTree,
     resetUser
@@ -125,6 +127,9 @@
   import TreeUtils from '@/utils/tree'
   import MasterDeleteProcessingNotice from '@/components/business/master-delete-processing-notice/index.vue'
   import { useAuth } from '@/hooks/core/useAuth'
+  import MasterDataDeleteGuard from '@/components/business/master-data-delete-guard/index.vue'
+  import { fetchRecordDeleteDependencies } from '@/api/master-data-delete'
+  import type { MasterDataDeleteDependencyDetail } from '@/api/master-data-delete'
 
   defineOptions({ name: 'User' })
 
@@ -171,6 +176,9 @@
   const userDetailRef = ref<UserDetailDrawerExpose>()
   const userRoleRef = ref<UserRoleDialogExpose>()
   const organizationDrawerRef = ref<ArtDrawerExpose<Record<string, never>>>()
+  const deleteGuardRef = ref<InstanceType<typeof MasterDataDeleteGuard>>()
+  const activeDeactivationCount = ref(0)
+  const activeHardDeleteCount = ref(0)
   const isDesktopOrganizationLayout = useMediaQuery('(min-width: 1201px)')
   const organizationTree = ref<OrganizationFilterItem[]>([])
   const organizationFilterLoading = ref(false)
@@ -315,10 +323,23 @@
     {
       type: 'delete',
       label: '批量注销',
+      key: 'deactivate-users',
       permission: 'System:User:Delete',
+      disabled: () => activeHardDeleteCount.value > 0,
       content: ({ selectedCount }: ArtTableQueryHeaderActionContext) =>
         `确定注销选中的 ${selectedCount} 个用户吗？这些账号将不能继续登录，历史业务记录仍会保留。`,
       onClick: handleBatchDelete
+    },
+    {
+      type: 'delete',
+      label: '批量彻底删除记录',
+      key: 'hard-delete-users',
+      permission: 'System:User:Delete',
+      disabled: () => activeDeactivationCount.value > 0,
+      confirm: false,
+      content: ({ selectedCount }: ArtTableQueryHeaderActionContext) =>
+        `确定彻底删除选中的 ${selectedCount} 个已注销用户吗？删除后无法恢复。`,
+      onClick: handleBatchHardDelete
     }
   ])
 
@@ -559,8 +580,12 @@
     }
   ]
 
+  const isDeactivatedUser = (row: Pick<UserListItem, 'status' | 'deletedAt'>): boolean => {
+    return String(row.status) === '2' && Boolean(row.deletedAt)
+  }
+
   const getMoreActions = (row: UserListItem): ButtonMoreItem[] => {
-    const selfExcludeButtonKeys = ['delete']
+    const selfExcludeButtonKeys = ['delete', 'hard-delete']
     const buttonList: ButtonMoreItem[] = [
       {
         key: 'reset',
@@ -573,9 +598,21 @@
         label: '注销用户',
         icon: 'ri:logout-box-r-line',
         color: 'var(--el-color-danger)',
-        auth: 'System:User:Delete'
+        auth: 'System:User:Delete',
+        disabled: activeDeactivationCount.value > 0 || activeHardDeleteCount.value > 0
       }
     ]
+
+    if (isDeactivatedUser(row)) {
+      buttonList.push({
+        key: 'hard-delete',
+        label: '彻底删除记录',
+        icon: 'ri:delete-bin-7-line',
+        color: 'var(--el-color-danger)',
+        auth: 'System:User:Delete',
+        disabled: activeDeactivationCount.value > 0 || activeHardDeleteCount.value > 0
+      })
+    }
 
     if (!isCurrentUser(row) && !isProtectedUser(row)) return buttonList
     return buttonList.filter((item) => !selfExcludeButtonKeys.includes(item.key as string))
@@ -628,6 +665,9 @@
       case 'delete':
         void handleDeleteUser(row)
         break
+      case 'hard-delete':
+        void handleHardDeleteUser(row)
+        break
     }
   }
 
@@ -655,6 +695,8 @@
   }
 
   const handleDeleteUser = async (row: UserListItem): Promise<void> => {
+    if (activeDeactivationCount.value > 0 || activeHardDeleteCount.value > 0) return
+    activeDeactivationCount.value += 1
     try {
       await confirmAction(
         `注销后「${row.nickName || row.userName}」将无法继续登录，历史业务记录不会被删除。`,
@@ -670,6 +712,67 @@
       await tableQueryRef.value?.refreshUpdate()
     } catch {
       // 用户取消时无需额外提示。
+    } finally {
+      activeDeactivationCount.value -= 1
+    }
+  }
+
+  const fetchUserDeleteDependencies = async (
+    resourceIds: string[]
+  ): Promise<MasterDataDeleteDependencyDetail[]> => {
+    const dependencies = await fetchRecordDeleteDependencies({
+      table: 'sys_user',
+      ids: resourceIds
+    })
+    return dependencies.map((dependency) => ({
+      resourceId: dependency.resourceId,
+      dependencyCode: dependency.sourceTable,
+      recordId: dependency.recordId,
+      targetId: dependency.targetId,
+      recordNo: dependency.recordNo,
+      recordSummary: dependency.recordSummary,
+      recordStatus: dependency.recordStatus,
+      createdAt: dependency.createdAt ?? '',
+      cleanupAllowed: false
+    }))
+  }
+
+  const handleHardDeleteUser = async (row: UserListItem): Promise<void> => {
+    if (
+      !row.id ||
+      !isDeactivatedUser(row) ||
+      isCurrentUser(row) ||
+      isProtectedUser(row) ||
+      activeDeactivationCount.value > 0 ||
+      activeHardDeleteCount.value > 0
+    )
+      return
+    activeHardDeleteCount.value += 1
+    try {
+      const blocked = await deleteGuardRef.value?.inspect({
+        resourceLabel: '用户',
+        resources: [{ id: row.id, label: row.nickName || row.userName }],
+        fetchDependencies: fetchUserDeleteDependencies
+      })
+      if (blocked) return
+
+      await confirmAction(
+        `彻底删除「${row.nickName || row.userName}」后，用户记录和登录身份都无法恢复。确认继续吗？`,
+        '彻底删除用户',
+        {
+          confirmButtonText: '确认彻底删除',
+          cancelButtonText: '取消',
+          type: 'warning',
+          confirmButtonType: 'danger'
+        }
+      )
+      if (activeDeactivationCount.value > 0) return
+      await deleteUser(row)
+      await tableQueryRef.value?.refreshData()
+    } catch {
+      // 用户取消或关联检查失败时，反馈由统一请求层与删除保护弹窗处理。
+    } finally {
+      activeHardDeleteCount.value -= 1
     }
   }
 
@@ -677,22 +780,28 @@
     selectedRows,
     api
   }: ArtTableQueryHeaderActionContext): Promise<void> {
+    if (activeHardDeleteCount.value > 0) return
     const rows = selectedRows as UserListItem[]
     let successCount = 0
     const failures: string[] = []
 
-    for (const row of rows) {
-      if (isCurrentUser(row) || isProtectedUser(row)) {
-        failures.push(`${row.nickName || row.userName}：受保护账号`)
-        continue
+    activeDeactivationCount.value += 1
+    try {
+      for (const row of rows) {
+        if (!row.id || isCurrentUser(row) || isProtectedUser(row)) {
+          failures.push(`${row.nickName || row.userName}：受保护账号`)
+          continue
+        }
+        try {
+          await deactivateUser(row, { showMessage: false })
+          successCount += 1
+        } catch (error) {
+          const reason = getFriendlySupabaseErrorMessage(error, '注销失败')
+          failures.push(`${row.nickName || row.userName}：${reason}`)
+        }
       }
-      try {
-        await deactivateUser(row, { showMessage: false })
-        successCount += 1
-      } catch (error) {
-        const reason = getFriendlySupabaseErrorMessage(error, '注销失败')
-        failures.push(`${row.nickName || row.userName}：${reason}`)
-      }
+    } finally {
+      activeDeactivationCount.value -= 1
     }
 
     if (successCount) await api.refreshRemove()
@@ -701,6 +810,99 @@
       return
     }
 
+    const failurePreview = failures.slice(0, 3).join('；')
+    const remaining = failures.length > 3 ? `；另有 ${failures.length - 3} 项失败` : ''
+    const message = `${successCount ? `成功 ${successCount} 项，` : ''}失败 ${failures.length} 项：${failurePreview}${remaining}`
+    if (successCount) ElMessage.warning(message)
+    else ElMessage.error(message)
+  }
+
+  async function handleBatchHardDelete({
+    selectedRows,
+    api
+  }: ArtTableQueryHeaderActionContext): Promise<void> {
+    if (activeDeactivationCount.value > 0) return
+    if (activeHardDeleteCount.value > 0) return
+    activeHardDeleteCount.value += 1
+    try {
+      await runBatchHardDelete(selectedRows, api)
+    } finally {
+      activeHardDeleteCount.value -= 1
+    }
+  }
+
+  async function runBatchHardDelete(
+    selectedRows: ArtTableQueryHeaderActionContext['selectedRows'],
+    api: ArtTableQueryHeaderActionContext['api']
+  ): Promise<void> {
+    const rows = selectedRows as UserListItem[]
+    const candidates: UserListItem[] = []
+    const failures: string[] = []
+
+    for (const row of rows) {
+      const label = row.nickName || row.userName
+      if (!row.id || isCurrentUser(row) || isProtectedUser(row)) {
+        failures.push(`${label}：受保护账号`)
+        continue
+      }
+      if (!isDeactivatedUser(row)) {
+        failures.push(`${label}：仅可彻底删除已注销用户`)
+        continue
+      }
+      try {
+        const blocked = await deleteGuardRef.value?.inspect({
+          resourceLabel: '用户',
+          resources: [{ id: row.id as string, label }],
+          fetchDependencies: fetchUserDeleteDependencies
+        })
+        if (blocked) failures.push(`${label}：存在业务关联，未删除`)
+        else candidates.push(row)
+      } catch (error) {
+        failures.push(`${label}：${getFriendlySupabaseErrorMessage(error, '关联检查失败')}`)
+      }
+    }
+
+    if (!candidates.length) {
+      if (failures.length) ElMessage.warning(`没有可删除的用户：${failures.slice(0, 3).join('；')}`)
+      return
+    }
+
+    try {
+      await confirmAction(
+        `将彻底删除 ${candidates.length} 个已注销用户，删除后无法恢复。确认继续吗？`,
+        '批量彻底删除用户',
+        {
+          confirmButtonText: '确认彻底删除',
+          cancelButtonText: '取消',
+          type: 'warning',
+          confirmButtonType: 'danger'
+        }
+      )
+    } catch {
+      return
+    }
+
+    let successCount = 0
+    for (const row of candidates) {
+      if (activeDeactivationCount.value > 0) {
+        failures.push(`${row.nickName || row.userName}：注销操作进行中，已跳过`)
+        continue
+      }
+      try {
+        await deleteUser(row, { showMessage: false })
+        successCount += 1
+      } catch (error) {
+        failures.push(
+          `${row.nickName || row.userName}：${getFriendlySupabaseErrorMessage(error, '彻底删除失败')}`
+        )
+      }
+    }
+
+    await api.refreshData()
+    if (!failures.length) {
+      ElMessage.success(`已彻底删除 ${successCount} 个用户记录`)
+      return
+    }
     const failurePreview = failures.slice(0, 3).join('；')
     const remaining = failures.length > 3 ? `；另有 ${failures.length - 3} 项失败` : ''
     const message = `${successCount ? `成功 ${successCount} 项，` : ''}失败 ${failures.length} 项：${failurePreview}${remaining}`

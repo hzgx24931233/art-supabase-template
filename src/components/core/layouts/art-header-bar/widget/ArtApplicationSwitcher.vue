@@ -1,8 +1,10 @@
 <template>
+  <!-- Keep the popper local because the header is replaced during auth navigation. -->
   <ElDropdown
     v-if="switcherEntries.length > 1"
     trigger="click"
     placement="bottom-end"
+    :teleported="false"
     @command="switchApplication"
   >
     <button class="application-switcher" type="button" aria-label="切换业务应用">
@@ -49,9 +51,11 @@
     type ApplicationCode
   } from '@/config/application'
   import { useMenuStore } from '@/store/modules/menu'
+  import { useUserStore } from '@/store/modules/user'
   import { getFirstMenuPath } from '@/utils/navigation/route'
   import { navigateToApplication } from '@/utils/application-navigation'
   import { WEB_LINKS } from '@/utils/constants'
+  import { router } from '@/router'
   import { ElMessage } from 'element-plus'
 
   defineOptions({ name: 'ArtApplicationSwitcher' })
@@ -67,6 +71,7 @@
 
   const applications = ref<AccessibleApplication[]>([])
   const route = useRoute()
+  const userStore = useUserStore()
   const menuStore = useMenuStore()
   const activeApplicationCode = computed(() =>
     currentApplication.code === 'platform'
@@ -108,9 +113,41 @@
     docs: 'ri:book-open-line'
   }
 
-  onMounted(async () => {
+  let isMounted = true
+  let applicationsLoaded = false
+  let requestSequence = 0
+  let removeAfterEach: (() => void) | undefined
+
+  const loadApplications = async (): Promise<void> => {
+    if (!isMounted || applicationsLoaded) return
+
+    const sequence = ++requestSequence
+    const requestUserId = userStore.info.userId
     const { data, error } = await fetchAccessibleApplications()
-    if (!error) applications.value = data ?? []
+    // 账号切换、进入登录页或导航进行中时，旧请求不得触发顶部栏更新；
+    // 用请求序号判定过期，而不是整体拦掉加载，否则慢导航后切换器会一直为空。
+    const isCurrentRequest = sequence === requestSequence
+    const isSameAuthenticatedUser =
+      Boolean(requestUserId) &&
+      userStore.isLogin &&
+      userStore.info.userId === requestUserId &&
+      !route.path.startsWith('/auth')
+    if (!isMounted || !isCurrentRequest || !isSameAuthenticatedUser || error) return
+
+    applications.value = data ?? []
+    applicationsLoaded = true
+  }
+
+  onMounted(() => {
+    removeAfterEach = router.afterEach(() => {
+      void loadApplications()
+    })
+    void loadApplications()
+  })
+
+  onBeforeUnmount(() => {
+    isMounted = false
+    removeAfterEach?.()
   })
 
   async function switchApplication(code: SwitcherEntryCode): Promise<void> {

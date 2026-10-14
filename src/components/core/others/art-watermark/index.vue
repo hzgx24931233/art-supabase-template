@@ -1,6 +1,6 @@
 <!-- 水印组件 -->
 <template>
-  <Teleport to="#app-content" :disabled="!teleportReady">
+  <Teleport v-if="teleportTarget" :to="teleportTarget">
     <div
       v-if="resolvedVisible"
       class="art-watermark-layer"
@@ -33,7 +33,7 @@
   const { watermarkVisible, isDark } = storeToRefs(settingStore)
   const { websiteConfig, websiteConfigLoaded, loadWebsiteConfig, resolveWatermarkContent } =
     useWebsiteConfig()
-  const teleportReady = ref(false)
+  const route = useRoute()
 
   interface WatermarkProps {
     /** 水印内容 */
@@ -86,9 +86,21 @@
     props.offsetY ?? 90
   ])
 
+  // Teleport 只在挂载时解析一次目标，目标缺失会被固定成 null，之后启用或任何一次重渲染
+  // 都会把内容插进 null 容器（insertBefore 读取失败）。因此这里按元素解析目标：
+  // 目标不存在时不渲染 Teleport，布局随路由重建后重新解析，不沿用已经失效的目标。
+  const WATERMARK_TARGET_SELECTOR = '#app-content'
+  const teleportTarget = shallowRef<HTMLElement | null>(null)
+
+  const resolveTeleportTarget = (): void => {
+    teleportTarget.value = document.querySelector<HTMLElement>(WATERMARK_TARGET_SELECTOR)
+  }
+
+  watch(() => route.fullPath, resolveTeleportTarget, { flush: 'post' })
+
   onMounted(async () => {
     await nextTick()
-    teleportReady.value = true
+    resolveTeleportTarget()
     void loadWebsiteConfig()
   })
 </script>

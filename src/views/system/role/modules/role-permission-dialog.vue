@@ -142,6 +142,7 @@
               {{ isSelectAll ? '取消全选' : '全部选择' }}
             </ElButton>
           </ArtTooltip>
+          <ElButton :disabled="permissionSaving" @click="api.handleClose()">关闭窗口</ElButton>
           <ElButton
             type="primary"
             :loading="loading"
@@ -705,6 +706,7 @@
 
       &__footer-actions {
         flex-wrap: wrap;
+        row-gap: var(--art-space-2);
       }
     }
   }

@@ -39,12 +39,15 @@ const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
 const supabaseDB = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
 
+/** 平台超管由角色编码识别：与 app_private.is_platform_super() 同一判据。sys_role.builtin_type
+ * 在平台数据里不会被写入，不能当判据用。 */
+const PLATFORM_SUPER_ROLE_CODE = 'R_SUPER'
+
 type CallerProfile = {
   id: string
   auth_user_id: string
   user_email: string
   user_roles: string[]
-  builtin_roles: string[]
   status: string | null
 }
 
@@ -120,41 +123,27 @@ async function getCallerProfile(callerAuthUserId: string | null): Promise<Caller
     if (error) console.error('getCallerProfile error', error.message)
     return null
   }
-  const roleCodes = data.user_roles || []
-  const { data: builtinRoleRows } = roleCodes.length
-    ? await supabaseDB
-        .from('sys_role')
-        .select('builtin_type')
-        .in('role_code', roleCodes)
-        .not('builtin_type', 'is', null)
-    : { data: [] }
   return {
     id: data.id,
     auth_user_id: data.auth_user_id,
     user_email: String(data.user_email || '')
       .toLowerCase()
       .trim(),
-    user_roles: roleCodes,
-    builtin_roles: (builtinRoleRows || []).map((role) => role.builtin_type).filter(Boolean),
+    user_roles: data.user_roles || [],
     status: data.status ?? null
   }
-}
-function isPlatformSuper(profile: CallerProfile | null) {
-  return Boolean(
-    profile && profile.builtin_roles.includes('platform_super') && profile.status === '1'
-  )
 }
 
 async function isProtectedPlatformSuperUser(snapshot: Record<string, unknown>): Promise<boolean> {
   const roleCodes = Array.isArray(snapshot.user_roles)
     ? snapshot.user_roles.filter((role): role is string => typeof role === 'string')
     : []
-  if (!roleCodes.length) return false
+  if (!roleCodes.includes(PLATFORM_SUPER_ROLE_CODE)) return false
   const { data } = await supabaseDB
     .from('sys_role')
     .select('id')
-    .eq('builtin_type', 'platform_super')
-    .in('role_code', roleCodes)
+    .eq('role_code', PLATFORM_SUPER_ROLE_CODE)
+    .eq('enabled', true)
     .limit(1)
   return Boolean(data?.length)
 }
@@ -168,6 +157,17 @@ async function hasPermission(
   })
   if (error) {
     console.error('permission check failed', permission, error.message)
+    return false
+  }
+  return data === true
+}
+async function isPlatformSuper(
+  callerSupabase: ReturnType<typeof createClient> | null
+): Promise<boolean> {
+  if (!callerSupabase) return false
+  const { data, error } = await callerSupabase.rpc('current_is_super')
+  if (error) {
+    console.error('platform super check failed', error.message)
     return false
   }
   return data === true
@@ -235,7 +235,8 @@ function getFriendlyErrorMessage(error: unknown, action: string): string {
       create: '创建',
       update: '编辑',
       delete: '注销',
-      deactivate: '注销'
+      deactivate: '注销',
+      hard_delete: '彻底删除'
     }
     return `当前用户角色没有${actionMap[action] || action}权限，无法执行此操作`
   }
@@ -276,7 +277,7 @@ Deno.serve(async (req: Request) => {
   const body = await json(req)
   const auditId = uuidv4()
   const action = (body.action || '').toLowerCase()
-  if (!['create', 'update', 'assign_roles', 'deactivate', 'delete'].includes(action))
+  if (!['create', 'update', 'assign_roles', 'deactivate', 'hard_delete'].includes(action))
     return new Response(JSON.stringify({ ok: false, error: 'invalid action' }), {
       status: 400,
       headers: corsHeaders(origin)
@@ -304,13 +305,13 @@ Deno.serve(async (req: Request) => {
     }
   }
   const callerProfile = await getCallerProfile(callerAuthUserId)
-  const callerIsSuper = isPlatformSuper(callerProfile)
+  const callerIsSuper = await isPlatformSuper(callerSupabase)
   const permissionByAction: Record<string, string> = {
     create: 'System:User:Add',
     update: 'System:User:Edit',
     assign_roles: 'System:User:AssignRole',
     deactivate: 'System:User:Delete',
-    delete: 'System:User:Delete'
+      hard_delete: 'System:User:Delete'
   }
   const requiredPermission = permissionByAction[action]
   if (!(await hasPermission(callerSupabase, requiredPermission))) {
@@ -564,7 +565,7 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify(result), { status: 200, headers: corsHeaders(origin) })
     }
 
-    if (action === 'deactivate' || action === 'delete') {
+    if (action === 'deactivate' || action === 'hard_delete') {
       const id = body.id
       if (!id)
         return new Response(JSON.stringify({ ok: false, error: 'id required' }), {
@@ -588,6 +589,34 @@ Deno.serve(async (req: Request) => {
           status: 403,
           headers: corsHeaders(origin)
         })
+      if (action === 'hard_delete') {
+        if (snapshot.status !== '2' || !snapshot.deleted_at) {
+          return new Response(JSON.stringify({ ok: false, error: '仅可彻底删除已注销用户' }), {
+            status: 400,
+            headers: corsHeaders(origin)
+          })
+        }
+
+        const { error: deleteErr } = await supabaseDB.from('sys_user').delete().eq('id', id)
+        if (deleteErr) {
+          const isReferenceError = deleteErr.code === '23503'
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error: isReferenceError
+                ? '用户仍被业务记录引用，请先处理关联记录后再删除'
+                : getFriendlyErrorMessage(deleteErr, action)
+            }),
+            { status: isReferenceError ? 409 : 500, headers: corsHeaders(origin) }
+          )
+        }
+
+        // sys_user 上的 AFTER DELETE 触发器会在同一数据库事务中删除 auth.users，
+        // 不要再次调用 Admin API，否则会因二次删除返回 500。
+        const result = { ok: true, deleted_app_user_id: id, history_preserved: false }
+        await updateAudit(auditId, result)
+        return new Response(JSON.stringify(result), { status: 200, headers: corsHeaders(origin) })
+      }
       const deactivatedAt = new Date().toISOString()
       const deactivatedBy = callerEmail || callerProfile?.user_email || 'system'
       const { error: deactivateErr } = await supabaseDB
