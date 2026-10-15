@@ -135,7 +135,7 @@
   import ArtEmployeeSelect from '@/components/business/art-employee-select/index.vue'
   import ArtTableSingleSelect from '@/components/core/forms/art-data-select/table-single.vue'
   import { ref, reactive, computed, watch } from 'vue'
-  import { cloneDeep, pick } from 'lodash-es'
+  import { cloneDeep, isEqual, pick } from 'lodash-es'
   import ArtForm, { type FormItem } from '@/components/core/forms/art-form/index.vue'
   import type { ArtDialogExpose } from '@/components/core/dialogs/art-dialog/types'
   import type {
@@ -175,6 +175,7 @@
   const emit = defineEmits<{ success: [] }>()
   const user = useUserStore()
   const dialogRef = ref<ArtDialogExpose<OpenData>>()
+  const initialActivities = ref<WorkCenterActivityInput[]>([])
   const formRef = ref<InstanceType<typeof ArtForm>>()
   const activityEditorRef = ref<InstanceType<typeof ActivityEditor>>()
   const automationDialog = ref<ArtDialogExpose>()
@@ -368,6 +369,7 @@
   }
   async function handleOpen(data: OpenData) {
     dialogFullscreen.value = false
+    initialActivities.value = []
     Object.assign(form, {
       mode: data.mode,
       model: data.row
@@ -399,7 +401,9 @@
       subtitle: form.readonly
         ? '查看生产资源资料和各环节执行策略'
         : '按页签维护基础资料、活动、报工、生产、排程与自动化规则',
-      confirmText: '保存工作中心',
+      confirmText: data.mode === 'edit' ? '保存' : '创建工作中心',
+      skipConfirmWhenPristine: data.mode === 'edit',
+      isDirty: () => !isEqual(form.activities, initialActivities.value),
       cancelText: form.readonly ? '关闭' : '取消',
       showConfirmButton: !form.readonly,
       contentMaxHeight: '68vh',
@@ -431,6 +435,7 @@
             ]),
             sort: index
           })) as WorkCenterActivityInput[]
+          initialActivities.value = cloneDeep(form.activities)
           await loadActivityFormulas()
         } catch {
           form.error = '配置加载失败，请关闭后重试'

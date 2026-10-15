@@ -74,7 +74,8 @@
     Object.assign(form, { shift: cloneDeep(shift), rows: cloneDeep(shift.breaks) })
     await dialogRef.value?.handleOpen(undefined, {
       title: '休息时段设置',
-      confirmText: '保存休息时段',
+      confirmText: '保存',
+      skipConfirmWhenPristine: true,
       onConfirm: () => {
         if (preview.value.error) {
           ElMessage.warning(preview.value.error)

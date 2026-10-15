@@ -470,7 +470,8 @@
     await dialogRef.value?.handleOpen(data, {
       title: `${data.copy ? '复制' : data.row ? '编辑' : '新增'}生产设备`,
       subtitle: '统一生产归属、技术身份与现场接入信息',
-      confirmText: '保存设备',
+      skipConfirmWhenPristine: Boolean(data.row && !data.copy),
+      confirmText: data.copy ? '复制并新增' : data.row ? '保存' : '创建设备',
       contentMaxHeight: '74vh',
       onConfirm: handleSubmit,
       onOpen: () => formRef.value?.clearValidate()

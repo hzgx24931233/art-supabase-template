@@ -129,6 +129,7 @@
     await dialogRef.value?.handleOpen(data, {
       title: '分配用户角色',
       contentMaxHeight: '60vh',
+      skipConfirmWhenPristine: true,
       onConfirm: handleSubmit,
       onReset: () => {
         void resetForm()

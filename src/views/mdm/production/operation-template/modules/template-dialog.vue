@@ -273,7 +273,8 @@
       subtitle: form.readonly
         ? '查看模板任务与记分规则'
         : '维护可复用的作业任务、填写方式与记分规则',
-      confirmText: data.mode === 'edit' ? '保存更改' : '创建模板',
+      confirmText: data.mode === 'edit' ? '保存' : '创建模板',
+      skipConfirmWhenPristine: data.mode === 'edit',
       cancelText: form.readonly ? '关闭' : '取消',
       showConfirmButton: !form.readonly,
       contentMaxHeight: '72vh',

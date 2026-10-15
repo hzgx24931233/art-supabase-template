@@ -4,6 +4,8 @@
 
 `loading` covers the drawer's visible content viewport, centers the loading state there, and disables the default footer buttons. It is independent from the confirm button's `confirmLoading`.
 
+When an asynchronous `onConfirm` is running, the confirm button shows Loading immediately. If the request lasts longer than 200ms, the drawer content keeps its current values under a save overlay. Override `confirmLoadingText` for actions such as submission or publishing.
+
 ```vue
 <ArtDrawer
   ref="drawerRef"
@@ -234,6 +236,7 @@ drawerRef.value?.handleOpen(order, {
 | `showConfirmButton`   | `boolean`                        | `true`      | 是否显示确定按钮       |
 | `cancelText`          | `string`                         | `'取消'`    | 取消按钮文字           |
 | `confirmText`         | `string`                         | `'确定'`    | 确定按钮文字           |
+| `confirmLoadingText`  | `string`                         | `'保存中…'` | 确认请求遮罩文字       |
 | `confirmDisabled`     | `boolean`                        | `false`     | 是否禁用确定按钮       |
 | `autoClose`           | `boolean`                        | `true`      | 确认成功后自动关闭     |
 | `resetOnClose`        | `boolean`                        | `true`      | 关闭后自动重置         |

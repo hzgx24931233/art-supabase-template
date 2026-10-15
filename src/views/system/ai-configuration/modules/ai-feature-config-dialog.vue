@@ -453,7 +453,8 @@
       title: '编辑 AI 运行配置',
       size: 'lg',
       contentMaxHeight: '72vh',
-      confirmText: '保存并生效',
+      confirmText: '保存',
+      skipConfirmWhenPristine: true,
       onOpen: async () => {
         try {
           await loadModelCatalog()

@@ -208,7 +208,8 @@
     await editDialog.value?.handleOpen(undefined, {
       title: row ? '编辑设备' : '关联设备',
       subtitle: row ? '调整设备在当前工作中心中的用途' : '批量选择设备并设置统一投入 / 产出点',
-      confirmText: row ? '保存更改' : '关联设备',
+      confirmText: row ? '保存' : '关联设备',
+      skipConfirmWhenPristine: Boolean(row),
       onConfirm: async () => {
         try {
           await formRef.value?.validate()

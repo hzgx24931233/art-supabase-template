@@ -944,9 +944,10 @@
     await dialogRef.value?.handleOpen(data, {
       title: data.copy ? '复制 BOM' : data.row ? '编辑 BOM' : '新增 BOM',
       subtitle: '版本化维护父项与组件的工程关系',
-      confirmText: '保存 BOM',
+      confirmText: data.copy ? '复制并新增' : data.row ? '保存' : '创建 BOM',
       contentMaxHeight: '76vh',
       loading: true,
+      skipConfirmWhenPristine: Boolean(data.row && !data.copy),
       onConfirm: handleSubmit,
       onOpen: async (_openData, api) => {
         try {

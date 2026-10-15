@@ -1,5 +1,5 @@
 <template>
-  <ArtDialog ref="dialogRef" size="lg" confirm-on-close>
+  <ArtDialog ref="dialogRef" size="lg" confirm-on-close :close-on-click-modal="false">
     <template #content-top>
       <div class="user-dialog-top">
         <section class="user-dialog-top__context">
@@ -57,13 +57,6 @@
               @confirm="handleEmployeeConfirm"
               @clear="handleEmployeeClear"
             />
-            <div v-if="isEdit && !formData.hrEmployeeId" class="user-dialog__employee-guide">
-              <span>花名册中找不到本人？请先完成实名员工建档，再回来关联。</span>
-              <ElButton type="primary" link @click="openEmployeeProfile">
-                去新建员工档案
-                <ArtSvgIcon icon="ri:arrow-right-line" />
-              </ElButton>
-            </div>
           </div>
         </template>
         <template #avatar>
@@ -110,7 +103,6 @@
 
   const emit = defineEmits<Emits>()
   const userStore = useUserStore()
-  const router = useRouter()
   const { getDictMap, getUserInfo } = storeToRefs(userStore)
   const { t } = useI18n()
   const {
@@ -506,18 +498,6 @@
     employeeSelection.selectedRows = []
   }
 
-  const openEmployeeProfile = (): void => {
-    void router.push({
-      path: '/hr/personnel/employee-profile',
-      query: {
-        sourceUserId: formData.value.id,
-        organizationId: formData.value.organizationId || undefined,
-        email: formData.value.userEmail || undefined,
-        returnPath: '/system/user'
-      }
-    })
-  }
-
   const handleSubmit = async (): Promise<boolean> => {
     if (!formRef.value) return false
 
@@ -565,8 +545,13 @@
     await initializeForm(row)
     await dialogRef.value?.handleOpen(row, {
       title: isEdit.value ? '编辑用户' : '新增用户',
+      confirmText: isEdit.value ? '保存' : '创建账号',
       contentMaxHeight: '70vh',
       loading: true,
+      skipConfirmWhenPristine: isEdit.value,
+      dialogProps: {
+        closeOnClickModal: false
+      },
       onOpen: async (_data, api) => {
         try {
           await Promise.all([
@@ -594,42 +579,6 @@
 </script>
 
 <style scoped lang="scss">
-  .user-dialog {
-    display: grid;
-    gap: 16px;
-    min-width: 0;
-
-    &__employee-link {
-      display: grid;
-      gap: 8px;
-      min-width: 0;
-    }
-
-    &__employee-guide {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 12px;
-      align-items: center;
-      justify-content: space-between;
-      padding: 9px 12px;
-      font-size: 12px;
-      line-height: 1.5;
-      color: var(--el-text-color-secondary);
-      background: var(--el-color-warning-light-9);
-      border: 1px solid var(--el-color-warning-light-8);
-      border-radius: var(--el-border-radius-base);
-
-      .el-button {
-        flex: none;
-        margin: 0;
-      }
-
-      @media (width <= 640px) {
-        align-items: flex-start;
-      }
-    }
-  }
-
   // 顶部上下文区位于弹窗滚动容器之外，随表单内容一起滚动会让身份与提示丢失
   .user-dialog-top {
     display: grid;
@@ -700,6 +649,18 @@
       :deep(.el-alert__title) {
         line-height: 1.6;
       }
+    }
+  }
+
+  .user-dialog {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+
+    &__employee-link {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
     }
   }
 </style>

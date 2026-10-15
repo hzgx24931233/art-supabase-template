@@ -31,7 +31,7 @@
       "
       #header="{ titleId, titleClass }"
     >
-      <div class="art-dialog__header" :inert="unsavedPromptOpen">
+      <div class="art-dialog__header" :inert="unsavedPromptOpen || confirmLoading">
         <div
           class="art-dialog__header-main"
           :class="{ 'has-header-actions': $slots['header-actions'] || formCount }"
@@ -68,7 +68,11 @@
         />
       </div>
     </template>
-    <div v-if="$slots['content-top']" class="art-dialog__content-top" :inert="unsavedPromptOpen">
+    <div
+      v-if="$slots['content-top']"
+      class="art-dialog__content-top"
+      :inert="unsavedPromptOpen || confirmLoading"
+    >
       <slot name="content-top" :data="openData" :loading="contentLoading" :api="exposedApi" />
     </div>
     <ElScrollbar
@@ -79,14 +83,20 @@
       :always="options.scrollbarAlways"
       :native="false"
       class="art-dialog__scrollbar"
-      :inert="unsavedPromptOpen"
+      :inert="unsavedPromptOpen || confirmLoading"
+      :aria-busy="contentLoading || confirmOverlayLoading"
       @wheel.capture="handleWheelBoundary"
     >
       <div ref="contentRef" class="art-dialog__content">
         <ArtOverlayLoading
-          :loading="contentLoading"
-          :text="options.loadingText"
-          :background="options.loadingBackground"
+          :loading="contentLoading || confirmOverlayLoading"
+          :preserve-content="confirmOverlayLoading"
+          :text="confirmOverlayLoading ? options.confirmLoadingText : options.loadingText"
+          :background="
+            confirmOverlayLoading
+              ? 'color-mix(in srgb, var(--default-box-color) 82%, transparent)'
+              : options.loadingBackground
+          "
           :custom-class="options.loadingCustomClass"
         >
           <component
@@ -101,11 +111,22 @@
       </div>
     </ElScrollbar>
 
-    <div v-else ref="contentRef" class="art-dialog__content" :inert="unsavedPromptOpen">
+    <div
+      v-else
+      ref="contentRef"
+      class="art-dialog__content"
+      :inert="unsavedPromptOpen || confirmLoading"
+      :aria-busy="contentLoading || confirmOverlayLoading"
+    >
       <ArtOverlayLoading
-        :loading="contentLoading"
-        :text="options.loadingText"
-        :background="options.loadingBackground"
+        :loading="contentLoading || confirmOverlayLoading"
+        :preserve-content="confirmOverlayLoading"
+        :text="confirmOverlayLoading ? options.confirmLoadingText : options.loadingText"
+        :background="
+          confirmOverlayLoading
+            ? 'color-mix(in srgb, var(--default-box-color) 82%, transparent)'
+            : options.loadingBackground
+        "
         :custom-class="options.loadingCustomClass"
       >
         <component
@@ -161,7 +182,7 @@
         <div
           class="art-dialog__footer"
           :class="{ 'has-left': $slots['footer-left'] }"
-          :inert="unsavedPromptOpen"
+          :inert="unsavedPromptOpen || confirmLoading"
         >
           <div v-if="$slots['footer-left']" class="art-dialog__footer-left">
             <slot name="footer-left" :data="openData" :loading="confirmLoading" :api="exposedApi" />
@@ -241,6 +262,7 @@
     showConfirmButton: true,
     cancelText: '取消',
     confirmText: '确定',
+    confirmLoadingText: '保存中…',
     confirmDisabled: false,
     autoClose: true,
     resetOnClose: true,
@@ -373,6 +395,7 @@
     loadingText: props.loadingText,
     loadingBackground: props.loadingBackground,
     loadingCustomClass: props.loadingCustomClass,
+    confirmLoadingText: props.confirmLoadingText,
     contentHeight: props.contentHeight,
     contentMaxHeight: props.contentMaxHeight,
     useScrollbar: props.useScrollbar,
@@ -384,6 +407,7 @@
     confirmText: props.confirmText,
     confirmDisabled: props.confirmDisabled,
     autoClose: props.autoClose,
+    skipConfirmWhenPristine: props.skipConfirmWhenPristine,
     resetOnClose: props.resetOnClose,
     closeOnConfirmError: props.closeOnConfirmError,
     confirmOnClose: props.confirmOnClose,
@@ -434,6 +458,7 @@
     visible,
     loading: contentLoading,
     confirmLoading,
+    confirmOverlayLoading,
     openData,
     options,
     isDirty,
@@ -679,6 +704,7 @@
     visible: readonly(visible),
     loading: readonly(contentLoading),
     confirmLoading: readonly(confirmLoading),
+    confirmOverlayLoading: readonly(confirmOverlayLoading),
     data: readonly(openData) as Readonly<Ref<T>>,
     fullscreen: readonly(isFullscreen),
     focusMode: readonly(isFocusMode),

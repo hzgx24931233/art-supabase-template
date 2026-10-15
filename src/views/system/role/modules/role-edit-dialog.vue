@@ -288,6 +288,7 @@
       title: data.type === 'add' ? '新增角色' : '编辑角色',
       contentMaxHeight: '68vh',
       loading: true,
+      skipConfirmWhenPristine: data.type !== 'add',
       onOpen: async (_openData, api) => {
         try {
           await initializeForm(data)

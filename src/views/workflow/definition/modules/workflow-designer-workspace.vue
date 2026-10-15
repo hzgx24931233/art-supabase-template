@@ -11,342 +11,365 @@
       <ElButton type="primary" @click="emit('close')">返回流程管理</ElButton>
     </template>
 
-    <div class="workflow-designer-page__layout">
-      <ArtPageHeader
-        class="workflow-designer-page__header"
-        :title="form.data.name || '未命名流程'"
-        :subtitle="isEdit ? '编辑草稿并发布不可变的新版本' : '从业务模板创建可复用审批流程'"
-        show-back
-        @back="emit('close')"
-      >
-        <template #status>
-          <ElTag effect="plain">{{ isEdit ? '编辑模式' : '新建模式' }}</ElTag>
-        </template>
-        <template #meta>
-          <span>{{ form.data.code || '待填写流程编码' }}</span>
-          <i>·</i>
-          <span>{{ contextFields.length }} 个业务字段</span>
-          <i>·</i>
-          <span>{{ form.data.config.nodes.length + 2 }} 个流程节点</span>
-          <i>·</i>
-          <span>手动保存</span>
-        </template>
-
-        <ElButton :disabled="!currentDefinition" @click="openVersionHistory">版本</ElButton>
-        <ElButton :disabled="!form.data.config.nodes.length" @click="openSimulator">
-          试运行
-        </ElButton>
-        <ElButton :loading="page.saving" :disabled="page.publishing" @click="saveDraft">
-          保存草稿
-        </ElButton>
-        <ElButton
-          type="primary"
-          :loading="page.publishing"
-          :disabled="page.saving"
-          @click="publishVersion"
+    <ArtOverlayLoading
+      :loading="saveLoading.visible.value || publishLoading.visible.value"
+      :preserve-content="true"
+      :text="publishLoading.active.value ? '发布中…' : '保存中…'"
+      description="流程配置正在提交，请稍候"
+      class="workflow-designer-page__save-loading"
+    >
+      <div class="workflow-designer-page__layout">
+        <ArtPageHeader
+          class="workflow-designer-page__header"
+          :title="form.data.name || '未命名流程'"
+          :subtitle="isEdit ? '编辑草稿并发布不可变的新版本' : '从业务模板创建可复用审批流程'"
+          show-back
+          @back="emit('close')"
         >
-          发布新版
-        </ElButton>
-      </ArtPageHeader>
+          <template #status>
+            <ElTag effect="plain">{{ isEdit ? '编辑模式' : '新建模式' }}</ElTag>
+          </template>
+          <template #meta>
+            <span>{{ form.data.code || '待填写流程编码' }}</span>
+            <i>·</i>
+            <span>{{ contextFields.length }} 个业务字段</span>
+            <i>·</i>
+            <span>{{ form.data.config.nodes.length + 2 }} 个流程节点</span>
+            <i>·</i>
+            <span>手动保存</span>
+          </template>
 
-      <nav class="workflow-designer-page__steps art-card-xs" aria-label="流程设计步骤">
-        <button
-          v-for="step in designerSteps"
-          :key="step.key"
-          type="button"
-          :class="{
-            'is-active': activeStep === step.key,
-            'is-complete': step.complete
-          }"
-          :aria-current="activeStep === step.key ? 'step' : undefined"
-          @click="activeStep = step.key"
-        >
-          <span aria-hidden="true">
-            <ArtSvgIcon v-if="step.complete" icon="ri:check-line" />
-            <template v-else>{{ step.key }}</template>
-          </span>
-          <span>
-            <strong>{{ step.label }}</strong>
-            <small>{{ step.description }}</small>
-          </span>
-        </button>
-      </nav>
-
-      <ElScrollbar class="workflow-designer-page__scrollbar" always>
-        <div class="workflow-designer-page__content">
-          <ArtSectionCard
-            v-show="activeStep === 1"
-            class="workflow-designer-page__basic"
-            preserve-content-structure
+          <ElButton :disabled="!currentDefinition" @click="openVersionHistory">版本</ElButton>
+          <ElButton :disabled="!form.data.config.nodes.length" @click="openSimulator">
+            试运行
+          </ElButton>
+          <ElButton
+            :loading="page.saving"
+            :disabled="page.publishing || publishLoading.active.value"
+            @click="saveDraft"
           >
-            <template #header>
-              <div class="workflow-designer-page__section-heading">
-                <ArtSectionTitle>基础信息</ArtSectionTitle>
-                <p>先定义流程身份与业务场景，后续字段和节点均围绕该对象配置。</p>
-              </div>
-            </template>
-            <ArtForm
-              ref="baseFormRef"
-              v-model="form.data"
-              :items="baseItems"
-              :rules="baseRules"
-              :span="12"
-              :gutter="22"
-              label-position="top"
-              :show-reset="false"
-              :show-submit="false"
-            />
-          </ArtSectionCard>
-
-          <ArtSectionCard
-            v-show="activeStep === 2"
-            class="workflow-designer-page__fields"
-            preserve-content-structure
+            保存草稿
+          </ElButton>
+          <ElButton
+            type="primary"
+            :loading="page.publishing"
+            :disabled="page.saving || saveLoading.active.value"
+            @click="publishVersion"
           >
-            <template #header>
-              <div class="workflow-designer-page__section-heading is-split">
-                <div>
-                  <ArtSectionTitle>业务字段契约</ArtSectionTitle>
-                  <p>
-                    审批沿用业务原单，不另建低代码表单；这里只展示服务端允许进入审批上下文的字段。
-                  </p>
-                </div>
-                <label class="workflow-designer-page__business-selector">
-                  <span>当前业务场景</span>
-                  <ElSelect
-                    ref="businessTypeSelectRef"
-                    v-model="form.data.businessType"
-                    filterable
-                    :disabled="identityLocked"
-                    placeholder="选择具体业务类型"
-                    @change="handleBusinessTypeChange"
-                  >
-                    <ElOption
-                      v-for="option in businessTypeOptions"
-                      :key="option.value"
-                      :label="option.label"
-                      :value="option.value"
-                    />
-                  </ElSelect>
-                </label>
-              </div>
-            </template>
+            发布新版
+          </ElButton>
+        </ArtPageHeader>
 
-            <div class="workflow-designer-page__contract-summary">
-              <article>
-                <span><ArtSvgIcon icon="ri:briefcase-4-line" /></span>
-                <div
-                  ><small>业务场景</small><strong>{{ businessTypeLabel }}</strong></div
-                >
-              </article>
-              <article>
-                <span><ArtSvgIcon icon="ri:user-star-line" /></span>
-                <div
-                  ><small>业务负责人</small><strong>{{ businessContract.owner }}</strong></div
-                >
-              </article>
-              <article>
-                <span><ArtSvgIcon icon="ri:shield-check-line" /></span>
-                <div>
-                  <small>风险等级</small>
-                  <strong>{{ businessContract.riskLevel === 'high' ? '高风险' : '中风险' }}</strong>
-                </div>
-              </article>
-              <article>
-                <span><ArtSvgIcon icon="ri:list-check-3" /></span>
-                <div
-                  ><small>可用字段</small><strong>{{ contextFields.length }} 个</strong></div
-                >
-              </article>
-            </div>
+        <nav class="workflow-designer-page__steps art-card-xs" aria-label="流程设计步骤">
+          <button
+            v-for="step in designerSteps"
+            :key="step.key"
+            type="button"
+            :class="{
+              'is-active': activeStep === step.key,
+              'is-complete': step.complete
+            }"
+            :aria-current="activeStep === step.key ? 'step' : undefined"
+            @click="activeStep = step.key"
+          >
+            <span aria-hidden="true">
+              <ArtSvgIcon v-if="step.complete" icon="ri:check-line" />
+              <template v-else>{{ step.key }}</template>
+            </span>
+            <span>
+              <strong>{{ step.label }}</strong>
+              <small>{{ step.description }}</small>
+            </span>
+          </button>
+        </nav>
 
-            <div v-if="contextFields.length" class="workflow-designer-page__field-grid">
-              <article v-for="field in contextFields" :key="field.key">
-                <span aria-hidden="true"><ArtSvgIcon :icon="getFieldIcon(field.valueType)" /></span>
-                <div>
-                  <strong>{{ field.label }}</strong>
-                  <small>{{ field.help || '由业务服务端生成审批快照' }}</small>
-                  <em>{{ field.key }}</em>
-                </div>
-                <ElTag size="small" effect="plain">{{ getFieldTypeLabel(field.valueType) }}</ElTag>
-              </article>
-            </div>
-
-            <ArtEmptyState
-              v-else
-              title="通用审批不声明结构化业务字段"
-              description="它适合无条件流转；如需按金额、日期或业务状态设置条件，请在上方切换到具体业务场景。"
-              size="compact"
-              :visual-size="88"
+        <ElScrollbar class="workflow-designer-page__scrollbar" always>
+          <div class="workflow-designer-page__content">
+            <ArtSectionCard
+              v-show="activeStep === 1"
+              class="workflow-designer-page__basic"
+              preserve-content-structure
             >
-              <ElButton type="primary" plain @click="focusBusinessTypeSelector">
-                <ArtSvgIcon icon="ri:exchange-2-line" />选择业务场景
-              </ElButton>
-            </ArtEmptyState>
-
-            <ElAlert
-              class="workflow-designer-page__contract-alert"
-              type="info"
-              :closable="false"
-              show-icon
-              title="字段契约由业务模块和服务端共同维护，流程设计器只能读取，不会复制或改写业务原表。"
-            />
-          </ArtSectionCard>
-
-          <WorkflowCanvasEditor
-            ref="workflowCanvasRef"
-            v-show="activeStep === 3"
-            v-model="form.data.config"
-            :business-type="form.data.businessType"
-          />
-
-          <ArtSectionCard
-            v-show="activeStep === 4"
-            class="workflow-designer-page__settings"
-            preserve-content-structure
-          >
-            <template #header>
-              <div class="workflow-designer-page__section-heading is-split">
-                <div>
-                  <ArtSectionTitle>发布与安全设置</ArtSectionTitle>
-                  <p>发布前确认兜底策略、节点配置与不可变版本规则。</p>
+              <template #header>
+                <div class="workflow-designer-page__section-heading">
+                  <ArtSectionTitle>基础信息</ArtSectionTitle>
+                  <p>先定义流程身份与业务场景，后续字段和节点均围绕该对象配置。</p>
                 </div>
-                <ElTag
-                  :type="errorCount ? 'danger' : warningCount ? 'warning' : 'success'"
-                  effect="light"
-                >
-                  {{ publishReadinessLabel }}
-                </ElTag>
-              </div>
-            </template>
+              </template>
+              <ArtForm
+                ref="baseFormRef"
+                v-model="form.data"
+                :items="baseItems"
+                :rules="baseRules"
+                :span="12"
+                :gutter="22"
+                label-position="top"
+                :show-reset="false"
+                :show-submit="false"
+              />
+            </ArtSectionCard>
 
-            <div class="workflow-designer-page__release-overview">
-              <article :class="{ 'is-danger': errorCount }">
-                <span
-                  ><ArtSvgIcon :icon="errorCount ? 'ri:close-circle-line' : 'ri:shield-check-line'"
-                /></span>
-                <div>
-                  <small>发布状态</small>
-                  <strong>{{ errorCount ? '暂不可发布' : '允许发布' }}</strong>
-                </div>
-                <em>{{ errorCount ? `${errorCount} 个阻断` : '安全检查通过' }}</em>
-              </article>
-              <article>
-                <span><ArtSvgIcon icon="ri:flow-chart" /></span>
-                <div>
-                  <small>审批节点</small>
-                  <strong
-                    >{{ configuredNodeCount }}/{{ form.data.config.nodes.length }} 已配置</strong
-                  >
-                </div>
-                <em>另含发起与结束</em>
-              </article>
-              <article>
-                <span><ArtSvgIcon icon="ri:database-2-line" /></span>
-                <div>
-                  <small>业务契约</small>
-                  <strong>{{ contextFields.length }} 个字段</strong>
-                </div>
-                <em>{{ businessTypeLabel }}</em>
-              </article>
-            </div>
-
-            <div class="workflow-designer-page__settings-grid">
-              <section class="workflow-designer-page__settings-form">
-                <header class="workflow-designer-page__card-heading">
-                  <span><ArtSvgIcon icon="ri:shield-keyhole-line" /></span>
+            <ArtSectionCard
+              v-show="activeStep === 2"
+              class="workflow-designer-page__fields"
+              preserve-content-structure
+            >
+              <template #header>
+                <div class="workflow-designer-page__section-heading is-split">
                   <div>
-                    <strong>安全发布策略</strong>
-                    <small>决定没有任何节点命中时系统如何处理</small>
+                    <ArtSectionTitle>业务字段契约</ArtSectionTitle>
+                    <p>
+                      审批沿用业务原单，不另建低代码表单；这里只展示服务端允许进入审批上下文的字段。
+                    </p>
                   </div>
-                </header>
-                <ArtForm
-                  v-model="form.data"
-                  :items="settingItems"
-                  :span="24"
-                  label-position="top"
-                  :show-reset="false"
-                  :show-submit="false"
-                />
-
-                <div class="workflow-designer-page__version-policy">
-                  <div class="workflow-designer-page__card-heading is-compact">
-                    <span><ArtSvgIcon icon="ri:git-repository-line" /></span>
-                    <div>
-                      <strong>版本与审计</strong>
-                      <small>每次发布都会生成不可变快照</small>
-                    </div>
-                  </div>
-                  <ul>
-                    <li><ArtSvgIcon icon="ri:lock-line" />发布版本不可直接修改</li>
-                    <li><ArtSvgIcon icon="ri:git-commit-line" />新实例只使用最新发布版本</li>
-                    <li><ArtSvgIcon icon="ri:history-line" />运行中实例继续绑定原版本快照</li>
-                    <li><ArtSvgIcon icon="ri:file-shield-2-line" />审批动作与业务回写完整留痕</li>
-                  </ul>
+                  <label class="workflow-designer-page__business-selector">
+                    <span>当前业务场景</span>
+                    <ElSelect
+                      ref="businessTypeSelectRef"
+                      v-model="form.data.businessType"
+                      filterable
+                      :disabled="identityLocked"
+                      placeholder="选择具体业务类型"
+                      @change="handleBusinessTypeChange"
+                    >
+                      <ElOption
+                        v-for="option in businessTypeOptions"
+                        :key="option.value"
+                        :label="option.label"
+                        :value="option.value"
+                      />
+                    </ElSelect>
+                  </label>
                 </div>
-              </section>
+              </template>
 
-              <section class="workflow-designer-page__diagnostics">
-                <header>
-                  <div class="workflow-designer-page__card-heading">
-                    <span><ArtSvgIcon icon="ri:pulse-line" /></span>
-                    <div>
-                      <strong>发布前体检</strong>
-                      <small>{{ diagnosticSummary }}</small>
-                    </div>
-                  </div>
-                  <ElButton plain :disabled="!form.data.config.nodes.length" @click="openSimulator">
-                    试运行
-                  </ElButton>
-                </header>
-
-                <div v-if="diagnostics.length" class="workflow-designer-page__diagnostic-list">
-                  <article
-                    v-for="diagnostic in diagnostics"
-                    :key="`${diagnostic.code}-${diagnostic.nodeKey || 'global'}`"
-                    :class="`is-${diagnostic.severity}`"
+              <div class="workflow-designer-page__contract-summary">
+                <article>
+                  <span><ArtSvgIcon icon="ri:briefcase-4-line" /></span>
+                  <div
+                    ><small>业务场景</small><strong>{{ businessTypeLabel }}</strong></div
                   >
-                    <span aria-hidden="true">
-                      <ArtSvgIcon :icon="getDiagnosticIcon(diagnostic.severity)" />
-                    </span>
-                    <div>
-                      <strong>{{ diagnostic.title }}</strong>
-                      <small>{{ diagnostic.description }}</small>
-                    </div>
-                    <footer class="workflow-designer-page__diagnostic-actions">
-                      <ElButton
-                        v-if="diagnostic.nodeKey"
-                        size="small"
-                        plain
-                        :type="getDiagnosticActionType(diagnostic.severity)"
-                        @click="locateDiagnosticNode(diagnostic.nodeKey)"
-                      >
-                        {{ getDiagnosticActionLabel(diagnostic.severity) }}
-                        <ArtSvgIcon icon="ri:arrow-right-line" />
-                      </ElButton>
-                      <ElTag
-                        v-else
-                        :type="getDiagnosticActionType(diagnostic.severity)"
-                        size="small"
-                        effect="light"
-                      >
-                        {{ getDiagnosticLabel(diagnostic.severity) }}
-                      </ElTag>
-                    </footer>
-                  </article>
-                </div>
+                </article>
+                <article>
+                  <span><ArtSvgIcon icon="ri:user-star-line" /></span>
+                  <div
+                    ><small>业务负责人</small><strong>{{ businessContract.owner }}</strong></div
+                  >
+                </article>
+                <article>
+                  <span><ArtSvgIcon icon="ri:shield-check-line" /></span>
+                  <div>
+                    <small>风险等级</small>
+                    <strong>{{
+                      businessContract.riskLevel === 'high' ? '高风险' : '中风险'
+                    }}</strong>
+                  </div>
+                </article>
+                <article>
+                  <span><ArtSvgIcon icon="ri:list-check-3" /></span>
+                  <div
+                    ><small>可用字段</small><strong>{{ contextFields.length }} 个</strong></div
+                  >
+                </article>
+              </div>
 
-                <div v-else class="workflow-designer-page__diagnostic-success">
-                  <span><ArtSvgIcon icon="ri:checkbox-circle-line" /></span>
-                  <strong>流程配置完整</strong>
-                  <small>未发现阻断发布的问题，可以保存草稿或发布新版。</small>
+              <div v-if="contextFields.length" class="workflow-designer-page__field-grid">
+                <article v-for="field in contextFields" :key="field.key">
+                  <span aria-hidden="true"
+                    ><ArtSvgIcon :icon="getFieldIcon(field.valueType)"
+                  /></span>
+                  <div>
+                    <strong>{{ field.label }}</strong>
+                    <small>{{ field.help || '由业务服务端生成审批快照' }}</small>
+                    <em>{{ field.key }}</em>
+                  </div>
+                  <ElTag size="small" effect="plain">{{
+                    getFieldTypeLabel(field.valueType)
+                  }}</ElTag>
+                </article>
+              </div>
+
+              <ArtEmptyState
+                v-else
+                title="通用审批不声明结构化业务字段"
+                description="它适合无条件流转；如需按金额、日期或业务状态设置条件，请在上方切换到具体业务场景。"
+                size="compact"
+                :visual-size="88"
+              >
+                <ElButton type="primary" plain @click="focusBusinessTypeSelector">
+                  <ArtSvgIcon icon="ri:exchange-2-line" />选择业务场景
+                </ElButton>
+              </ArtEmptyState>
+
+              <ElAlert
+                class="workflow-designer-page__contract-alert"
+                type="info"
+                :closable="false"
+                show-icon
+                title="字段契约由业务模块和服务端共同维护，流程设计器只能读取，不会复制或改写业务原表。"
+              />
+            </ArtSectionCard>
+
+            <WorkflowCanvasEditor
+              ref="workflowCanvasRef"
+              v-show="activeStep === 3"
+              v-model="form.data.config"
+              :business-type="form.data.businessType"
+            />
+
+            <ArtSectionCard
+              v-show="activeStep === 4"
+              class="workflow-designer-page__settings"
+              preserve-content-structure
+            >
+              <template #header>
+                <div class="workflow-designer-page__section-heading is-split">
+                  <div>
+                    <ArtSectionTitle>发布与安全设置</ArtSectionTitle>
+                    <p>发布前确认兜底策略、节点配置与不可变版本规则。</p>
+                  </div>
+                  <ElTag
+                    :type="errorCount ? 'danger' : warningCount ? 'warning' : 'success'"
+                    effect="light"
+                  >
+                    {{ publishReadinessLabel }}
+                  </ElTag>
                 </div>
-              </section>
-            </div>
-          </ArtSectionCard>
-        </div>
-      </ElScrollbar>
-    </div>
+              </template>
+
+              <div class="workflow-designer-page__release-overview">
+                <article :class="{ 'is-danger': errorCount }">
+                  <span
+                    ><ArtSvgIcon
+                      :icon="errorCount ? 'ri:close-circle-line' : 'ri:shield-check-line'"
+                  /></span>
+                  <div>
+                    <small>发布状态</small>
+                    <strong>{{ errorCount ? '暂不可发布' : '允许发布' }}</strong>
+                  </div>
+                  <em>{{ errorCount ? `${errorCount} 个阻断` : '安全检查通过' }}</em>
+                </article>
+                <article>
+                  <span><ArtSvgIcon icon="ri:flow-chart" /></span>
+                  <div>
+                    <small>审批节点</small>
+                    <strong
+                      >{{ configuredNodeCount }}/{{ form.data.config.nodes.length }} 已配置</strong
+                    >
+                  </div>
+                  <em>另含发起与结束</em>
+                </article>
+                <article>
+                  <span><ArtSvgIcon icon="ri:database-2-line" /></span>
+                  <div>
+                    <small>业务契约</small>
+                    <strong>{{ contextFields.length }} 个字段</strong>
+                  </div>
+                  <em>{{ businessTypeLabel }}</em>
+                </article>
+              </div>
+
+              <div class="workflow-designer-page__settings-grid">
+                <section class="workflow-designer-page__settings-form">
+                  <header class="workflow-designer-page__card-heading">
+                    <span><ArtSvgIcon icon="ri:shield-keyhole-line" /></span>
+                    <div>
+                      <strong>安全发布策略</strong>
+                      <small>决定没有任何节点命中时系统如何处理</small>
+                    </div>
+                  </header>
+                  <ArtForm
+                    v-model="form.data"
+                    :items="settingItems"
+                    :span="24"
+                    label-position="top"
+                    :show-reset="false"
+                    :show-submit="false"
+                  />
+
+                  <div class="workflow-designer-page__version-policy">
+                    <div class="workflow-designer-page__card-heading is-compact">
+                      <span><ArtSvgIcon icon="ri:git-repository-line" /></span>
+                      <div>
+                        <strong>版本与审计</strong>
+                        <small>每次发布都会生成不可变快照</small>
+                      </div>
+                    </div>
+                    <ul>
+                      <li><ArtSvgIcon icon="ri:lock-line" />发布版本不可直接修改</li>
+                      <li><ArtSvgIcon icon="ri:git-commit-line" />新实例只使用最新发布版本</li>
+                      <li><ArtSvgIcon icon="ri:history-line" />运行中实例继续绑定原版本快照</li>
+                      <li><ArtSvgIcon icon="ri:file-shield-2-line" />审批动作与业务回写完整留痕</li>
+                    </ul>
+                  </div>
+                </section>
+
+                <section class="workflow-designer-page__diagnostics">
+                  <header>
+                    <div class="workflow-designer-page__card-heading">
+                      <span><ArtSvgIcon icon="ri:pulse-line" /></span>
+                      <div>
+                        <strong>发布前体检</strong>
+                        <small>{{ diagnosticSummary }}</small>
+                      </div>
+                    </div>
+                    <ElButton
+                      plain
+                      :disabled="!form.data.config.nodes.length"
+                      @click="openSimulator"
+                    >
+                      试运行
+                    </ElButton>
+                  </header>
+
+                  <div v-if="diagnostics.length" class="workflow-designer-page__diagnostic-list">
+                    <article
+                      v-for="diagnostic in diagnostics"
+                      :key="`${diagnostic.code}-${diagnostic.nodeKey || 'global'}`"
+                      :class="`is-${diagnostic.severity}`"
+                    >
+                      <span aria-hidden="true">
+                        <ArtSvgIcon :icon="getDiagnosticIcon(diagnostic.severity)" />
+                      </span>
+                      <div>
+                        <strong>{{ diagnostic.title }}</strong>
+                        <small>{{ diagnostic.description }}</small>
+                      </div>
+                      <footer class="workflow-designer-page__diagnostic-actions">
+                        <ElButton
+                          v-if="diagnostic.nodeKey"
+                          size="small"
+                          plain
+                          :type="getDiagnosticActionType(diagnostic.severity)"
+                          @click="locateDiagnosticNode(diagnostic.nodeKey)"
+                        >
+                          {{ getDiagnosticActionLabel(diagnostic.severity) }}
+                          <ArtSvgIcon icon="ri:arrow-right-line" />
+                        </ElButton>
+                        <ElTag
+                          v-else
+                          :type="getDiagnosticActionType(diagnostic.severity)"
+                          size="small"
+                          effect="light"
+                        >
+                          {{ getDiagnosticLabel(diagnostic.severity) }}
+                        </ElTag>
+                      </footer>
+                    </article>
+                  </div>
+
+                  <div v-else class="workflow-designer-page__diagnostic-success">
+                    <span><ArtSvgIcon icon="ri:checkbox-circle-line" /></span>
+                    <strong>流程配置完整</strong>
+                    <small>未发现阻断发布的问题，可以保存草稿或发布新版。</small>
+                  </div>
+                </section>
+              </div>
+            </ArtSectionCard>
+          </div>
+        </ElScrollbar>
+      </div>
+    </ArtOverlayLoading>
 
     <WorkflowSimulatorDialog ref="simulatorDialogRef" />
     <WorkflowVersionHistoryDialog ref="versionHistoryRef" @success="initializePage" />
@@ -358,12 +381,14 @@
   import type { FormRules } from 'element-plus'
   import { cloneDeep, trim } from 'lodash-es'
   import ArtEmptyState from '@/components/core/feedback/art-empty-state/index.vue'
+  import ArtOverlayLoading from '@/components/core/feedback/art-overlay-loading/index.vue'
   import ArtForm, { type FormItem } from '@/components/core/forms/art-form/index.vue'
   import ArtPageHeader from '@/components/core/layouts/art-page-header/index.vue'
   import ArtPageShell from '@/components/core/layouts/art-page-shell/index.vue'
   import ArtSectionTitle from '@/components/core/surfaces/art-section-title/index.vue'
   import ArtSvgIcon from '@/components/core/base/art-svg-icon/index.vue'
   import { useArtFeedback } from '@/hooks/core/useArtFeedback'
+  import { useDelayedLoading } from '@/hooks/core/useDelayedLoading'
   import { useUserStore } from '@/store/modules/user'
   import {
     fetchWorkflowDefinitionDetail,
@@ -447,6 +472,8 @@
   const identityLocked = ref(false)
   const currentDefinition = shallowRef<Api.Workflow.WorkflowDefinitionRecord>()
   const page = reactive<PageGroup>({ loading: false, saving: false, publishing: false, error: '' })
+  const saveLoading = useDelayedLoading()
+  const publishLoading = useDelayedLoading()
   const form = reactive<{ data: DesignerForm }>({
     data: createWorkflowTemplateDraft(props.templateKey || 'custom')
   })
@@ -720,6 +747,7 @@
   async function persistDraft(): Promise<string | null> {
     if (!(await validateDesigner())) return null
     page.saving = true
+    saveLoading.start()
     try {
       const response = await saveWorkflowDefinition(normalizePayload())
       const saved = response.data
@@ -731,6 +759,7 @@
       return definitionId
     } finally {
       page.saving = false
+      saveLoading.stop()
     }
   }
 
@@ -749,6 +778,7 @@
       }
     )
     page.publishing = true
+    publishLoading.start()
     try {
       const response = await saveWorkflowDefinition(normalizePayload())
       const definitionId = response.data?.definitionId || form.data.id
@@ -759,6 +789,7 @@
       if (props.definitionId === 'new') emit('saved', definitionId)
     } finally {
       page.publishing = false
+      publishLoading.stop()
     }
   }
 

@@ -181,8 +181,9 @@
       subtitle: data.row
         ? `当前分组：${data.row.name} · ${data.row.code}`
         : summaryDescription.value,
-      confirmText: data.row ? '保存更改' : '创建分组',
+      confirmText: data.row ? '保存' : '创建分组',
       contentMaxHeight: 'min(70vh, calc(100vh - 190px))',
+      skipConfirmWhenPristine: Boolean(data.row),
       onOpen: () => formRef.value?.clearValidate(),
       onConfirm: submit
     })

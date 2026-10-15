@@ -103,20 +103,29 @@ export async function register(payload: Api.Auth.RegisterParams) {
   })
 }
 
-async function checkUserAccess(
-  payload: {
-    email?: string
-    cleanupUnprovisioned?: boolean
-  },
-  showErrorMessage = true
-): Promise<void> {
+interface UserAccessCheckOptions {
+  cleanupUnprovisioned?: boolean
+  showErrorMessage?: boolean
+  /** 准入通过后展示的提示；登录流程用它把“登录成功”保留在全部校验之后。 */
+  successMessage?: string
+}
+
+/**
+ * 账号准入检查：校验业务账号状态与角色是否可用。
+ * 服务端按会话令牌（auth_user_id）解析账号，所以必须在登录会话建立之后调用，
+ * 不能在密码校验之前仅凭邮箱询问账号状态。
+ */
+async function checkUserAccess(options: UserAccessCheckOptions = {}): Promise<void> {
+  const { cleanupUnprovisioned = false, showErrorMessage = true, successMessage } = options
   const invokeResp = () =>
     supabase.functions.invoke<UserAccessResponse>('check_user_status', {
-      body: payload
+      body: { cleanupUnprovisioned }
     })
   await responseHandle(invokeResp, {
     breakReturn: true,
-    showErrorMessage
+    showErrorMessage,
+    showMessage: Boolean(successMessage),
+    message: successMessage
   })
 }
 
@@ -156,8 +165,9 @@ export async function login(params: Api.Auth.LoginParams) {
   }
 
   const email = identifier.toLowerCase()
-  await checkUserAccess({ email })
-  return await responseHandle<AuthSessionResponse>(
+  // 先校验邮箱与密码；密码错误时不得继续做账号状态与角色准入检查，
+  // 否则会把“尚未分配角色”这类与凭据无关的结论误报给登录失败的用户。
+  const result = await responseHandle<AuthSessionResponse>(
     () =>
       supabase.auth.signInWithPassword({
         email,
@@ -165,16 +175,36 @@ export async function login(params: Api.Auth.LoginParams) {
         options: captchaToken ? { captchaToken } : undefined
       }),
     {
-      showMessage: true,
-      message: '登录成功',
+      breakReturn: true,
+      showErrorMessage: true,
       formatErrorMessage: formatSupabaseAuthErrorMessage
     }
   )
+
+  try {
+    // 会话已建立，改为按会话令牌执行准入检查，与手机号登录保持一致。
+    await checkUserAccess({ successMessage: '登录成功' })
+  } catch (error) {
+    await discardDeniedLoginSession()
+    throw error
+  }
+
+  return result
+}
+
+/** 准入检查未通过时丢弃本次登录建立的本地会话；清理异常只记录诊断信息，不覆盖原始错误。 */
+async function discardDeniedLoginSession(): Promise<void> {
+  try {
+    const { error } = await supabase.auth.signOut({ scope: 'local' })
+    if (error) throw error
+  } catch (cleanupError) {
+    console.warn('[Auth] 未通过准入检查的本地会话清理失败:', cleanupError)
+  }
 }
 
 /** OAuth 回调后执行与邮箱登录相同的业务账号和角色准入检查。 */
 export async function checkCurrentUserAccess(cleanupUnprovisioned = false): Promise<void> {
-  await checkUserAccess({ cleanupUnprovisioned }, false)
+  await checkUserAccess({ cleanupUnprovisioned, showErrorMessage: false })
 }
 
 /** 读取 OAuth 回调建立的 Supabase 会话。 */

@@ -164,7 +164,8 @@
     await dialogRef.value?.handleOpen(data, {
       title: data.row ? '编辑文档分类' : '新增文档分类',
       subtitle: '分类将用于 ESOP 左侧导航和文档范围筛选',
-      confirmText: data.row ? '保存分类' : '新增分类',
+      confirmText: data.row ? '保存' : '新增分类',
+      skipConfirmWhenPristine: Boolean(data.row),
       onConfirm: submit
     })
   }

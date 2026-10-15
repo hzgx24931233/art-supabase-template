@@ -313,8 +313,9 @@
     formRef.value?.clearValidate()
     await dialogRef.value?.handleOpen(row, {
       title: row?.id ? '编辑提醒规则' : '新增提醒规则',
-      confirmText: row?.id ? '保存修改' : '创建规则',
+      confirmText: row?.id ? '保存' : '创建规则',
       loading: true,
+      skipConfirmWhenPristine: Boolean(row?.id),
       loadingText: '正在加载可用角色…',
       contentMaxHeight: '72vh',
       onOpen: async (_data, api) => {

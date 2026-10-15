@@ -265,6 +265,7 @@
     await dialogRef.value?.handleOpen(row, {
       title: `配置${channelName[row.channelCode]}`,
       contentMaxHeight: '68vh',
+      skipConfirmWhenPristine: true,
       onConfirm: handleSubmit
     })
   }

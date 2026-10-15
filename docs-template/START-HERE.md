@@ -61,8 +61,9 @@ supabase functions deploy <name> --project-ref trthbpyqubyjtkzmcewy --use-api
 ```
 
    `supabase/config.toml` 的 `[functions.*]` 段已经按保留清单写好，`verify_jwt` 默认 `true`；
-   只有面向外部身份提供方（`oauth-provider-bridge`）或未登录用户（`check_user_status`、
-   `login-with-phone`、`register-and-sync-user`）的入口才关闭。
+   只有面向外部身份提供方（`oauth-provider-bridge`）或注册登录入口（`login-with-phone`、
+   `register-and-sync-user`）才关闭。`check_user_status` 只在会话建立之后调用，由函数自身
+   校验会话令牌并按 `auth_user_id` 判定准入，不提供仅凭邮箱的匿名查询。
    AI 能力需要在 Edge Function Secrets 中配置 `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL`。
 
 5. 注册/登录相关：`register-and-sync-user` 的 `allowedOrigins` 里有一个

@@ -547,7 +547,8 @@
     await dialogRef.value?.handleOpen(row, {
       title: row?.id ? '编辑参数' : '新增参数',
       contentMaxHeight: '72vh',
-      confirmText: row?.id ? '保存修改' : '创建参数',
+      skipConfirmWhenPristine: Boolean(row?.id),
+      confirmText: row?.id ? '保存' : '创建参数',
       loading: isRegistrationRoleParam.value,
       loadingText: '正在加载注册角色…',
       onOpen: async (_openData, api) => {

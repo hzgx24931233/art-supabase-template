@@ -1,0 +1,1 @@
+import{bn as e,vn as t,xn as n}from"./framework-Bwlbiqw9.js";var r=200,i=(i=r)=>{let a=n(!1),o=n(!1),s,c=()=>{s!==void 0&&(clearTimeout(s),s=void 0)},l=()=>{a.value||(a.value=!0,c(),s=setTimeout(()=>{s=void 0,a.value&&(o.value=!0)},i))},u=()=>{a.value=!1,o.value=!1,c()};return t(u),{active:e(a),visible:e(o),start:l,stop:u}};export{i as t};

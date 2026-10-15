@@ -766,7 +766,8 @@
           : currentKind.value === 'unit-of-measure'
             ? 'lg'
             : 'xl',
-      confirmText: data.copy ? '复制并新增' : data.row ? '保存更改' : `创建${entityLabel}`,
+      confirmText: data.copy ? '复制并新增' : data.row ? '保存' : `创建${entityLabel}`,
+      skipConfirmWhenPristine: Boolean(data.row && !data.copy),
       contentMaxHeight:
         currentKind.value === 'material-type'
           ? 'min(62vh, calc(100vh - 220px))'

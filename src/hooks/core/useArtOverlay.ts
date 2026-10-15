@@ -52,10 +52,14 @@ export interface ArtOverlayOptions<TData, TApi> {
   cancelText?: string
   /** 确认按钮文字 */
   confirmText?: string
+  /** 确认请求超过延迟阈值后显示的内容遮罩文案 */
+  confirmLoadingText?: string
   /** 是否禁用确认按钮 */
   confirmDisabled?: boolean
   /** 确认成功后是否自动关闭 */
   autoClose?: boolean
+  /** 编辑态且表单没有变化时，跳过确认回调并直接按 autoClose 关闭 */
+  skipConfirmWhenPristine?: boolean
   /** 关闭完成后是否重置数据和加载状态 */
   resetOnClose?: boolean
   /** 确认回调抛出异常时是否仍然关闭 */
@@ -91,6 +95,8 @@ export interface ArtOverlayExpose<TData, TOptions> {
   loading: Readonly<Ref<boolean>>
   /** 确认按钮加载状态 */
   confirmLoading: Readonly<Ref<boolean>>
+  /** 确认请求的内容遮罩状态（短暂请求不会闪烁） */
+  confirmOverlayLoading: Readonly<Ref<boolean>>
   /** 当前打开数据 */
   data: Readonly<Ref<TData>>
   /** 当前合并后的运行时配置 */
@@ -162,6 +168,8 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
   const visible = ref(false)
   const loading = ref(false)
   const confirmLoading = ref(false)
+  const confirmOverlayLoading = ref(false)
+  let confirmLoadingTimer: ReturnType<typeof setTimeout> | undefined
   const openData = ref<TData>({} as TData) as Ref<TData>
   const initialData = shallowRef<TData>({} as TData) as ShallowRef<TData>
   const options = ref<TOptions>(config.getDefaultOptions()) as Ref<TOptions>
@@ -202,6 +210,18 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     confirmLoading.value = value
   }
 
+  const clearConfirmLoadingTimer = () => {
+    if (confirmLoadingTimer !== undefined) {
+      clearTimeout(confirmLoadingTimer)
+      confirmLoadingTimer = undefined
+    }
+  }
+
+  const resetConfirmOverlayLoading = () => {
+    clearConfirmLoadingTimer()
+    confirmOverlayLoading.value = false
+  }
+
   const setOptions = (value: Partial<TOptions>) => {
     options.value = config.mergeOptions(options.value, value)
     if ('loading' in value) loading.value = Boolean(value.loading)
@@ -223,6 +243,7 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     openData.value = cloneOverlayData(initialData.value)
     loading.value = false
     confirmLoading.value = false
+    resetConfirmOverlayLoading()
     options.value.onReset?.(config.getApi())
     config.emitReset()
   }
@@ -233,6 +254,7 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     const activeOptions = options.value
     loading.value = Boolean(options.value.loading)
     confirmLoading.value = false
+    resetConfirmOverlayLoading()
     initialData.value = cloneOverlayData(data)
     openData.value = cloneOverlayData(data)
     closePending.value = false
@@ -326,6 +348,14 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
   const handleConfirm = async (): Promise<boolean> => {
     if (confirmLoading.value || loading.value || closePending.value) return false
 
+    if (options.value.skipConfirmWhenPristine && !isDirty()) {
+      if (options.value.autoClose) {
+        markPristine()
+        return await handleClose()
+      }
+      return true
+    }
+
     config.emitConfirm(openData.value)
     if (!options.value.onConfirm) {
       if (options.value.autoClose) {
@@ -336,6 +366,11 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     }
 
     confirmLoading.value = true
+    clearConfirmLoadingTimer()
+    confirmLoadingTimer = setTimeout(() => {
+      confirmLoadingTimer = undefined
+      if (confirmLoading.value) confirmOverlayLoading.value = true
+    }, 200)
     try {
       const result = await options.value.onConfirm(openData.value, config.getApi())
       if (result === false) {
@@ -359,6 +394,7 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
       return false
     } finally {
       confirmLoading.value = false
+      resetConfirmOverlayLoading()
     }
   }
 
@@ -382,6 +418,7 @@ export const useArtOverlay = <TData, TApi, TOptions extends ArtOverlayOptions<TD
     visible,
     loading,
     confirmLoading,
+    confirmOverlayLoading,
     openData,
     options,
     isDirty,

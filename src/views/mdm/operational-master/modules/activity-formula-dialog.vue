@@ -754,8 +754,9 @@
     void parameterDialogRef.value?.handleOpen(undefined, {
       title: parameterEditor.id ? '编辑参数节点' : '新增参数节点',
       subtitle: '维护参数层级、业务编码与公式字段映射。',
-      confirmText: '保存节点',
+      confirmText: parameterEditor.id ? '保存' : '创建节点',
       contentMaxHeight: '68vh',
+      skipConfirmWhenPristine: Boolean(parameterEditor.id),
       onOpen: async () => {
         await nextTick()
         parameterFormRef.value?.clearValidate()
@@ -833,8 +834,9 @@
             : '新增活动公式',
       subtitle: '按用途维护参数层级，并通过可视化组件构建计算公式。',
       showFooter: !readonly.value,
-      confirmText: data.row && !data.copy ? '保存更改' : '创建活动公式',
+      confirmText: data.row && !data.copy ? '保存' : '创建活动公式',
       contentMaxHeight: '78vh',
+      skipConfirmWhenPristine: Boolean(data.row && !data.copy),
       onOpen: async (_openData, api) => {
         api.setLoading(true)
         try {

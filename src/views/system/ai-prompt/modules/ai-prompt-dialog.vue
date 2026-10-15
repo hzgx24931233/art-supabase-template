@@ -322,6 +322,7 @@
           : data.mode === 'clone'
             ? '复制为新版本'
             : '新建 Prompt 版本',
+      skipConfirmWhenPristine: data.mode === 'edit',
       dialogProps: { class: 'ai-prompt-dialog-shell' },
       onConfirm: handleSubmit,
       onReset: () => void resetForm()

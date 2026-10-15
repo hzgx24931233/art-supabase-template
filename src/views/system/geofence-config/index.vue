@@ -37,193 +37,201 @@
       </div>
     </ArtPageHeader>
 
-    <ElAlert
-      v-if="isReadOnly"
-      class="geofence-config-page__permission-alert"
-      type="info"
-      :closable="false"
-      show-icon
-      title="当前账号可查看策略，但不能发布修改"
-      description="仅具备“编辑电子围栏”按钮权限的账号可以发布策略，服务端会再次校验。"
-    />
+    <ArtOverlayLoading
+      :loading="saveLoading.visible.value"
+      :preserve-content="true"
+      text="保存中…"
+      description="电子围栏策略正在提交，请稍候"
+      class="geofence-config-page__save-loading"
+    >
+      <ElAlert
+        v-if="isReadOnly"
+        class="geofence-config-page__permission-alert"
+        type="info"
+        :closable="false"
+        show-icon
+        title="当前账号可查看策略，但不能发布修改"
+        description="仅具备“编辑电子围栏”按钮权限的账号可以发布策略，服务端会再次校验。"
+      />
 
-    <section class="geofence-config-page__overview" aria-label="策略概览">
-      <article
-        v-for="item in overviewCards"
-        :key="item.label"
-        class="geofence-config-page__overview-card art-card-xs"
-      >
-        <div class="geofence-config-page__overview-icon" :class="`is-${item.tone}`">
-          <ArtSvgIcon :icon="item.icon" />
-        </div>
-        <div class="geofence-config-page__overview-copy">
-          <span>{{ item.label }}</span>
-          <strong>{{ item.value }}</strong>
-          <small>{{ item.description }}</small>
-        </div>
-      </article>
-    </section>
+      <section class="geofence-config-page__overview" aria-label="策略概览">
+        <article
+          v-for="item in overviewCards"
+          :key="item.label"
+          class="geofence-config-page__overview-card art-card-xs"
+        >
+          <div class="geofence-config-page__overview-icon" :class="`is-${item.tone}`">
+            <ArtSvgIcon :icon="item.icon" />
+          </div>
+          <div class="geofence-config-page__overview-copy">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+            <small>{{ item.description }}</small>
+          </div>
+        </article>
+      </section>
 
-    <div class="geofence-config-page__workspace">
-      <ArtSectionCard
-        class="geofence-config-page__policy"
-        aria-label="围栏策略设置"
-        preserve-content-structure
-      >
-        <template #header>
-          <header class="geofence-config-page__section-heading">
-            <span><ArtSvgIcon icon="ri:equalizer-2-line" /></span>
-            <div>
-              <h2>策略工作区</h2>
-              <p>这些配置作为地址围栏的默认建议值，单个地址仍可按现场范围覆盖。</p>
+      <div class="geofence-config-page__workspace">
+        <ArtSectionCard
+          class="geofence-config-page__policy"
+          aria-label="围栏策略设置"
+          preserve-content-structure
+        >
+          <template #header>
+            <header class="geofence-config-page__section-heading">
+              <span><ArtSvgIcon icon="ri:equalizer-2-line" /></span>
+              <div>
+                <h2>策略工作区</h2>
+                <p>这些配置作为地址围栏的默认建议值，单个地址仍可按现场范围覆盖。</p>
+              </div>
+            </header>
+          </template>
+
+          <ArtForm
+            ref="formRef"
+            v-model="form"
+            :items="formItems"
+            :rules="formRules"
+            :disabled="isReadOnly"
+            :span="12"
+            :gutter="24"
+            label-position="top"
+            :show-reset="false"
+            :show-submit="false"
+            class="geofence-config-page__form"
+          />
+        </ArtSectionCard>
+
+        <aside class="geofence-config-page__side" aria-label="围栏预览与生效说明">
+          <ArtSectionCard class="geofence-config-page__preview" preserve-content-structure>
+            <template #header>
+              <header class="geofence-config-page__section-heading is-compact">
+                <span><ArtSvgIcon icon="ri:radar-line" /></span>
+                <div>
+                  <h2>范围预览</h2>
+                  <p>以地址地图坐标为圆心进行定位判断</p>
+                </div>
+              </header>
+            </template>
+
+            <div class="geofence-config-page__radar" :class="{ 'is-disabled': !form.enabled }">
+              <span class="geofence-config-page__radar-axis is-horizontal"></span>
+              <span class="geofence-config-page__radar-axis is-vertical"></span>
+              <span class="geofence-config-page__radar-ring is-outer"></span>
+              <span class="geofence-config-page__radar-ring is-middle"></span>
+              <span class="geofence-config-page__radar-ring is-inner"></span>
+              <span class="geofence-config-page__radar-center">
+                <ArtSvgIcon icon="ri:map-pin-2-fill" />
+              </span>
+              <span class="geofence-config-page__radar-label">围栏中心</span>
             </div>
-          </header>
+
+            <dl class="geofence-config-page__radius-list">
+              <div>
+                <dt><i class="is-loading"></i>装货范围</dt>
+                <dd>{{ form.loadingRadiusM.toLocaleString() }} 米</dd>
+              </div>
+              <div>
+                <dt><i class="is-unloading"></i>卸货范围</dt>
+                <dd>{{ form.unloadingRadiusM.toLocaleString() }} 米</dd>
+              </div>
+            </dl>
+          </ArtSectionCard>
+
+          <ArtSectionCard class="geofence-config-page__guide" preserve-content-structure>
+            <template #header>
+              <header class="geofence-config-page__section-heading is-compact">
+                <span><ArtSvgIcon icon="ri:route-line" /></span>
+                <div>
+                  <h2>规则如何生效</h2>
+                  <p>默认策略不会覆盖已单独配置的地址。</p>
+                </div>
+              </header>
+            </template>
+
+            <ol class="geofence-config-page__steps">
+              <li v-for="(step, index) in effectiveSteps" :key="step.title">
+                <span>{{ index + 1 }}</span>
+                <div
+                  ><strong>{{ step.title }}</strong
+                  ><small>{{ step.description }}</small></div
+                >
+              </li>
+            </ol>
+
+            <div
+              class="geofence-config-page__risk-note"
+              :class="{
+                'is-warning': form.loadingAllowOutsideCheckIn || form.unloadingAllowOutsideCheckIn
+              }"
+            >
+              <span>
+                <ArtSvgIcon
+                  :icon="
+                    form.loadingAllowOutsideCheckIn || form.unloadingAllowOutsideCheckIn
+                      ? 'ri:alert-line'
+                      : 'ri:checkbox-circle-fill'
+                  "
+                />
+              </span>
+              <div>
+                <strong>{{
+                  form.loadingAllowOutsideCheckIn || form.unloadingAllowOutsideCheckIn
+                    ? '围栏外打卡需审计'
+                    : '围栏外打卡将被拦截'
+                }}</strong>
+                <p>{{
+                  form.loadingAllowOutsideCheckIn || form.unloadingAllowOutsideCheckIn
+                    ? '异常提交必须记录原因、坐标和操作人。'
+                    : '定位异常时引导司机重新定位或联系调度。'
+                }}</p>
+              </div>
+            </div>
+          </ArtSectionCard>
+        </aside>
+      </div>
+
+      <ArtStickyActionBar
+        class="geofence-config-page__actions"
+        :class="{ 'is-dirty': hasUnsavedChanges, 'is-readonly': isReadOnly }"
+      >
+        <template #summary>
+          <div class="geofence-config-page__action-copy">
+            <div class="geofence-config-page__action-title">
+              <span><ArtSvgIcon :icon="actionState.icon" /></span>
+              <strong>{{ isReadOnly ? '当前为安全只读视图' : changeSummary }}</strong>
+            </div>
+            <p>
+              {{ actionDescription }}
+            </p>
+          </div>
         </template>
 
-        <ArtForm
-          ref="formRef"
-          v-model="form"
-          :items="formItems"
-          :rules="formRules"
-          :disabled="isReadOnly"
-          :span="12"
-          :gutter="24"
-          label-position="top"
-          :show-reset="false"
-          :show-submit="false"
-          class="geofence-config-page__form"
-        />
-      </ArtSectionCard>
-
-      <aside class="geofence-config-page__side" aria-label="围栏预览与生效说明">
-        <ArtSectionCard class="geofence-config-page__preview" preserve-content-structure>
-          <template #header>
-            <header class="geofence-config-page__section-heading is-compact">
-              <span><ArtSvgIcon icon="ri:radar-line" /></span>
-              <div>
-                <h2>范围预览</h2>
-                <p>以地址地图坐标为圆心进行定位判断</p>
-              </div>
-            </header>
-          </template>
-
-          <div class="geofence-config-page__radar" :class="{ 'is-disabled': !form.enabled }">
-            <span class="geofence-config-page__radar-axis is-horizontal"></span>
-            <span class="geofence-config-page__radar-axis is-vertical"></span>
-            <span class="geofence-config-page__radar-ring is-outer"></span>
-            <span class="geofence-config-page__radar-ring is-middle"></span>
-            <span class="geofence-config-page__radar-ring is-inner"></span>
-            <span class="geofence-config-page__radar-center">
-              <ArtSvgIcon icon="ri:map-pin-2-fill" />
-            </span>
-            <span class="geofence-config-page__radar-label">围栏中心</span>
-          </div>
-
-          <dl class="geofence-config-page__radius-list">
-            <div>
-              <dt><i class="is-loading"></i>装货范围</dt>
-              <dd>{{ form.loadingRadiusM.toLocaleString() }} 米</dd>
-            </div>
-            <div>
-              <dt><i class="is-unloading"></i>卸货范围</dt>
-              <dd>{{ form.unloadingRadiusM.toLocaleString() }} 米</dd>
-            </div>
-          </dl>
-        </ArtSectionCard>
-
-        <ArtSectionCard class="geofence-config-page__guide" preserve-content-structure>
-          <template #header>
-            <header class="geofence-config-page__section-heading is-compact">
-              <span><ArtSvgIcon icon="ri:route-line" /></span>
-              <div>
-                <h2>规则如何生效</h2>
-                <p>默认策略不会覆盖已单独配置的地址。</p>
-              </div>
-            </header>
-          </template>
-
-          <ol class="geofence-config-page__steps">
-            <li v-for="(step, index) in effectiveSteps" :key="step.title">
-              <span>{{ index + 1 }}</span>
-              <div
-                ><strong>{{ step.title }}</strong
-                ><small>{{ step.description }}</small></div
-              >
-            </li>
-          </ol>
-
-          <div
-            class="geofence-config-page__risk-note"
-            :class="{
-              'is-warning': form.loadingAllowOutsideCheckIn || form.unloadingAllowOutsideCheckIn
-            }"
+        <div v-if="!isReadOnly" class="geofence-config-page__buttons">
+          <ElButton
+            :title="hasUnsavedChanges ? '恢复到上次已发布的策略' : '当前没有未发布的修改'"
+            :disabled="!hasUnsavedChanges || page.saving || saveLoading.active.value"
+            @click="resetConfig"
           >
-            <span>
-              <ArtSvgIcon
-                :icon="
-                  form.loadingAllowOutsideCheckIn || form.unloadingAllowOutsideCheckIn
-                    ? 'ri:alert-line'
-                    : 'ri:checkbox-circle-fill'
-                "
-              />
-            </span>
-            <div>
-              <strong>{{
-                form.loadingAllowOutsideCheckIn || form.unloadingAllowOutsideCheckIn
-                  ? '围栏外打卡需审计'
-                  : '围栏外打卡将被拦截'
-              }}</strong>
-              <p>{{
-                form.loadingAllowOutsideCheckIn || form.unloadingAllowOutsideCheckIn
-                  ? '异常提交必须记录原因、坐标和操作人。'
-                  : '定位异常时引导司机重新定位或联系调度。'
-              }}</p>
-            </div>
-          </div>
-        </ArtSectionCard>
-      </aside>
-    </div>
-
-    <ArtStickyActionBar
-      class="geofence-config-page__actions"
-      :class="{ 'is-dirty': hasUnsavedChanges, 'is-readonly': isReadOnly }"
-    >
-      <template #summary>
-        <div class="geofence-config-page__action-copy">
-          <div class="geofence-config-page__action-title">
-            <span><ArtSvgIcon :icon="actionState.icon" /></span>
-            <strong>{{ isReadOnly ? '当前为安全只读视图' : changeSummary }}</strong>
-          </div>
-          <p>
-            {{ actionDescription }}
-          </p>
+            撤销未发布修改
+          </ElButton>
+          <ElButton
+            v-auth="'System:GeofenceConfig:Edit'"
+            type="primary"
+            :loading="saveLoading.active.value"
+            :title="hasUnsavedChanges ? '保存修改并同步到司机端' : '请先修改任一策略配置'"
+            :disabled="!hasUnsavedChanges"
+            @click="handleSave"
+          >
+            保存并发布策略
+          </ElButton>
         </div>
-      </template>
-
-      <div v-if="!isReadOnly" class="geofence-config-page__buttons">
-        <ElButton
-          :title="hasUnsavedChanges ? '恢复到上次已发布的策略' : '当前没有未发布的修改'"
-          :disabled="!hasUnsavedChanges || page.saving"
-          @click="resetConfig"
-        >
-          撤销未发布修改
-        </ElButton>
-        <ElButton
-          v-auth="'System:GeofenceConfig:Edit'"
-          type="primary"
-          :loading="page.saving"
-          :title="hasUnsavedChanges ? '保存修改并同步到司机端' : '请先修改任一策略配置'"
-          :disabled="!hasUnsavedChanges"
-          @click="handleSave"
-        >
-          保存并发布策略
-        </ElButton>
-      </div>
-      <ElTag v-else class="geofence-config-page__readonly-tag" type="info" effect="plain" round>
-        <ArtSvgIcon icon="ri:lock-2-line" />
-        需要“编辑电子围栏”权限
-      </ElTag>
-    </ArtStickyActionBar>
+        <ElTag v-else class="geofence-config-page__readonly-tag" type="info" effect="plain" round>
+          <ArtSvgIcon icon="ri:lock-2-line" />
+          需要“编辑电子围栏”权限
+        </ElTag>
+      </ArtStickyActionBar>
+    </ArtOverlayLoading>
   </ArtPageShell>
 </template>
 
@@ -232,6 +240,8 @@
   import type { FormRules } from 'element-plus'
   import { cloneDeep, isEqual } from 'lodash-es'
   import ArtForm, { type FormItem } from '@/components/core/forms/art-form/index.vue'
+  import ArtOverlayLoading from '@/components/core/feedback/art-overlay-loading/index.vue'
+  import { useDelayedLoading } from '@/hooks/core/useDelayedLoading'
   import { fetchGeofenceConfig, saveGeofenceConfig } from '@/api/system-manage'
   import { useAuth } from '@/hooks/core/useAuth'
   import { formatWithDayjs } from '@/utils/time'
@@ -288,6 +298,7 @@
   const { hasAuth } = useAuth()
   const formRef = ref<FormExpose>()
   const page = reactive<PageGroup>({ loading: false, saving: false, error: null })
+  const saveLoading = useDelayedLoading()
   const form = reactive<GeofenceConfig>(createInitialConfig())
   const original = ref<GeofenceConfig>(createInitialConfig())
   const isReadOnly = computed(() => !hasAuth('System:GeofenceConfig:Edit'))
@@ -482,11 +493,13 @@
     }
 
     page.saving = true
+    saveLoading.start()
     try {
       await saveGeofenceConfig(cloneDeep(toRaw(form)))
       await loadConfig()
     } finally {
       page.saving = false
+      saveLoading.stop()
     }
   }
 

@@ -102,6 +102,118 @@ test('confirm locking prevents duplicate side effects while a submit is pending'
   assert.equal(submitCount, 1)
 })
 
+test('confirm overlay appears only after the delayed threshold and clears after success', async () => {
+  const overlay = createOverlay()
+  let finishSubmit: (() => void) | undefined
+
+  await overlay.handleOpen(
+    {},
+    {
+      onConfirm: () =>
+        new Promise<void>((resolve) => {
+          finishSubmit = resolve
+        })
+    }
+  )
+
+  const pending = overlay.handleConfirm()
+  assert.equal(overlay.confirmLoading.value, true)
+  assert.equal(overlay.confirmOverlayLoading.value, false)
+
+  await new Promise((resolve) => setTimeout(resolve, 240))
+  assert.equal(overlay.confirmOverlayLoading.value, true)
+
+  finishSubmit?.()
+  assert.equal(await pending, true)
+  assert.equal(overlay.confirmLoading.value, false)
+  assert.equal(overlay.confirmOverlayLoading.value, false)
+})
+
+test('fast confirmation never leaves a stale confirm overlay', async () => {
+  const overlay = createOverlay()
+  await overlay.handleOpen({}, { onConfirm: async () => undefined })
+
+  assert.equal(await overlay.handleConfirm(), true)
+  await new Promise((resolve) => setTimeout(resolve, 240))
+  assert.equal(overlay.confirmOverlayLoading.value, false)
+})
+
+test('pristine edit confirmation skips the submit callback and closes', async () => {
+  const overlay = createOverlay()
+  const form = createDirtySource(false)
+  overlay.registerDirtySource(form.source)
+  let submitCount = 0
+
+  await overlay.handleOpen(
+    { id: 'existing-document' },
+    {
+      skipConfirmWhenPristine: true,
+      onConfirm: () => {
+        submitCount += 1
+      }
+    }
+  )
+
+  assert.equal(await overlay.handleConfirm(), true)
+  assert.equal(submitCount, 0)
+  assert.equal(overlay.visible.value, false)
+})
+
+test('changed edit confirmation still submits when pristine skipping is enabled', async () => {
+  const overlay = createOverlay()
+  const form = createDirtySource(false)
+  overlay.registerDirtySource(form.source)
+  let submitCount = 0
+
+  await overlay.handleOpen(
+    { id: 'existing-document' },
+    {
+      skipConfirmWhenPristine: true,
+      onConfirm: () => {
+        submitCount += 1
+      }
+    }
+  )
+  form.setDirty(true)
+
+  assert.equal(await overlay.handleConfirm(), true)
+  assert.equal(submitCount, 1)
+  assert.equal(overlay.visible.value, false)
+})
+
+test('pristine skipping is opt-in and respects autoClose false', async () => {
+  const overlay = createOverlay()
+  const form = createDirtySource(false)
+  overlay.registerDirtySource(form.source)
+  let submitCount = 0
+
+  await overlay.handleOpen(
+    { id: 'existing-document' },
+    {
+      autoClose: false,
+      skipConfirmWhenPristine: true,
+      onConfirm: () => {
+        submitCount += 1
+      }
+    }
+  )
+
+  assert.equal(await overlay.handleConfirm(), true)
+  assert.equal(submitCount, 0)
+  assert.equal(overlay.visible.value, true)
+
+  await overlay.handleOpen(
+    { id: 'existing-document' },
+    {
+      onConfirm: () => {
+        submitCount += 1
+      }
+    }
+  )
+  assert.equal(await overlay.handleConfirm(), true)
+  assert.equal(submitCount, 1)
+})
+
 test('invalid confirmation requests field focus and leaves the overlay available for correction', async () => {
   let focusRequests = 0
   const overlay = createOverlay(undefined, () => {

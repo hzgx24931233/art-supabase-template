@@ -307,8 +307,9 @@
     await dialogRef.value?.handleOpen(data, {
       title: `${data.copy ? '复制' : data.row ? '编辑' : '新增'}物料分类`,
       subtitle: '统一维护分类语义、采购收货容差与批次计价默认策略',
-      confirmText: '保存分类',
+      confirmText: data.copy ? '复制并新增' : data.row ? '保存' : '新增分类',
       contentMaxHeight: '72vh',
+      skipConfirmWhenPristine: Boolean(data.row && !data.copy),
       onConfirm: handleSubmit,
       onOpen: () => formRef.value?.clearValidate()
     })

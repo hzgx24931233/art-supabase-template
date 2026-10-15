@@ -1,0 +1,1 @@
+import{bn as e,xn as t}from"./framework-Bwlbiqw9.js";var n=()=>{let n=t(new Set),r=(e,t)=>`${e}:${t}`,i=(e,t)=>!o(e)&&(n.value=new Set(n.value).add(r(e,t)),!0),a=(e,t)=>n.value.has(r(e,t)),o=e=>[...n.value].some(t=>t.startsWith(`${e}:`));return{activeKeys:e(n),start:i,isActive:a,isRowActive:o,stop:(e,t)=>{let i=new Set(n.value);i.delete(r(e,t)),n.value=i}}};export{n as t};

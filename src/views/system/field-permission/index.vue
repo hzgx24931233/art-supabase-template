@@ -1,325 +1,343 @@
 <template>
   <div class="field-permission-page business-workspace-page">
-    <BusinessWorkspaceHeader
-      density="compact"
-      eyebrow="FIELD ACCESS GOVERNANCE"
-      title="字段权限"
-      description="按角色批量授权、按人员设置例外，统一控制列表、详情、导出与打印中的敏感字段。"
-      icon="ri:shield-keyhole-line"
-      :tags="workspaceTags"
-      :metrics="overviewMetrics"
-      refreshable
-      refresh-label="刷新字段权限配置"
-      :refresh-loading="page.loading || page.configurationLoading"
-      @refresh="retryLoad"
-    />
-
-    <ArtSectionCard
-      class="field-permission-page__scope"
-      aria-label="授权范围"
-      preserve-content-structure
+    <ArtOverlayLoading
+      :loading="saveLoading.visible.value"
+      :preserve-content="true"
+      text="保存中…"
+      description="字段权限配置正在提交，请稍候"
+      class="field-permission-page__save-loading"
     >
-      <template #header>
-        <div class="field-permission-page__scope-heading">
-          <div class="field-permission-page__heading-copy">
-            <span class="field-permission-page__heading-icon" aria-hidden="true">
-              <ArtSvgIcon icon="ri:focus-3-line" />
-            </span>
-            <div>
-              <span class="field-permission-page__section-kicker">配置范围</span>
-              <ArtSectionTitle :show-line="false">选择授权范围</ArtSectionTitle>
-              <p>人员配置覆盖其全部角色的合并结果；清除人员例外后恢复角色继承。</p>
-            </div>
-          </div>
-          <div class="field-permission-page__scope-mode">
-            <span>授权对象</span>
-            <ElSegmented
-              v-model="subjectType"
-              :options="subjectTypeOptions"
-              :disabled="
-                page.loading || page.saving || page.configurationLoading || page.auditLoading
-              "
-              @change="handleSubjectTypeChange"
-            />
-          </div>
-        </div>
-      </template>
+      <BusinessWorkspaceHeader
+        density="compact"
+        eyebrow="FIELD ACCESS GOVERNANCE"
+        title="字段权限"
+        description="按角色批量授权、按人员设置例外，统一控制列表、详情、导出与打印中的敏感字段。"
+        icon="ri:shield-keyhole-line"
+        :tags="workspaceTags"
+        :metrics="overviewMetrics"
+        refreshable
+        refresh-label="刷新字段权限配置"
+        :refresh-loading="page.loading || page.configurationLoading"
+        @refresh="retryLoad"
+      />
 
-      <div class="field-permission-page__selectors">
-        <label>
-          <span class="field-permission-page__selector-label">
-            <ArtSvgIcon icon="ri:file-list-3-line" />
-            业务表单
-          </span>
-          <ElSelect
-            v-model="selectedResourceKey"
-            filterable
-            :loading="page.loading"
-            :disabled="page.saving || page.configurationLoading || page.auditLoading"
-            placeholder="请选择业务表单"
-            @change="handleResourceChange"
-          >
-            <ElOption
-              v-for="resource in resources"
-              :key="resource.id"
-              :label="`${resource.resourceLabel}（${resource.fieldCount} 个敏感字段）`"
-              :value="resource.resourceKey"
-            />
-          </ElSelect>
-        </label>
-
-        <label>
-          <span class="field-permission-page__selector-label">
-            <ArtSvgIcon :icon="subjectType === 'role' ? 'ri:team-line' : 'ri:user-line'" />
-            {{ subjectType === 'role' ? '授权角色' : '授权人员' }}
-          </span>
-          <ElSelect
-            v-model="selectedSubjectId"
-            filterable
-            :loading="page.loading"
-            :disabled="page.saving || page.configurationLoading || page.auditLoading"
-            :placeholder="subjectType === 'role' ? '请选择角色' : '请选择人员'"
-            @change="handleSubjectChange"
-          >
-            <ElOption
-              v-for="option in subjectOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </ElSelect>
-        </label>
-      </div>
-
-      <div class="field-permission-page__scope-policy">
-        <span class="field-permission-page__policy-icon" aria-hidden="true">
-          <ArtSvgIcon icon="ri:user-star-line" />
-        </span>
-        <div>
-          <strong>创建人豁免优先于人员例外和角色授权</strong>
-          <p>
-            标记为“创建人可编辑”的字段，仅在本人创建的记录中自动获得编辑权限；查看他人记录时仍按授权矩阵计算。
-          </p>
-        </div>
-        <span class="field-permission-page__policy-level">记录级规则</span>
-      </div>
-    </ArtSectionCard>
-
-    <ArtPageShell
-      class="field-permission-page__matrix-shell"
-      :loading="page.loading || page.configurationLoading"
-      loading-mode="skeleton"
-      :error="page.error"
-      :empty="!configuration || configuration.fields.length === 0"
-      empty-text="暂无可配置的敏感字段"
-      @retry="retryLoad"
-    >
       <ArtSectionCard
-        v-if="configuration"
-        class="field-permission-page__matrix"
+        class="field-permission-page__scope"
+        aria-label="授权范围"
         preserve-content-structure
       >
         <template #header>
-          <header class="field-permission-page__matrix-header">
-            <div>
-              <span class="field-permission-page__section-kicker">权限矩阵</span>
-              <ArtSectionTitle :show-line="false">字段授权矩阵</ArtSectionTitle>
-              <div class="field-permission-page__matrix-context">
-                <strong>{{ configuration.resourceLabel }}</strong>
-                <span aria-hidden="true">/</span>
-                <b>{{ currentSubjectLabel }}</b>
-              </div>
-            </div>
-            <div class="field-permission-page__matrix-summary">
-              <span
-                class="field-permission-page__sync-state"
-                :class="{ 'is-dirty': isDirty }"
-                role="status"
-              >
-                <ArtSvgIcon :icon="isDirty ? 'ri:draft-line' : 'ri:shield-check-line'" />
-                {{ isDirty ? `${changedFieldCount} 项待保存` : '配置已同步' }}
-              </span>
-              <p>
-                {{
-                  subjectType === 'role'
-                    ? '角色成员继承本配置；用户拥有多个角色时取权限最大值。'
-                    : '“继承角色”不保存人员记录；其余选项覆盖角色合并结果。'
-                }}
-              </p>
-            </div>
-          </header>
-        </template>
-
-        <div class="field-permission-page__legend" aria-label="权限等级说明">
-          <span v-for="option in accessOptions" :key="option.value" :class="`is-${option.value}`">
-            <i aria-hidden="true">
-              <ArtSvgIcon :icon="accessMeta[option.value].icon" />
-            </i>
-            <span>
-              <b>{{ option.label }}</b>
-              <small>{{ accessMeta[option.value].description }}</small>
-            </span>
-          </span>
-        </div>
-
-        <div class="field-permission-page__field-list">
-          <div class="field-permission-page__field-columns" aria-hidden="true">
-            <span>敏感字段</span>
-            <span>字段规则</span>
-            <span>授权等级与结果</span>
-          </div>
-          <article
-            v-for="field in configuration.fields"
-            :key="field.id"
-            class="field-permission-page__field-row"
-            :class="`is-${effectiveAccess(field)}`"
-          >
-            <div class="field-permission-page__field-identity">
-              <span class="field-permission-page__field-icon" aria-hidden="true">
-                <ArtSvgIcon :icon="supportsMask(field) ? 'ri:eye-off-line' : 'ri:key-2-line'" />
+          <div class="field-permission-page__scope-heading">
+            <div class="field-permission-page__heading-copy">
+              <span class="field-permission-page__heading-icon" aria-hidden="true">
+                <ArtSvgIcon icon="ri:focus-3-line" />
               </span>
               <div>
-                <strong>{{ field.fieldLabel }}</strong>
-                <code translate="no">{{ field.fieldKey }}</code>
+                <span class="field-permission-page__section-kicker">配置范围</span>
+                <ArtSectionTitle :show-line="false">选择授权范围</ArtSectionTitle>
+                <p>人员配置覆盖其全部角色的合并结果；清除人员例外后恢复角色继承。</p>
               </div>
             </div>
-
-            <div class="field-permission-page__field-meta">
-              <span
-                v-if="field.ownerOverrideEnabled"
-                class="field-permission-page__field-flag is-owner"
-              >
-                <ArtSvgIcon icon="ri:user-star-line" />
-                创建人可编辑
+            <div class="field-permission-page__scope-mode">
+              <span>
+                <ArtSvgIcon icon="ri:git-branch-line" />
+                授权对象
               </span>
-              <span v-if="supportsMask(field)" class="field-permission-page__field-flag is-mask">
-                <ArtSvgIcon icon="ri:eye-off-line" />
-                支持脱敏
-              </span>
-              <span class="field-permission-page__field-default">
-                默认 {{ accessLabel(field.defaultAccess) }}
-              </span>
+              <ElSegmented
+                v-model="subjectType"
+                :options="subjectTypeOptions"
+                :disabled="
+                  page.loading || page.saving || page.configurationLoading || page.auditLoading
+                "
+                @change="handleSubjectTypeChange"
+              />
             </div>
+          </div>
+        </template>
 
-            <div class="field-permission-page__field-control">
-              <ElSelect
-                v-model="permissionDraft[field.fieldKey]"
-                class="field-permission-page__access-select"
-                :disabled="page.saving || isReadOnly"
-                :aria-label="`${field.fieldLabel}字段权限`"
-              >
-                <ElOption
-                  v-if="subjectType === 'user'"
-                  :label="`继承角色（${accessLabel(field.inheritedAccess)}）`"
-                  value="inherit"
-                />
-                <ElOption
-                  v-for="option in accessOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </ElSelect>
-              <span
-                class="field-permission-page__effective-state"
-                :class="`is-${effectiveAccess(field)}`"
-              >
-                <span>当前生效</span>
-                <b :class="`is-${effectiveAccess(field)}`">
-                  {{ accessLabel(effectiveAccess(field)) }}
-                </b>
-              </span>
-            </div>
-          </article>
+        <div class="field-permission-page__selectors">
+          <label>
+            <span class="field-permission-page__selector-label">
+              <ArtSvgIcon icon="ri:file-list-3-line" />
+              业务表单
+            </span>
+            <ElSelect
+              v-model="selectedResourceKey"
+              filterable
+              :loading="page.loading"
+              :disabled="page.saving || page.configurationLoading || page.auditLoading"
+              placeholder="请选择业务表单"
+              @change="handleResourceChange"
+            >
+              <ElOption
+                v-for="resource in resources"
+                :key="resource.id"
+                :label="`${resource.resourceLabel}（${resource.fieldCount} 个敏感字段）`"
+                :value="resource.resourceKey"
+              />
+            </ElSelect>
+          </label>
+
+          <label>
+            <span class="field-permission-page__selector-label">
+              <ArtSvgIcon :icon="subjectType === 'role' ? 'ri:team-line' : 'ri:user-line'" />
+              {{ subjectType === 'role' ? '授权角色' : '授权人员' }}
+            </span>
+            <ElSelect
+              v-model="selectedSubjectId"
+              filterable
+              :loading="page.loading"
+              :disabled="page.saving || page.configurationLoading || page.auditLoading"
+              :placeholder="subjectType === 'role' ? '请选择角色' : '请选择人员'"
+              @change="handleSubjectChange"
+            >
+              <ElOption
+                v-for="option in subjectOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </ElSelect>
+          </label>
         </div>
 
-        <section class="field-permission-page__audit" aria-label="最近授权变更">
-          <header class="field-permission-page__audit-header">
-            <div>
-              <ArtSectionTitle :show-line="false"> 最近授权变更 </ArtSectionTitle>
-              <p>记录当前表单与授权对象最近 10 次人工配置，便于核对权限收紧与放开。</p>
-            </div>
-            <span class="field-permission-page__audit-count">
-              <ArtSvgIcon icon="ri:history-line" />
-              {{ auditLogs.length }} 条记录
-            </span>
-          </header>
-
-          <ElSkeleton v-if="page.auditLoading" animated :rows="2" />
-          <div v-else-if="page.auditError" class="field-permission-page__audit-error" role="alert">
-            <span><ArtSvgIcon icon="ri:error-warning-line" /></span>
-            <div>
-              <strong>授权变更记录暂时无法加载</strong>
-              <p>字段授权矩阵仍可正常使用，可单独重试变更记录。</p>
-            </div>
-            <ElButton link type="primary" @click="loadAuditLogs">重新加载</ElButton>
-          </div>
-          <ArtEmptyState
-            v-else-if="auditLogs.length === 0"
-            title="尚无人工授权变更"
-            description="系统初始化授权不会计入这里；首次保存角色或人员字段权限后会自动留下记录。"
-            size="compact"
-            :visual-size="64"
-          />
-          <ol v-else class="field-permission-page__audit-list">
-            <li v-for="auditLog in auditLogs" :key="auditLog.id">
-              <span class="field-permission-page__audit-marker" aria-hidden="true">
-                <ArtSvgIcon
-                  :icon="auditLog.action === 'clear' ? 'ri:eraser-line' : 'ri:edit-line'"
-                />
-              </span>
-              <div class="field-permission-page__audit-copy">
-                <div>
-                  <strong>{{ auditActorLabel(auditLog) }}</strong>
-                  <span>{{ auditActionLabel(auditLog) }}</span>
-                </div>
-                <p :title="auditChangeDetails(auditLog)">{{ auditChangeSummary(auditLog) }}</p>
-              </div>
-              <time :datetime="auditLog.createTime">{{
-                formatAuditTime(auditLog.createTime)
-              }}</time>
-            </li>
-          </ol>
-        </section>
-      </ArtSectionCard>
-    </ArtPageShell>
-
-    <ArtStickyActionBar
-      v-if="configuration"
-      class="field-permission-page__actions"
-      :class="{ 'is-dirty': isDirty, 'is-readonly': isReadOnly }"
-    >
-      <template #summary>
-        <div class="field-permission-page__action-summary">
-          <span aria-hidden="true">
-            <ArtSvgIcon :icon="actionState.icon" />
+        <div class="field-permission-page__scope-policy">
+          <span class="field-permission-page__policy-icon" aria-hidden="true">
+            <ArtSvgIcon icon="ri:user-star-line" />
           </span>
           <div>
-            <strong>{{ actionState.title }}</strong>
-            <p>{{ actionState.description }}</p>
+            <strong>创建人豁免优先于人员例外和角色授权</strong>
+            <p>
+              标记为“创建人可编辑”的字段，仅在本人创建的记录中自动获得编辑权限；查看他人记录时仍按授权矩阵计算。
+            </p>
           </div>
+          <span class="field-permission-page__policy-level">记录级规则</span>
         </div>
-      </template>
+      </ArtSectionCard>
 
-      <template v-if="!isReadOnly">
-        <ElButton :disabled="!isDirty || page.saving" @click="resetDraft">
-          撤销未保存修改
-        </ElButton>
-        <ElButton
-          v-auth="'System:FieldPermission:Manage'"
-          type="primary"
-          :loading="page.saving"
-          :disabled="!isDirty"
-          @click="saveConfiguration"
+      <ArtPageShell
+        class="field-permission-page__matrix-shell"
+        :loading="page.loading || page.configurationLoading"
+        loading-mode="skeleton"
+        :error="page.error"
+        :empty="!configuration || configuration.fields.length === 0"
+        empty-text="暂无可配置的敏感字段"
+        @retry="retryLoad"
+      >
+        <ArtSectionCard
+          v-if="configuration"
+          class="field-permission-page__matrix"
+          preserve-content-structure
         >
-          保存 {{ changedFieldCount }} 项授权
-        </ElButton>
-      </template>
-      <span v-else class="field-permission-page__readonly-state">
-        <ArtSvgIcon icon="ri:lock-2-line" />
-        需要“维护字段权限”按钮权限
-      </span>
-    </ArtStickyActionBar>
+          <template #header>
+            <header class="field-permission-page__matrix-header">
+              <div>
+                <span class="field-permission-page__section-kicker">权限矩阵</span>
+                <ArtSectionTitle :show-line="false">字段授权矩阵</ArtSectionTitle>
+                <div class="field-permission-page__matrix-context">
+                  <strong>{{ configuration.resourceLabel }}</strong>
+                  <span aria-hidden="true">/</span>
+                  <b>{{ currentSubjectLabel }}</b>
+                </div>
+              </div>
+              <div class="field-permission-page__matrix-summary">
+                <span
+                  class="field-permission-page__sync-state"
+                  :class="{ 'is-dirty': isDirty }"
+                  role="status"
+                >
+                  <ArtSvgIcon :icon="isDirty ? 'ri:draft-line' : 'ri:shield-check-line'" />
+                  {{ isDirty ? `${changedFieldCount} 项待保存` : '配置已同步' }}
+                </span>
+                <p>
+                  {{
+                    subjectType === 'role'
+                      ? '角色成员继承本配置；用户拥有多个角色时取权限最大值。'
+                      : '“继承角色”不保存人员记录；其余选项覆盖角色合并结果。'
+                  }}
+                </p>
+              </div>
+            </header>
+          </template>
+
+          <div class="field-permission-page__legend" aria-label="权限等级说明">
+            <span v-for="option in accessOptions" :key="option.value" :class="`is-${option.value}`">
+              <i aria-hidden="true">
+                <ArtSvgIcon :icon="accessMeta[option.value].icon" />
+              </i>
+              <span>
+                <b>{{ option.label }}</b>
+                <small>{{ accessMeta[option.value].description }}</small>
+              </span>
+            </span>
+          </div>
+
+          <div class="field-permission-page__field-list">
+            <div class="field-permission-page__field-columns" aria-hidden="true">
+              <span>敏感字段</span>
+              <span>字段规则</span>
+              <span>授权等级与结果</span>
+            </div>
+            <article
+              v-for="field in configuration.fields"
+              :key="field.id"
+              class="field-permission-page__field-row"
+              :class="`is-${effectiveAccess(field)}`"
+            >
+              <div class="field-permission-page__field-identity">
+                <span class="field-permission-page__field-icon" aria-hidden="true">
+                  <ArtSvgIcon :icon="supportsMask(field) ? 'ri:eye-off-line' : 'ri:key-2-line'" />
+                </span>
+                <div>
+                  <strong>{{ field.fieldLabel }}</strong>
+                  <code translate="no">{{ field.fieldKey }}</code>
+                </div>
+              </div>
+
+              <div class="field-permission-page__field-meta">
+                <span
+                  v-if="field.ownerOverrideEnabled"
+                  class="field-permission-page__field-flag is-owner"
+                >
+                  <ArtSvgIcon icon="ri:user-star-line" />
+                  创建人可编辑
+                </span>
+                <span v-if="supportsMask(field)" class="field-permission-page__field-flag is-mask">
+                  <ArtSvgIcon icon="ri:eye-off-line" />
+                  支持脱敏
+                </span>
+                <span class="field-permission-page__field-default">
+                  默认 {{ accessLabel(field.defaultAccess) }}
+                </span>
+              </div>
+
+              <div class="field-permission-page__field-control">
+                <ElSelect
+                  v-model="permissionDraft[field.fieldKey]"
+                  class="field-permission-page__access-select"
+                  :disabled="page.saving || isReadOnly"
+                  :aria-label="`${field.fieldLabel}字段权限`"
+                >
+                  <ElOption
+                    v-if="subjectType === 'user'"
+                    :label="`继承角色（${accessLabel(field.inheritedAccess)}）`"
+                    value="inherit"
+                  />
+                  <ElOption
+                    v-for="option in accessOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </ElSelect>
+                <span
+                  class="field-permission-page__effective-state"
+                  :class="`is-${effectiveAccess(field)}`"
+                >
+                  <span>当前生效</span>
+                  <b :class="`is-${effectiveAccess(field)}`">
+                    {{ accessLabel(effectiveAccess(field)) }}
+                  </b>
+                </span>
+              </div>
+            </article>
+          </div>
+
+          <section class="field-permission-page__audit" aria-label="最近授权变更">
+            <header class="field-permission-page__audit-header">
+              <div>
+                <ArtSectionTitle :show-line="false"> 最近授权变更 </ArtSectionTitle>
+                <p>记录当前表单与授权对象最近 10 次人工配置，便于核对权限收紧与放开。</p>
+              </div>
+              <span class="field-permission-page__audit-count">
+                <ArtSvgIcon icon="ri:history-line" />
+                {{ auditLogs.length }} 条记录
+              </span>
+            </header>
+
+            <ElSkeleton v-if="page.auditLoading" animated :rows="2" />
+            <div
+              v-else-if="page.auditError"
+              class="field-permission-page__audit-error"
+              role="alert"
+            >
+              <span><ArtSvgIcon icon="ri:error-warning-line" /></span>
+              <div>
+                <strong>授权变更记录暂时无法加载</strong>
+                <p>字段授权矩阵仍可正常使用，可单独重试变更记录。</p>
+              </div>
+              <ElButton link type="primary" @click="loadAuditLogs">重新加载</ElButton>
+            </div>
+            <ArtEmptyState
+              v-else-if="auditLogs.length === 0"
+              title="尚无人工授权变更"
+              description="系统初始化授权不会计入这里；首次保存角色或人员字段权限后会自动留下记录。"
+              size="compact"
+              :visual-size="64"
+            />
+            <ol v-else class="field-permission-page__audit-list">
+              <li v-for="auditLog in auditLogs" :key="auditLog.id">
+                <span class="field-permission-page__audit-marker" aria-hidden="true">
+                  <ArtSvgIcon
+                    :icon="auditLog.action === 'clear' ? 'ri:eraser-line' : 'ri:edit-line'"
+                  />
+                </span>
+                <div class="field-permission-page__audit-copy">
+                  <div>
+                    <strong>{{ auditActorLabel(auditLog) }}</strong>
+                    <span>{{ auditActionLabel(auditLog) }}</span>
+                  </div>
+                  <p :title="auditChangeDetails(auditLog)">{{ auditChangeSummary(auditLog) }}</p>
+                </div>
+                <time :datetime="auditLog.createTime">{{
+                  formatAuditTime(auditLog.createTime)
+                }}</time>
+              </li>
+            </ol>
+          </section>
+        </ArtSectionCard>
+      </ArtPageShell>
+
+      <ArtStickyActionBar
+        v-if="configuration"
+        class="field-permission-page__actions"
+        :class="{ 'is-dirty': isDirty, 'is-readonly': isReadOnly }"
+      >
+        <template #summary>
+          <div class="field-permission-page__action-summary">
+            <span aria-hidden="true">
+              <ArtSvgIcon :icon="actionState.icon" />
+            </span>
+            <div>
+              <strong>{{ actionState.title }}</strong>
+              <p>{{ actionState.description }}</p>
+            </div>
+          </div>
+        </template>
+
+        <template v-if="!isReadOnly">
+          <ElButton
+            :disabled="!isDirty || page.saving || saveLoading.active.value"
+            @click="resetDraft"
+          >
+            撤销未保存修改
+          </ElButton>
+          <ElButton
+            v-auth="'System:FieldPermission:Manage'"
+            type="primary"
+            :loading="saveLoading.active.value"
+            :disabled="!isDirty || saveLoading.active.value"
+            @click="saveConfiguration"
+          >
+            保存 {{ changedFieldCount }} 项授权
+          </ElButton>
+        </template>
+        <span v-else class="field-permission-page__readonly-state">
+          <ArtSvgIcon icon="ri:lock-2-line" />
+          需要“维护字段权限”按钮权限
+        </span>
+      </ArtStickyActionBar>
+    </ArtOverlayLoading>
   </div>
 </template>
 
@@ -331,6 +349,7 @@
   import ArtSectionTitle from '@/components/core/surfaces/art-section-title/index.vue'
   import ArtEmptyState from '@/components/core/feedback/art-empty-state/index.vue'
   import ArtStickyActionBar from '@/components/core/layouts/art-sticky-action-bar/index.vue'
+  import ArtOverlayLoading from '@/components/core/feedback/art-overlay-loading/index.vue'
   import BusinessWorkspaceHeader, {
     type BusinessWorkspaceMetric,
     type BusinessWorkspaceTag
@@ -343,6 +362,7 @@
   } from '@/api/field-permission'
   import { fetchGetRoleList, fetchGetUserList } from '@/api/system-manage'
   import { useAuth } from '@/hooks/core/useAuth'
+  import { useDelayedLoading } from '@/hooks/core/useDelayedLoading'
   import { useDictionaryOptions } from '@/hooks/core/useDictionaryOptions'
   import { formatWithDayjs } from '@/utils/time'
   import { getFieldPermissionAuditChanges } from './modules/field-permission-audit'
@@ -386,6 +406,7 @@
     error: null,
     auditError: null
   })
+  const saveLoading = useDelayedLoading()
   const resources = shallowRef<Api.SystemManage.FieldPermissionResource[]>([])
   const roleOptions = shallowRef<SelectOption[]>([])
   const userOptions = shallowRef<SelectOption[]>([])
@@ -738,6 +759,7 @@
   const saveConfiguration = async (): Promise<void> => {
     if (!configuration.value || !selectedSubjectId.value) return
     page.saving = true
+    saveLoading.start()
     try {
       const permissions = Object.fromEntries(
         Object.entries(permissionDraft.value).filter(
@@ -753,6 +775,7 @@
       await loadConfiguration()
     } finally {
       page.saving = false
+      saveLoading.stop()
     }
   }
 

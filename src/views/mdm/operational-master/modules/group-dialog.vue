@@ -156,7 +156,8 @@
     await dialogRef.value?.handleOpen(data, {
       title: dialogTitle.value,
       subtitle: data.row ? `当前分组：${data.row.name} · ${data.row.code}` : groupDescription.value,
-      confirmText: data.row ? '保存更改' : '创建分组',
+      confirmText: data.row ? '保存' : '创建分组',
+      skipConfirmWhenPristine: Boolean(data.row),
       onOpen: () => formRef.value?.clearValidate(),
       onConfirm: async () => {
         try {

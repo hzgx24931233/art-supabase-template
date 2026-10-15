@@ -1290,7 +1290,7 @@
         mode === 'edit'
           ? `${row?.list.drawingName} · 原表第 ${row?.rowNo} 行`
           : '手工添加到配件加工清单',
-      confirmText: mode === 'edit' ? '保存更改' : '保存配件加工清单',
+      confirmText: mode === 'edit' ? '保存' : '保存配件加工清单',
       loading: true,
       loadingText: '正在加载物料选项…',
       onOpen: async (_data, api) => {

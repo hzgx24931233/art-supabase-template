@@ -1,0 +1,1 @@
+function e(e){return!e||typeof e!=`string`?!1:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.trim())}export{e as t};

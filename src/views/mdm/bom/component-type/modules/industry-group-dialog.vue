@@ -142,6 +142,7 @@
     await dialogRef.value?.handleOpen(data, {
       title: data.row ? '编辑行业分组' : '新增行业分组',
       contentMaxHeight: '70vh',
+      skipConfirmWhenPristine: Boolean(data.row),
       onOpen: () => formRef.value?.clearValidate(),
       onConfirm: submit
     })

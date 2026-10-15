@@ -202,6 +202,12 @@
     loading: false,
     loadError: false
   })
+  /**
+   * 设计参考按路由名查询。列表与详情之间来回切换会反复命中同一路由，
+   * 因此缓存会话内已确认的结果，只让首次进入该路由承担这次慢查询。
+   * 失败结果不写入缓存，重试仍会真正发起请求。
+   */
+  const referenceCache = new Map<string, UiDesignReferenceRecord | null>()
   let loadSequence = 0
 
   const routeIdentity = computed(() => {
@@ -261,11 +267,20 @@
   async function loadReference(): Promise<void> {
     const identity = routeIdentity.value
     if (!identity) return
+    // 命中缓存时不再发请求，星标状态立即确定，也不与页面自身的数据请求抢带宽。
+    if (referenceCache.has(identity.name)) {
+      loadSequence += 1
+      state.reference = referenceCache.get(identity.name) ?? null
+      state.loading = false
+      state.loadError = false
+      return
+    }
     const sequence = ++loadSequence
     state.loading = true
     state.loadError = false
     try {
       const reference = await fetchUiDesignReference(identity.name)
+      referenceCache.set(identity.name, reference)
       if (sequence === loadSequence) state.reference = reference
     } catch {
       if (sequence === loadSequence) state.loadError = true
@@ -305,7 +320,7 @@
       {
         title: state.reference ? '编辑设计参考' : '添加设计参考',
         subtitle: 'AI 后续会把当前路由的整个模块作为设计风格参考。',
-        confirmText: state.reference ? '保存修改' : '保存参考',
+        confirmText: state.reference ? '保存' : '保存参考',
         contentMaxHeight: '68vh',
         loading: state.loadError || Boolean(state.reference),
         loadingText: '正在加载设计参考…',
@@ -320,7 +335,7 @@
             resetDraft()
             api.setOptions({
               title: state.reference ? '编辑设计参考' : '添加设计参考',
-              confirmText: state.reference ? '保存修改' : '保存参考'
+              confirmText: state.reference ? '保存' : '保存参考'
             })
             if (state.reference) await loadDialogImages()
           } catch {
@@ -423,6 +438,7 @@
         sourceRevision: StorageConfig.CURRENT_VERSION
       })
       state.reference = reference
+      referenceCache.set(identity.name, reference)
 
       const uploadedImages: UiDesignReferenceImageRecord[] = []
       try {
@@ -473,6 +489,7 @@
     try {
       await removeUiDesignReference(id)
       state.reference = null
+      if (routeIdentity.value?.name) referenceCache.set(routeIdentity.value.name, null)
       ElMessage.success('已取消当前路由的设计参考')
       await api.handleClose(true)
     } catch {

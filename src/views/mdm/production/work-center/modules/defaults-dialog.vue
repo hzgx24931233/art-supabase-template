@@ -48,7 +48,7 @@
     await dialogRef.value?.handleOpen(undefined, {
       title: '工作中心常用配置',
       subtitle: '按业务环节维护新增工作中心的默认执行策略',
-      confirmText: '保存默认配置',
+      confirmText: '保存',
       contentMaxHeight: '68vh',
       loading: true,
       onOpen: async (_d, api) => {

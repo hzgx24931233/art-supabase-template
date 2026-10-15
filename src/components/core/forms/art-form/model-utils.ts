@@ -30,6 +30,14 @@ export function isModelDirty(
   return !isEqual(model ?? {}, baseline ?? {})
 }
 
+/**
+ * 判断是否应跳过 pristine 表单提交。
+ * 提交跳过必须显式开启，避免影响查询、登录和动作型表单。
+ */
+export function shouldSkipPristineSubmit(enabled: boolean, dirty: boolean): boolean {
+  return enabled && !dirty
+}
+
 export function updateFormFieldValue(model: FormRecord, path: string, value: unknown): FormRecord {
   if (value === undefined) unset(model, path)
   else set(model, path, value)

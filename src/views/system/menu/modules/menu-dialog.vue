@@ -642,11 +642,12 @@
     menuTreeLoader.value = data.menuTree?.length ? undefined : data.loadMenuTree
     await dialogRef.value?.handleOpen(data, {
       title: `${data.row?.id != null ? '编辑' : '新增'}${menuTypeLabel.value}`,
+      skipConfirmWhenPristine: data.row?.id != null,
       dialogProps: {
         class: 'menu-dialog'
       },
       contentMaxHeight: '72vh',
-      confirmText: data.row?.id != null ? '保存修改' : `创建${menuTypeLabel.value}`,
+      confirmText: data.row?.id != null ? '保存' : `创建${menuTypeLabel.value}`,
       loading: !data.menuTree?.length && Boolean(data.loadMenuTree),
       loadingText: '正在加载菜单层级…',
       onOpen: async () => {

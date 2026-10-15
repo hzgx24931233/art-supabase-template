@@ -1,0 +1,1 @@
+var e=[`sex`,`hrEmploymentStatus`,`hrEmploymentType`,`hrEducationLevel`,`hrEthnicity`,`hrMaritalStatus`,`hrPoliticalStatus`,`hrEmergencyRelation`,`hrContractType`,`hrContractStatus`,`hrDegree`,`hrTrainingType`,`hrTrainingResult`,`hrRewardType`,`hrRewardLevel`];export{e as t};

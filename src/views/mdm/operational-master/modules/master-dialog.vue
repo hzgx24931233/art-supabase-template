@@ -452,9 +452,10 @@
         ? `当前记录：${String(data.row[data.config.nameKey] || '未命名')}`
         : data.config.description,
       showFooter: !data.readonly,
-      confirmText: data.row && !data.copy ? '保存更改' : `创建${data.config.title}`,
+      confirmText: data.row && !data.copy ? '保存' : `创建${data.config.title}`,
       contentMaxHeight: '72vh',
       loading: true,
+      skipConfirmWhenPristine: Boolean(data.row && !data.copy),
       onOpen: async (_openData, api) => {
         try {
           await Promise.all(

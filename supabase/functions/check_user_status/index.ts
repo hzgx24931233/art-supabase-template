@@ -19,50 +19,43 @@ Deno.serve(async (request: Request) => {
     if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
     const body = await request.json().catch(() => null)
-    const email = String(body?.email ?? '')
-      .trim()
-      .toLowerCase()
     const cleanupUnprovisioned = body?.cleanupUnprovisioned === true
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     if (!supabaseUrl || !serviceRoleKey) return json({ error: 'Server not configured' }, 500)
 
-    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-    let authUserId: string | null = null
-    if (!email) {
-      const authorization = request.headers.get('authorization')
-      const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
-      if (!accessToken) return json({ code: 'no_authorization', error: '请重新登录后再试' }, 401)
+    // 准入判断只依据已建立的登录会话：不接受只带邮箱的匿名查询，
+    // 否则任何未认证调用者都能据此探测账号是否停用、是否分配角色。
+    const authorization = request.headers.get('authorization')
+    const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]
+    if (!accessToken) return json({ code: 'no_authorization', error: '请重新登录后再试' }, 401)
 
-      const { data: authData, error: authError } = await admin.auth.getUser(accessToken)
-      if (authError || !authData.user) {
-        return json({ code: 'bad_jwt', error: '登录状态已失效，请重新登录' }, 401)
-      }
-      authUserId = authData.user.id
+    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
+    const { data: authData, error: authError } = await admin.auth.getUser(accessToken)
+    if (authError || !authData.user) {
+      return json({ code: 'bad_jwt', error: '登录状态已失效，请重新登录' }, 401)
     }
 
-    let userQuery = admin
+    const { data: user, error: userError } = await admin
       .from('sys_user')
-      .select('user_email,status,deleted_at,user_roles')
-    userQuery = email ? userQuery.eq('user_email', email) : userQuery.eq('auth_user_id', authUserId)
-    const { data: user, error: userError } = await userQuery.maybeSingle()
+      .select('status,deleted_at,user_roles')
+      .eq('auth_user_id', authData.user.id)
+      .maybeSingle()
 
     if (userError) return json({ code: 'access_check_failed', error: '账号准入检查失败' }, 500)
     if (!user) {
-      if (authUserId && cleanupUnprovisioned) {
-        await admin.auth.admin.deleteUser(authUserId).catch(() => undefined)
+      if (cleanupUnprovisioned) {
+        await admin.auth.admin.deleteUser(authData.user.id).catch(() => undefined)
       }
-      return email
-        ? json({ allowed: true, code: 'not_found' })
-        : json(
-            {
-              allowed: false,
-              code: 'user_not_provisioned',
-              error: '当前身份尚未绑定系统账号，请先使用已有账号登录并完成绑定'
-            },
-            403
-          )
+      return json(
+        {
+          allowed: false,
+          code: 'user_not_provisioned',
+          error: '当前身份尚未绑定系统账号，请先使用已有账号登录并完成绑定'
+        },
+        403
+      )
     }
     if (user.deleted_at) {
       return json(

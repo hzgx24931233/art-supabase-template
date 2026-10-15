@@ -243,8 +243,9 @@
     await dialogRef.value?.handleOpen(data, {
       title: data.mode === 'edit' ? `编辑常用工作中心 · ${data.row?.name}` : '新增常用配置',
       subtitle: '为生产人员设置作业端优先展示的工作中心',
-      confirmText: '保存配置',
+      confirmText: data.mode === 'edit' ? '保存' : '创建配置',
       contentMaxHeight: '66vh',
+      skipConfirmWhenPristine: data.mode === 'edit',
       onConfirm: async () => {
         try {
           await formRef.value?.validate()

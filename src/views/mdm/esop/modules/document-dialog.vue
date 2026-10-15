@@ -357,8 +357,9 @@
     await dialogRef.value?.handleOpen(data, {
       title: data.mode === 'copy' ? '复制 ESOP' : data.mode === 'edit' ? '编辑 ESOP' : '新增 ESOP',
       subtitle: '维护受控文档、版本与产品工艺适用范围',
-      confirmText: data.mode === 'copy' ? '复制并新增' : '保存 ESOP',
+      confirmText: data.mode === 'copy' ? '复制并新增' : '保存',
       contentMaxHeight: 'calc(100vh - 150px)',
+      skipConfirmWhenPristine: data.mode === 'edit',
       onConfirm: submit
     })
   }

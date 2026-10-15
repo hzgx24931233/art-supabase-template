@@ -301,6 +301,7 @@
   import {
     cloneModelValue,
     isModelDirty,
+    shouldSkipPristineSubmit,
     sanitizeFormValue,
     type FormRecord,
     type SanitizeOutputOptions,
@@ -558,6 +559,8 @@
     collapsibleSections?: boolean
     /** 是否向所在弹层上报未保存修改；查询类表单应关闭 */
     trackDirty?: boolean
+    /** 编辑态且数据未变化时是否跳过提交事件 */
+    skipSubmitWhenPristine?: boolean
     /** 提交时是否清洗空值 */
     sanitizeOutput?: Partial<SanitizeOutputOptions>
   }
@@ -585,6 +588,7 @@
     showExpand: true,
     collapsibleSections: true,
     trackDirty: true,
+    skipSubmitWhenPristine: false,
     sanitizeOutput: () => ({})
   })
   const overlayFocus = inject(artFormOverlayKey, undefined)
@@ -1242,6 +1246,7 @@
    */
   const handleSubmit = () => {
     if (props.submitLoading || props.disabledSubmit) return
+    if (shouldSkipPristineSubmit(props.skipSubmitWhenPristine, isDirty.value)) return
     // 对外只抛出清洗后的结果，避免业务层重复过滤空值。
     emit('submit', getSanitizedOutput())
   }

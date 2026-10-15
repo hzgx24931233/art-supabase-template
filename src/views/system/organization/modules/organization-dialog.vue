@@ -387,6 +387,7 @@
       title: data.type === 'add' ? '新增组织' : '编辑组织',
       contentMaxHeight: '72vh',
       loading: true,
+      skipConfirmWhenPristine: data.type !== 'add',
       onOpen: async (_openData, api) => {
         try {
           await Promise.all([

@@ -4,6 +4,7 @@ import { computed, reactive, ref } from 'vue'
 import {
   cloneModelValue,
   isModelDirty,
+  shouldSkipPristineSubmit,
   updateFormFieldValue,
   type FormRecord
 } from '../../src/components/core/forms/art-form/model-utils'
@@ -40,6 +41,23 @@ test('与基线一致时不判定为修改', () => {
 
   assert.equal(isModelDirty(model, baseline), false)
   assert.deepEqual(baseline.lines, [{ code: 'A', quantity: 2 }])
+})
+
+test('仅显式开启且表单 pristine 时跳过提交', () => {
+  assert.equal(shouldSkipPristineSubmit(true, false), true)
+  assert.equal(shouldSkipPristineSubmit(true, true), false)
+  assert.equal(shouldSkipPristineSubmit(false, false), false)
+})
+
+test('重新采集基线后恢复 pristine 跳过状态', () => {
+  const model: FormRecord = { name: '张三', lines: [{ code: 'A', quantity: 1 }] }
+  let baseline = cloneModelValue(model)
+
+  model.lines[0].quantity = 2
+  assert.equal(shouldSkipPristineSubmit(true, isModelDirty(model, baseline)), false)
+
+  baseline = cloneModelValue(model)
+  assert.equal(shouldSkipPristineSubmit(true, isModelDirty(model, baseline)), true)
 })
 
 test('识别字段、嵌套结构与数组变化', () => {

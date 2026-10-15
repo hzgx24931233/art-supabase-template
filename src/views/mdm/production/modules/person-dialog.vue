@@ -220,8 +220,9 @@
       subtitle: data.row
         ? `正在维护：${data.row.name} · ${data.row.employeeNo}`
         : '建立人员生产身份与组织关系',
-      confirmText: data.row ? '保存更改' : '创建人员',
+      confirmText: data.row ? '保存' : '创建人员',
       contentMaxHeight: '70vh',
+      skipConfirmWhenPristine: Boolean(data.row),
       onConfirm: async () => {
         if (form.sourceLoading) return false
         try {

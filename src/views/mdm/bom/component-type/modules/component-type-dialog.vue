@@ -169,8 +169,9 @@
     context.groups = data.groups
     await dialogRef.value?.handleOpen(data, {
       title: data.row ? '编辑组件类型' : '新增组件类型',
-      confirmText: data.row ? '保存更改' : '创建组件类型',
+      confirmText: data.row ? '保存' : '创建组件类型',
       contentMaxHeight: '72vh',
+      skipConfirmWhenPristine: Boolean(data.row),
       onOpen: () => formRef.value?.clearValidate(),
       onConfirm: submit
     })

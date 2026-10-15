@@ -364,8 +364,9 @@
       title: isEdit.value ? '编辑字典' : '新增字典',
       subtitle: `维护“${form.value.data.dictTypeName}”的取值、层级与展示方式`,
       size: 'md',
-      confirmText: isEdit.value ? '保存更改' : '创建字典项',
+      confirmText: isEdit.value ? '保存' : '创建字典项',
       contentMaxHeight: 'min(72vh, calc(100vh - 200px))',
+      skipConfirmWhenPristine: isEdit.value,
       onOpen: async () => {
         await formRef.value?.reloadOptions(getParentFieldKey())
       },

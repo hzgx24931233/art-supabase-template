@@ -27,7 +27,7 @@
       v-if="$slots.header || hasSubtitle || formCount || options.showFullscreenButton"
       #header="{ titleId, titleClass }"
     >
-      <div class="art-drawer__header">
+      <div class="art-drawer__header" :inert="confirmLoading">
         <div class="art-drawer__header-main">
           <slot v-if="$slots.header" name="header" :data="openData" :api="exposedApi" />
           <span v-else :id="titleId" :class="titleClass">{{ drawerTitle }}</span>
@@ -54,7 +54,7 @@
       </div>
     </template>
 
-    <div class="art-drawer__viewport" :aria-busy="contentLoading">
+    <div class="art-drawer__viewport" :aria-busy="contentLoading || confirmOverlayLoading">
       <ElScrollbar
         ref="scrollbarRef"
         :always="options.scrollbarAlways"
@@ -73,8 +73,8 @@
         <div
           ref="contentRef"
           class="art-drawer__content"
-          :inert="contentLoading"
-          :aria-hidden="contentLoading"
+          :inert="contentLoading || confirmLoading"
+          :aria-hidden="contentLoading || confirmOverlayLoading"
         >
           <component
             :is="options.content"
@@ -93,6 +93,13 @@
         :text="options.loadingText"
         :background="options.loadingBackground"
         :custom-class="options.loadingCustomClass"
+      />
+      <ArtOverlayLoading
+        v-if="confirmOverlayLoading"
+        :loading="true"
+        :overlay="true"
+        :text="options.confirmLoadingText"
+        background="color-mix(in srgb, var(--default-box-color) 82%, transparent)"
       />
     </div>
 
@@ -162,6 +169,7 @@
     showConfirmButton: true,
     cancelText: '取消',
     confirmText: '确定',
+    confirmLoadingText: '保存中…',
     confirmDisabled: false,
     autoClose: true,
     resetOnClose: true,
@@ -208,6 +216,7 @@
     loadingText: props.loadingText,
     loadingBackground: props.loadingBackground,
     loadingCustomClass: props.loadingCustomClass,
+    confirmLoadingText: props.confirmLoadingText,
     contentHeight: props.contentHeight,
     showFooter: props.showFooter,
     showCancelButton: props.showCancelButton,
@@ -260,6 +269,7 @@
     visible,
     loading: contentLoading,
     confirmLoading,
+    confirmOverlayLoading,
     openData,
     options,
     isDirty,
@@ -431,6 +441,7 @@
     visible: readonly(visible),
     loading: readonly(contentLoading),
     confirmLoading: readonly(confirmLoading),
+    confirmOverlayLoading: readonly(confirmOverlayLoading),
     data: readonly(openData) as Readonly<Ref<T>>,
     options: readonly(options) as Readonly<Ref<ArtDrawerOptions<T>>>,
     drawerRef: readonly(drawerRef),

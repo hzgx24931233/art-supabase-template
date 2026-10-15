@@ -145,9 +145,10 @@
     await dialogRef.value?.handleOpen(data, {
       title: data.row ? '编辑部门 / 产线' : '新增部门 / 产线',
       subtitle: data.row ? `正在维护：${data.row.name}` : '建立新的生产组织节点',
-      confirmText: data.row ? '保存更改' : '创建部门',
+      confirmText: data.row ? '保存' : '创建部门',
       contentMaxHeight: '68vh',
       loading: true,
+      skipConfirmWhenPristine: Boolean(data.row),
       loadingText: '正在加载组织选项…',
       onOpen: async (_openData, api) => {
         try {

@@ -225,7 +225,8 @@
     await dialogRef.value?.handleOpen(data, {
       title: data.row ? '编辑节假日安排' : '新增节假日安排',
       subtitle: '选择公司/组织、假期类型与日期区间',
-      confirmText: '保存安排',
+      confirmText: data.row ? '保存' : '创建安排',
+      skipConfirmWhenPristine: Boolean(data.row),
       onOpen: async (_openData, api) => {
         api.setLoading(true)
         try {

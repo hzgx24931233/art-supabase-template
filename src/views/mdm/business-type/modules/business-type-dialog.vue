@@ -454,7 +454,7 @@
     const confirmMap: Record<DialogMode, string> = {
       add: '创建业务类型',
       copy: '创建副本',
-      edit: '保存更改'
+      edit: '保存'
     }
 
     await dialogRef.value?.handleOpen(data, {
@@ -466,6 +466,7 @@
       confirmText: confirmMap[data.mode],
       contentMaxHeight: '76vh',
       loading: true,
+      skipConfirmWhenPristine: data.mode === 'edit',
       onOpen: async (_openData, api) => {
         try {
           await Promise.all([

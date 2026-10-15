@@ -190,8 +190,9 @@
     await dialogRef.value?.handleOpen(undefined, {
       title: row ? '编辑轮班模式' : '新增轮班模式',
       subtitle: row ? `正在维护：${row.name}` : '定义一套可复用的班次与休息安排',
-      confirmText: row ? '保存更改' : '创建轮班模式',
+      confirmText: row ? '保存' : '创建轮班模式',
       contentMaxHeight: '72vh',
+      skipConfirmWhenPristine: Boolean(row),
       onConfirm: async () => {
         try {
           await formRef.value?.validate()

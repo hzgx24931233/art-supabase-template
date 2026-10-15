@@ -90,6 +90,7 @@
 | `defaultExpanded` | `boolean` | `false` | 非强制展开时，初始是否展开 |
 | `showExpand` | `boolean` | `true` | 是否显示展开/收起按钮 |
 | `trackDirty` | `boolean` | `true` | 是否向所在弹层上报未保存修改；查询类表单需设为 `false` |
+| `skipSubmitWhenPristine` | `boolean` | `false` | 显式开启后，编辑数据未变化时点击提交不触发 `submit`；新增、复制和动作型表单保持关闭 |
 | `sanitizeOutput` | `Partial<SanitizeOutputOptions>` | `{}` | 提交输出清洗策略 |
 
 ## ElForm Props 透传
@@ -140,11 +141,11 @@
 
 ## Events
 
-| 事件       | 参数                          | 说明                                   |
-| ---------- | ----------------------------- | -------------------------------------- |
-| `submit`   | `output: Record<string, any>` | 点击提交按钮触发，参数为清洗后的输出   |
-| `reset`    | 无                            | 点击重置按钮触发；组件会先恢复初始快照 |
-| `validate` | `prop, isValid, message`      | 透传 `ElForm` 的字段校验事件           |
+| 事件 | 参数 | 说明 |
+| --- | --- | --- |
+| `submit` | `output: Record<string, any>` | 数据有变化时点击提交按钮触发，参数为清洗后的输出；启用 `skipSubmitWhenPristine` 且数据未变化时不触发 |
+| `reset` | 无 | 点击重置按钮触发；组件会先恢复初始快照 |
+| `validate` | `prop, isValid, message` | 透传 `ElForm` 的字段校验事件 |
 
 ## Slots
 

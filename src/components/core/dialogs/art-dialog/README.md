@@ -4,6 +4,8 @@
 
 `loading` controls the dialog content mask and disables the default footer buttons. It is independent from the confirm button's `confirmLoading`.
 
+When an asynchronous `onConfirm` is running, the confirm button shows Loading immediately. If the request lasts longer than 200ms, the form content keeps its current values under a save overlay. Override `confirmLoadingText` for actions such as submission or publishing.
+
 ```vue
 <ArtDialog
   ref="dialogRef"
@@ -337,8 +339,10 @@ dialogRef.value?.handleOpen(user, {
 | `showConfirmButton` | `boolean` | `true` | 是否显示确定按钮 |
 | `cancelText` | `string` | `'取消'` | 取消按钮文字 |
 | `confirmText` | `string` | `'确定'` | 确定按钮文字 |
+| `confirmLoadingText` | `string` | `'保存中…'` | 确认请求遮罩文字 |
 | `confirmDisabled` | `boolean` | `false` | 是否禁用确定按钮 |
 | `autoClose` | `boolean` | `true` | 确认成功后是否自动关闭 |
+| `skipConfirmWhenPristine` | `boolean` | `false` | 编辑态且数据未变更时跳过确认回调并按 `autoClose` 关闭 |
 | `resetOnClose` | `boolean` | `true` | 关闭完成后是否重置 |
 | `closeOnConfirmError` | `boolean` | `false` | 确认回调抛错时是否强制关闭 |
 | `confirmOnClose` | `boolean` | `false` | 关闭前检测未保存修改并确认 |

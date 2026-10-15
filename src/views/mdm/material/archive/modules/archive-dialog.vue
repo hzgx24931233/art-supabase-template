@@ -1415,9 +1415,10 @@
     await dialogRef.value?.handleOpen(data, {
       title: `${data.copy ? '复制' : data.row ? '编辑' : '新增'}物料编码`,
       subtitle: '统一物料身份与各业务域默认视图',
-      confirmText: '保存物料',
+      confirmText: data.copy ? '复制并新增' : data.row ? '保存' : '创建物料',
       contentMaxHeight: '74vh',
       loading: selectedEmployeeIds().length > 0,
+      skipConfirmWhenPristine: Boolean(data.row && !data.copy),
       onConfirm: handleSubmit,
       onOpen: async (_openData, api) => {
         try {

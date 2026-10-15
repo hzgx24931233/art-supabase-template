@@ -177,6 +177,111 @@ test('OAuth callback shows progress instead of briefly exposing the login form',
   await expectNoHorizontalOverflow(page)
 })
 
+const toBase64Url = (value: string): string => Buffer.from(value).toString('base64url')
+
+// auth-js 会解码令牌读取 exp，因此 mock 会话只需要结构可解码且未过期的 JWT。
+const createSessionToken = (userId: string, email: string): string =>
+  `${toBase64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))}.${toBase64Url(
+    JSON.stringify({
+      sub: userId,
+      aud: 'authenticated',
+      role: 'authenticated',
+      email,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600
+    })
+  )}.${toBase64Url('auth-page-spec-signature')}`
+
+// 人机验证与登录渠道来自网站配置；用例回落到默认配置，避免依赖真实项目的配置状态。
+async function mockWebsiteConfigDefaults(page: Page): Promise<void> {
+  await page.route('**/rest/v1/sys_param?*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  )
+}
+
+async function submitLogin(page: Page, identifier: string, password: string): Promise<void> {
+  await page.goto('/#/auth/login', { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('.auth-right-wrap .form')).toBeVisible()
+  await page.locator('input[name="username"]').fill(identifier)
+  await page.locator('input[name="password"]').fill(password)
+  // 网站配置未加载完成时提交会被忽略，先等登录按钮可用。
+  await expect(page.locator('button[type="submit"]')).toBeEnabled()
+  await page.locator('button[type="submit"]').click()
+}
+
+test('邮箱登录先用密码校验：密码错误时不询问账号角色准入', async ({ page }) => {
+  const accessCheckRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.url().includes('/functions/v1/check_user_status')) {
+      accessCheckRequests.push(request.url())
+    }
+  })
+  await mockWebsiteConfigDefaults(page)
+  await page.route('**/auth/v1/token*', (route) =>
+    route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 400,
+        error_code: 'invalid_credentials',
+        msg: 'Invalid login credentials'
+      })
+    })
+  )
+
+  await submitLogin(page, 'wrong-password@example.invalid', 'wrong-password')
+  await expect(page.locator('.el-message--error')).toContainText('邮箱或密码错误')
+  expect(accessCheckRequests).toEqual([])
+})
+
+test('密码正确但未分配角色时，才提示角色准入失败并清理本次会话', async ({ page }) => {
+  const authTokenStorageKey = readSupabaseAuthTokenStorageKey()
+  const userId = '11111111-1111-4111-8111-111111111111'
+  const email = 'role-less@example.invalid'
+  let storedSessionDuringAccessCheck: string | null = null
+
+  await mockWebsiteConfigDefaults(page)
+  await page.route('**/auth/v1/token*', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        access_token: createSessionToken(userId, email),
+        token_type: 'bearer',
+        expires_in: 3600,
+        refresh_token: 'role-less-refresh-token',
+        user: { id: userId, aud: 'authenticated', role: 'authenticated', email }
+      })
+    })
+  )
+  await page.route('**/auth/v1/logout*', (route) => route.fulfill({ status: 204, body: '' }))
+  await page.route('**/functions/v1/check_user_status', async (route) => {
+    // 准入检查只能发生在密码校验建立会话之后。
+    storedSessionDuringAccessCheck = await page.evaluate(
+      (key) => localStorage.getItem(key),
+      authTokenStorageKey
+    )
+    await route.fulfill({
+      status: 403,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        allowed: false,
+        code: 'role_not_assigned',
+        error: '当前账号尚未分配角色，请联系管理员'
+      })
+    })
+  })
+
+  await submitLogin(page, email, 'correct-password')
+
+  await expect(page.locator('.el-message--error')).toContainText('当前账号尚未分配角色')
+  expect(storedSessionDuringAccessCheck).not.toBeNull()
+  // 未通过准入检查的账号不得留下登录态。
+  await expect
+    .poll(() => page.evaluate((key) => localStorage.getItem(key), authTokenStorageKey))
+    .toBeNull()
+})
+
 test('anonymous login does not download hosted business page mappings', async ({ page }) => {
   const hostedRequests: string[] = []
   page.on('request', (request) => {

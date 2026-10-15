@@ -287,8 +287,9 @@
         ? '调整节点归属、级联关系与展示设置'
         : '先定义节点用途，再配置目录归属与级联关系',
       size: 'md',
-      confirmText: form.editing ? '保存更改' : '创建节点',
+      confirmText: form.editing ? '保存' : '创建节点',
       contentMaxHeight: 'min(72vh, calc(100vh - 200px))',
+      skipConfirmWhenPristine: form.editing,
       onOpen: async () => {
         await Promise.all([
           formRef.value?.reloadOptions('parentId'),

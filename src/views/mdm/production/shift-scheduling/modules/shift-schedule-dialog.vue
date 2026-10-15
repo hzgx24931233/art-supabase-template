@@ -453,11 +453,12 @@
       title: data.mode === 'add' ? '新增排班' : data.mode === 'edit' ? '编辑排班' : '排班详情',
       subtitle:
         data.mode === 'view' ? '查看班次、有效期与班组人员' : '按轮班模式安排班次与班组人员',
-      confirmText: data.mode === 'edit' ? '保存更改' : '创建排班',
+      confirmText: data.mode === 'edit' ? '保存' : '创建排班',
       cancelText: data.mode === 'view' ? '关闭' : '取消',
       showConfirmButton: data.mode !== 'view',
       contentMaxHeight: '74vh',
       loading: true,
+      skipConfirmWhenPristine: data.mode === 'edit',
       onOpen: async (_openData, api) => {
         try {
           await loadPatterns()

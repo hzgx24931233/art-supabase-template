@@ -302,7 +302,8 @@
     await dialogRef.value?.handleOpen(row, {
       title: `编辑编号规则 · ${row.ruleName}`,
       contentMaxHeight: '74vh',
-      confirmText: '保存并生效',
+      confirmText: '保存',
+      skipConfirmWhenPristine: true,
       onConfirm: handleSubmit
     })
   }

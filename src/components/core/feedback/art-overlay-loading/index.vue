@@ -5,6 +5,7 @@
       {
         'is-loading': loading,
         'is-overlay': overlay,
+        'is-preserve-content': preserveContent,
         'is-compact': size === 'compact'
       },
       customClass
@@ -41,6 +42,7 @@
       description?: string
       minHeight?: string | number
       background?: string
+      preserveContent?: boolean
       customClass?: string
       overlay?: boolean
       size?: 'compact' | 'default'
@@ -53,6 +55,7 @@
       background: '',
       customClass: '',
       overlay: false,
+      preserveContent: false,
       size: 'default'
     }
   )
@@ -189,6 +192,12 @@
       position: absolute;
       inset: 0;
       visibility: hidden;
+      pointer-events: none;
+    }
+
+    &.is-loading.is-preserve-content &__content {
+      position: relative;
+      visibility: visible;
       pointer-events: none;
     }
   }
