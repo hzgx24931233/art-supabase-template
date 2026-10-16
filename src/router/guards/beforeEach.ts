@@ -52,6 +52,7 @@ import { useCommon } from '@/hooks/core/useCommon'
 import { useWorktabStore } from '@/store/modules/worktab'
 import { ApiStatus } from '@/utils/http/status'
 import { isHttpError } from '@/utils/http/error'
+import { recoverCurrentAuthSession } from '@/api/auth'
 import { RouteRegistry, MenuProcessor, IframeRouteManager, RoutePermissionValidator } from '../core'
 import TreeUtils from '@utils/tree'
 import type { AppRouteRecord } from '@/types'
@@ -83,6 +84,11 @@ let routeInitFailed = false
 
 // 路由初始化进行中标记，防止并发请求
 let routeInitInProgress = false
+
+// 持久化的 Pinia 登录壳不能作为真实会话凭据。应用启动后的首次受保护导航
+// 必须向 Supabase 验证并在可能时刷新会话，避免隔夜过期 token 直接放行。
+let authSessionChecked = false
+let authSessionCheckPromise: Promise<void> | null = null
 
 const treeUtils = new TreeUtils({
   idKey: 'id',
@@ -146,6 +152,8 @@ export function resetRouteInitializationForRetry(): void {
   menuStore.clearRemoveRouteFns()
   menuStore.setMenuList([])
   resetRouteInitState()
+  authSessionChecked = false
+  authSessionCheckPromise = null
 }
 
 /**
@@ -225,13 +233,19 @@ async function handleRouteGuard(
     NProgress.start()
   }
 
-  // 1. 检查登录状态
+  // 1. 先验证真实 Supabase 会话，再检查持久化登录状态。
+  // 登录页和其他静态公开页不需要这一步；业务路由首次进入时只检查一次。
+  if (userStore.isLogin && to.path !== RoutesAlias.Login && !isStaticRoute(to.path)) {
+    await ensureAuthSession(userStore, to.fullPath)
+  }
+
+  // 2. 检查登录状态
   const loginRedirect = getLoginRedirect(to, userStore)
   if (loginRedirect) {
     return loginRedirect
   }
 
-  // 2. 检查路由初始化是否已失败（防止死循环）
+  // 3. 检查路由初始化是否已失败（防止死循环）
   if (routeInitFailed) {
     // 静态登录/异常页不依赖动态菜单，可以安全放行。
     if (isStaticRoute(to.path)) {
@@ -241,7 +255,7 @@ async function handleRouteGuard(
     return createInitializationFailureRoute(to)
   }
 
-  // 3. 处理动态路由注册
+  // 4. 处理动态路由注册
   if (!routeRegistry?.isRegistered() && userStore.isLogin) {
     // 防止并发请求（快速连续导航场景）
     if (routeInitInProgress) {
@@ -251,19 +265,45 @@ async function handleRouteGuard(
     return handleDynamicRoutes(to, router, loadHostedApplications)
   }
 
-  // 4. 处理根路径重定向
+  // 5. 处理根路径重定向
   const rootRedirect = getRootPathRedirect(to)
   if (rootRedirect) {
     return rootRedirect
   }
 
-  // 5. 处理已匹配的路由
+  // 6. 处理已匹配的路由
   if (to.matched.length > 0) {
     return true
   }
 
-  // 6. 未匹配到路由，跳转到 404
+  // 7. 未匹配到路由，跳转到 404
   return { name: 'Exception404' }
+}
+
+/**
+ * 将持久化登录壳与 Supabase 真实会话对齐。
+ * 网络/服务异常继续抛出交给路由异常页；明确失效时清理本地登录态并回到登录页。
+ */
+async function ensureAuthSession(
+  userStore: ReturnType<typeof useUserStore>,
+  redirectTarget: string
+): Promise<void> {
+  if (authSessionChecked) return
+
+  authSessionCheckPromise ??= (async () => {
+    const session = await recoverCurrentAuthSession()
+    if (session.status === 'expired') {
+      await userStore.logOut(redirectTarget)
+      return
+    }
+
+    userStore.setToken(session.accessToken, session.refreshToken)
+    authSessionChecked = true
+  })().finally(() => {
+    authSessionCheckPromise = null
+  })
+
+  await authSessionCheckPromise
 }
 
 /**

@@ -14,23 +14,6 @@ const organizationTreeUtils = new TreeUtils({
   childrenKey: 'children'
 })
 
-const ORGANIZATION_DETAIL_SELECT = `
-  *,
-  leader:sys_user(
-    id, avatar, user_name, nick_name, user_email
-  ),
-  members:sys_user!sys_user_organization_id_fkey(
-    id, avatar, user_name, nick_name, user_email, status, user_roles
-  ),
-  roles:sys_role!sys_role_organization_id_fkey(
-    id, role_name, role_code, enabled,
-    role_menus:sys_role_menu!sys_role_menu_role_id_fkey(
-      menu_id,
-      menu:sys_menu!sys_role_menu_menu_id_fkey(name, type, meta)
-    )
-  )
-`
-
 type SystemParamItem = Api.SystemManage.SystemParamItem
 type GeofenceConfigItem = Api.SystemManage.GeofenceConfigItem
 const GEOFENCE_CONFIG_PARAM_KEY = 'tms.geofence.config'
@@ -189,11 +172,9 @@ export async function fetchGetOrganizationList(
 export async function fetchGetOrganizationDetail(id: string) {
   return await responseHandle<Api.SystemManage.OrganizationListItem | null>(
     () =>
-      supabase
-        .from('mdm_organization')
-        .select(ORGANIZATION_DETAIL_SELECT)
-        .eq('id', id)
-        .maybeSingle(),
+      supabase.rpc('get_organization_detail_secure', {
+        p_organization_id: id
+      }),
     {
       showErrorMessage: true
     }

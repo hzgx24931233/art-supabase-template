@@ -36,6 +36,88 @@ test('uses stable Supabase and Postgres error codes before technical messages', 
   )
 })
 
+test('maps PostgREST schema cache failures to recognizable configuration messages', () => {
+  // 结构类错误（缺失/歧义关联、缺失表）说明请求与服务端结构不一致，必须区别于“稍后重试”，
+  // 否则同类回归在界面上完全不可见。
+  assert.equal(
+    getFriendlySupabaseErrorMessage({
+      code: 'PGRST200',
+      message: "Could not find a relationship between 'mdm_organization' and 'sys_user'"
+    }),
+    '数据关联关系缺失或已变更，请联系管理员'
+  )
+  assert.equal(
+    getFriendlySupabaseErrorMessage({
+      code: 'PGRST201',
+      message: 'An ambiguous embedding request was made.'
+    }),
+    '数据关联关系不唯一，请联系管理员'
+  )
+  assert.equal(
+    getFriendlySupabaseErrorMessage({
+      code: 'PGRST203',
+      message: 'Could not choose the best candidate function'
+    }),
+    '服务接口定义不唯一，请联系管理员'
+  )
+  assert.equal(
+    getFriendlySupabaseErrorMessage({
+      code: 'PGRST205',
+      message: "Could not find the table 'mdm_organization' in the schema cache"
+    }),
+    '数据表不存在或未同步，请联系管理员'
+  )
+})
+
+test('maps PostgREST request and JWT configuration failures to actionable messages', () => {
+  assert.equal(
+    getFriendlySupabaseErrorMessage({
+      code: 'PGRST101',
+      message: 'Only GET and POST verbs allowed'
+    }),
+    '服务接口请求方式不正确，请联系管理员'
+  )
+  assert.equal(
+    getFriendlySupabaseErrorMessage({
+      code: 'PGRST103',
+      message: 'Requested range not satisfiable'
+    }),
+    '分页范围不正确，请刷新后重试'
+  )
+  assert.equal(
+    getFriendlySupabaseErrorMessage({ code: 'PGRST300', message: 'JWT secret missing' }),
+    '服务配置异常，请联系管理员'
+  )
+  assert.equal(
+    getFriendlySupabaseErrorMessage({ code: 'PGRST302', message: 'Anonymous access is disabled' }),
+    '请先登录后再操作'
+  )
+  assert.equal(
+    getFriendlySupabaseErrorMessage({
+      code: 'PGRST303',
+      message: 'JWT claims validation or parsing failed'
+    }),
+    '登录状态已失效，请重新登录'
+  )
+})
+
+test('treats an unparsable JWT claim as a session failure even without a status', () => {
+  const invalidClaims = {
+    code: 'PGRST303',
+    message: 'JWT claims validation or parsing failed'
+  }
+
+  assert.equal(isSupabaseSessionFailure(invalidClaims), true)
+})
+
+test('falls back to the caller message for unknown error codes', () => {
+  assert.equal(getFriendlySupabaseErrorMessage({ code: 'PGRST999' }), '操作未完成，请稍后重试')
+  assert.equal(
+    getFriendlySupabaseErrorMessage({ code: 'PGRST999' }, '删除失败，请稍后重试'),
+    '删除失败，请稍后重试'
+  )
+})
+
 test('distinguishes an expired PostgREST session from a real permission denial', () => {
   const expiredSessionError = {
     code: '42501',

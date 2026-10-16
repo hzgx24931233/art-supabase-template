@@ -83,11 +83,22 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   PGRST002: '数据库服务正在初始化，请稍后重试',
   PGRST003: '服务当前繁忙，请稍后重试',
   PGRST100: '查询条件格式不正确，请检查后重试',
+  PGRST101: '服务接口请求方式不正确，请联系管理员',
   PGRST102: '提交内容为空或格式不正确，请检查后重试',
-  PGRST202: '服务接口配置异常，请联系管理员',
-  PGRST204: '提交字段与服务配置不一致，请刷新后重试',
+  PGRST103: '分页范围不正确，请刷新后重试',
   PGRST116: '未找到对应数据，或当前账号无权查看',
-  PGRST301: '登录状态已失效，请重新登录'
+  // Schema Cache 类错误说明请求结构与服务端不一致，属于配置缺陷而非瞬时故障：
+  // 必须给出可识别的配置异常提示，否则这类回归在界面上会退化成“请稍后重试”而无法被发现。
+  PGRST200: '数据关联关系缺失或已变更，请联系管理员',
+  PGRST201: '数据关联关系不唯一，请联系管理员',
+  PGRST202: '服务接口配置异常，请联系管理员',
+  PGRST203: '服务接口定义不唯一，请联系管理员',
+  PGRST204: '提交字段与服务配置不一致，请刷新后重试',
+  PGRST205: '数据表不存在或未同步，请联系管理员',
+  PGRST300: '服务配置异常，请联系管理员',
+  PGRST301: '登录状态已失效，请重新登录',
+  PGRST302: '请先登录后再操作',
+  PGRST303: '登录状态已失效，请重新登录'
 }
 
 const ERROR_NAME_MESSAGES: Record<string, string> = {
@@ -159,6 +170,7 @@ const MESSAGE_KEYS = ['message', 'msg', 'error_description', 'errorDescription',
 const STATUS_KEYS = ['status', 'statusCode', 'httpStatusCode'] as const
 const SESSION_ERROR_CODES = new Set([
   'PGRST301',
+  'PGRST303',
   'bad_jwt',
   'refresh_token_already_used',
   'refresh_token_not_found',
