@@ -11,6 +11,7 @@ mdm-data-model-patch.sql       增量补丁：主数据四块所需的 mdm_* 表
 dict-cascade-relationship.sql  增量补丁：数据字典的计算关联函数（字典页加载失败时使用）
 document-number-counter-patch.sql  增量补丁：编号流水计数器的唯一索引（自动编号新增报 42P10 时使用）
 user-enable-button-permission.sql  增量补丁：用户管理页「启用用户」按钮权限（System:User:Enable）
+field-permission-inherited-access.sql  增量补丁：字段权限页依赖的继承等级（inheritedAccess）
 platform-baseline-report.json  生成报告：保留/丢弃清单、裁剪原因、种子行数
 verify-baseline.ps1            在一次性 Postgres 容器里应用并断言基线
 ```
@@ -370,6 +371,58 @@ supabase db query --linked --file supabase/baseline/user-enable-button-permissio
   列表刷新后该行菜单恢复「禁止用户」。`mobile-390` 按用例声明跳过（行操作菜单为桌面交互）。
 
 
+### 字段权限页打不开：`Cannot read properties of undefined (reading 'label')`
+
+症状：进入「系统管理 › 字段权限」页后控制台报
+`TypeError: Cannot read properties of undefined (reading 'label')`，页面只剩骨架/空白。
+报错位置是页面里的权限等级取名字：`accessMeta[value].label`。
+
+原因：平台去多租户重写时，`get_field_permission_configuration` 被改成只返回
+`defaultAccess` 与 `explicitAccess`，丢掉了 `inheritedAccess`；而页面按
+`inheritedAccess` 渲染「继承角色（等级）」与「当前生效」，字段缺失时取到 `undefined`
+的等级说明，整页渲染中断。`app_private.resolve_field_access`（运行时真正判权限的函数）
+仍然会合并角色的字段授权，所以继承等级本身是有意义的、不能只是删掉。
+
+- **前端兜底**（仓库已包含）：`src/views/system/field-permission/modules/field-permission-configuration.ts`
+  在配置返回后把缺失的 `inheritedAccess` 归一为平台默认等级，因此不执行本补丁页面也能打开；
+  角色授权下继承等级本来就等于平台默认等级，人员例外则由服务端合并结果决定。
+- **本补丁**恢复服务端字段，语义与 `app_private.resolve_field_access` 一致：
+  角色授权取平台默认等级；人员例外取该用户全部启用角色在该字段上的最高等级，无角色授权时回退平台默认等级。
+
+已建库的项目补这一项（幂等，仅替换一个函数，函数属主与 ACL 不变）：
+
+```powershell
+supabase db query --linked --file supabase/baseline/field-permission-inherited-access.sql
+```
+
+已执行的验证（2026-10-16，本地 Supabase 栈：`platform-baseline.sql` + `platform-seed.sql`
++ 字段权限目录夹具，`get_field_permission_configuration` 与线上同名同形）：
+
+- 补丁前：以平台超管会话调用该 RPC，返回字段的键为
+  `id / fieldKey / fieldLabel / defaultAccess / maskStrategy / ownerOverrideEnabled / explicitAccess`，
+  确认 `inheritedAccess` 确实缺失；浏览器里通过左侧菜单进入该页，复现出与线上一致的
+  `[VueError] TypeError: Cannot read properties of undefined (reading 'label')`。
+- 前端兜底后：同一份缺字段的 payload 下，页面正常渲染（矩阵、四级图例、字段行「默认 / 当前生效」、
+  变更记录区），控制台无错误。
+- 补丁后：角色授权返回 `inheritedAccess = defaultAccess`；人员例外按角色合并返回
+  `联系电话 read`（角色授 read、默认 hidden）、`合同金额 edit`（角色授 edit、默认 read）、
+  `身份证号 hidden`（无角色授权回退默认）；页面对应显示「继承角色（仅查看 / 可编辑 / 完全不可见）」
+  与一致的「当前生效」。
+
+已应用到绑定项目 xmgl（2026-10-16，`trthbpyqubyjtkzmcewy`）：
+
+- 变更前 `pg_get_functiondef` 与基线定义逐字一致（仅 `$function$` / `$$` 引号标记不同），
+  且确认不含 `inheritedAccess`；变更前定义、ACL 与回滚脚本存于
+  `supabase/backups/20261016-171957-field-permission-inherited-access/`（该目录不入库）。
+- 事务内预演（`BEGIN … ROLLBACK`，8 项断言）与正式应用后的复核全部通过：负载键完整、
+  字段数与 `sys_permission_field` 一致、角色继承等于平台默认、人员继承等于平台默认
+  （当前 `sys_role_field_permission` 为 0 行）、既有的 2 条人员显式例外未被改写，
+  且属主仍为 `postgres`、ACL 仍为 `{postgres,anon,authenticated,service_role}`、
+  `SECURITY DEFINER` 与空 `search_path` 保持不变。
+- `anon` 调用仍被内部权限门拦下（`P0001: Missing field permission page access`）；
+  `supabase db advisors` 未新增告警。
+- 线上前端登录态未验证（仓库不保存测试账号）；前端行为以本地栈同一函数形状的对照验证为准。
+
 ## 参数设置数据迁移（2026-10-08）
 
 已从源项目 `nvzlwcutsqptngyqfzqs` 的 `public.sys_param` 迁移 10 条记录到当前项目
@@ -492,7 +545,12 @@ supabase db query --linked --file supabase/modules/hr/hr-job-architecture-rpc-pa
   `platform-owner@example.com`，派生项目接手后要换成自己的平台超管账号邮箱；
   种子行的 `create_by` / `update_by` / 负责人字段同样被清洗或置空。
 - **编号场景是业务场景**：平台内所有编号规则都挂在业务单据上，因此基线只保留被保留 SQL 用到的那
-  41 条场景；派生项目新增业务单据时按 `sys_document_number_scene` 的既有格式登记。
+  24 条场景；派生项目新增业务单据时按 `sys_document_number_scene` 的既有格式登记。
+- **四个已下线模块不出现在基线里**：VMS 车辆管理 / TMS 智慧运输 / SCM 供应链管理 / SMIS 安全生产
+  的菜单与 `sys_application` 注册行已于 2026-10-16 从库中删除（仓库里没有这四个模块的前端代码，
+  打开只会显示「模块不可用」），重新生成后的基线不再包含它们；来源与回退方式见
+  `../backups/20261016-155852-menu-cleanup/README.md`。此前它们只是作为编号场景的引用行被保留，
+  场景改指 `/mdm` 现役页面后这条理由消失。
 - **`tms_*` / `smis_*` 等历史命名**：平台页面与 Edge Function 仍在调用这些名字的 RPC
   （如 `tms_save_geofence_config`、`smis_*` 系列）。改名属于数据库契约变更，需要连同
-  `src/api/**` 与 Edge Function 一起改。
+  `src/api/**` 与 Edge Function 一起改；与上面的「已下线模块」是两件事 —— 这些 RPC 仍在使用。

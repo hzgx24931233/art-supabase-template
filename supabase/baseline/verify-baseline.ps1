@@ -286,7 +286,10 @@ rollback;
   )
   # 权限保真度：anon 只应拿到源库显式授予的函数。期望值随源库 ACL 变化，取自
   # 「从远端目录重建授权」后的基线快照（见 supabase/baseline/README.md）。
-  if ([int](Read-Stat 'anon_function_grants') -ne 169) { $failures += 'anon 函数授权数与源库显式清单不一致（期望 169）' }
+  # 2026-10-16 重新生成基线时由 169 上调为 173：新增的 4 个显式 anon 授权函数是
+  # dict_type_cascade_parent、mdm_transition_bom、publish_ai_prompt_template、
+  # upsert_ai_feedback_resolution，没有任何函数失去 anon 授权。
+  if ([int](Read-Stat 'anon_function_grants') -ne 173) { $failures += 'anon 函数授权数与源库显式清单不一致（期望 173）' }
   # PUBLIC 执行权限是 PostgreSQL 内建默认，只对带 ACL 块的函数收回；期望值与生成报告对照
   $expectedPublic = (Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot 'platform-baseline-report.json') | ConvertFrom-Json).expectedPublicExecutableFunctions
   if ([int](Read-Stat 'public_function_grants') -ne [int]$expectedPublic) {
