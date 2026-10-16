@@ -365,6 +365,7 @@
   import { useDelayedLoading } from '@/hooks/core/useDelayedLoading'
   import { useDictionaryOptions } from '@/hooks/core/useDictionaryOptions'
   import { formatWithDayjs } from '@/utils/time'
+  import { normalizeFieldPermissionConfiguration } from './modules/field-permission-configuration'
   import { getFieldPermissionAuditChanges } from './modules/field-permission-audit'
 
   defineOptions({ name: 'FieldPermission' })
@@ -643,8 +644,8 @@
           ? configurationResult.error
           : new Error('字段权限配置加载失败')
       }
-      configuration.value = configurationResult.data
-      permissionDraft.value = normalizeDraft(configurationResult.data)
+      configuration.value = normalizeFieldPermissionConfiguration(configurationResult.data)
+      permissionDraft.value = normalizeDraft(configuration.value)
       savedDraft.value = cloneDeep(permissionDraft.value)
     } catch (error) {
       configuration.value = null
