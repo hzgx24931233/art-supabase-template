@@ -21,7 +21,14 @@ interface ResourceDefinition {
   codeColumn: string
   nameColumn: string
   keywordColumns: string[]
+  /**
+   * 列表启用状态过滤口径。缺省按布尔列 enabled 过滤；
+   * 显式 null 表示该表没有启用状态维度（如车辆档案由审核状态与运营状态承载）。
+   */
+  enabledFilter?: { column: string; trueValue: unknown; falseValue: unknown } | null
 }
+
+const defaultEnabledFilter = { column: 'enabled', trueValue: true, falseValue: false }
 
 const resources: Record<OperationalMasterKind, ResourceDefinition> = {
   customer: {
@@ -69,7 +76,77 @@ const resources: Record<OperationalMasterKind, ResourceDefinition> = {
     codeColumn: 'workstation_code',
     nameColumn: 'workstation_name',
     keywordColumns: ['workstation_code', 'workstation_name', 'andon_sim_no', 'remark']
+  },
+  cargo: {
+    table: 'mdm_cargo',
+    codeColumn: 'cargo_code',
+    nameColumn: 'cargo_name',
+    keywordColumns: ['cargo_code', 'cargo_name', 'spec_model', 'unit', 'remark']
+  },
+  carrier: {
+    table: 'mdm_carrier',
+    codeColumn: 'carrier_code',
+    nameColumn: 'company_name',
+    keywordColumns: [
+      'carrier_code',
+      'company_name',
+      'carrier_type',
+      'legal_representative',
+      'contact_name',
+      'contact_phone',
+      'remark'
+    ]
+  },
+  station: {
+    table: 'mdm_station',
+    codeColumn: 'station_code',
+    nameColumn: 'station_name',
+    keywordColumns: ['station_code', 'station_name', 'station_type', 'manager_name', 'remark']
+  },
+  vehicle: {
+    table: 'mdm_vehicle',
+    codeColumn: 'plate_no',
+    nameColumn: 'plate_no',
+    keywordColumns: [
+      'plate_no',
+      'self_no',
+      'vin',
+      'company_name',
+      'brand_model',
+      'driver_one_name'
+    ],
+    enabledFilter: null
+  },
+  part: {
+    table: 'mdm_part',
+    codeColumn: 'part_code',
+    nameColumn: 'part_name',
+    keywordColumns: [
+      'part_code',
+      'part_name',
+      'brand',
+      'model',
+      'manufacturer',
+      'supplier_contact'
+    ],
+    enabledFilter: { column: 'status', trueValue: '1', falseValue: '2' }
+  },
+  'part-category': {
+    table: 'mdm_part_category',
+    codeColumn: 'category_code',
+    nameColumn: 'category_name',
+    keywordColumns: ['category_code', 'category_name', 'remark'],
+    enabledFilter: { column: 'status', trueValue: '1', falseValue: '2' }
   }
+}
+
+/** 列表页是否需要渲染启用状态筛选：车辆档案等由运营状态与审核状态承载，不提供该维度。 */
+export function supportsOperationalMasterEnabledFilter(kind: OperationalMasterKind): boolean {
+  const definition = resources[kind]
+  return (
+    (definition.enabledFilter === undefined ? defaultEnabledFilter : definition.enabledFilter) !==
+    null
+  )
 }
 
 const { supabase, responseHandle, keysToSnakeDeep } = useSupabase()
@@ -101,7 +178,14 @@ export async function fetchOperationalMaster(
 
   if (params.groupIds?.length) query = query.in('group_id', params.groupIds)
   else if (params.groupId) query = query.eq('group_id', params.groupId)
-  if (typeof params.enabled === 'boolean') query = query.eq('enabled', params.enabled)
+  const enabledFilter =
+    definition.enabledFilter === undefined ? defaultEnabledFilter : definition.enabledFilter
+  if (typeof params.enabled === 'boolean' && enabledFilter) {
+    query = query.eq(
+      enabledFilter.column,
+      params.enabled ? enabledFilter.trueValue : enabledFilter.falseValue
+    )
+  }
   if (params.keyword?.trim()) {
     query = query.or(buildOrIlikeFilter(definition.keywordColumns, params.keyword.trim()))
   }
@@ -262,15 +346,36 @@ async function fetchMenuReferences(): Promise<MasterReferenceOption[]> {
 }
 
 export async function fetchOperationalMasterReferences(): Promise<OperationalMasterReferences> {
-  const [customers, employees, departments, workCenters, personnel, units, menus] =
-    await Promise.all([
-      fetchReference('mdm_customer', 'id,code:customer_code,name:customer_name'),
-      fetchReference('mdm_employee', 'id,code:employee_no,name:employee_name'),
-      fetchReference('mdm_production_department', 'id,parent_id,code,name'),
-      fetchReference('mdm_work_center', 'id,department_id,code,name'),
-      fetchReference('mdm_production_personnel', 'id,code:employee_no,name'),
-      fetchReference('mdm_unit_of_measure', 'id,code:unit_code,name:unit_name'),
-      fetchMenuReferences()
-    ])
-  return { customers, employees, departments, workCenters, personnel, units, menus }
+  const [
+    customers,
+    employees,
+    departments,
+    workCenters,
+    personnel,
+    units,
+    menus,
+    suppliers,
+    partCategories
+  ] = await Promise.all([
+    fetchReference('mdm_customer', 'id,code:customer_code,name:customer_name'),
+    fetchReference('mdm_employee', 'id,code:employee_no,name:employee_name'),
+    fetchReference('mdm_production_department', 'id,parent_id,code,name'),
+    fetchReference('mdm_work_center', 'id,department_id,code,name'),
+    fetchReference('mdm_production_personnel', 'id,code:employee_no,name'),
+    fetchReference('mdm_unit_of_measure', 'id,code:unit_code,name:unit_name'),
+    fetchMenuReferences(),
+    fetchReference('mdm_supplier', 'id,code:supplier_code,name:supplier_name'),
+    fetchReference('mdm_part_category', 'id,parent_id,code:category_code,name:category_name')
+  ])
+  return {
+    customers,
+    employees,
+    departments,
+    workCenters,
+    personnel,
+    units,
+    menus,
+    suppliers,
+    partCategories
+  }
 }

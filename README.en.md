@@ -25,10 +25,13 @@ The product-specific business modules and branding have been removed; one real b
 
 ## What was removed
 
-Transportation, fleet, HR, master-data, safety, warehouse, manufacturing and supply-chain modules and
-their Edge Functions are gone. Brand names, the project ref, Supabase keys, map keys and demo
-credentials were replaced with placeholders. The database baseline is not kept in the repository;
-databases are delivered through the backup/restore flow (see `supabase/README.md`).
+Transportation, fleet, HR, master-data, safety, warehouse, manufacturing and supply-chain **business
+modules** and their Edge Functions are gone. Master data itself stays as a platform feature under
+`系统主数据` (`/mdm`): material, engineering, sales and production, plus logistics master data
+(cargo, carrier, station, vehicle, parts) and the supply-chain document ledgers. Brand names, the
+project ref, Supabase keys, map keys and demo credentials were replaced with placeholders. The
+database baseline is not kept in the repository; databases are delivered through the backup/restore
+flow (see `supabase/README.md`).
 
 ## Getting started
 

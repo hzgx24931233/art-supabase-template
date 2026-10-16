@@ -148,7 +148,9 @@
     workCenters: [],
     personnel: [],
     units: [],
-    menus: []
+    menus: [],
+    suppliers: [],
+    partCategories: []
   })
   const form = reactive({
     model: {} as OperationalMasterRecord,
@@ -225,6 +227,17 @@
     )
   )
 
+  const partCategoryOptions = computed(() =>
+    referenceTree.listToTree(
+      form.references.partCategories.map((item) => ({
+        id: item.id,
+        parentId: item.parentId,
+        label: `${item.name} · ${item.code}`,
+        value: item.id
+      }))
+    )
+  )
+
   const workCenterOptions = computed(() => {
     if (!form.model.departmentId) return []
     return form.references.workCenters
@@ -274,10 +287,11 @@
   }
 
   function createFieldItems(field: MasterFieldConfig): FormItem[] {
-    if (field.key === 'addressDetail' && ['customer', 'project'].includes(config.value.kind)) {
+    const regionPickerKinds = ['customer', 'project', 'carrier']
+    if (field.key === 'addressDetail' && regionPickerKinds.includes(config.value.kind)) {
       return []
     }
-    if (field.key === 'region' && ['customer', 'project'].includes(config.value.kind)) {
+    if (field.key === 'region' && regionPickerKinds.includes(config.value.kind)) {
       return [{ key: 'addressPicker', label: '', type: 'input', span: 24, labelWidth: 0 }]
     }
     const isGroup = field.key === 'groupId'
@@ -288,9 +302,11 @@
         ? groupOptions.value
         : field.reference === 'departments'
           ? departmentOptions.value
-          : field.reference === 'workCenters' && config.value.kind === 'operation'
-            ? workCenterOptions.value
-            : referenceOptions(field)
+          : field.reference === 'partCategories'
+            ? partCategoryOptions.value
+            : field.reference === 'workCenters' && config.value.kind === 'operation'
+              ? workCenterOptions.value
+              : referenceOptions(field)
     const isOperationWorkCenter =
       config.value.kind === 'operation' && field.reference === 'workCenters'
     return [
@@ -301,7 +317,7 @@
         span: field.span ?? config.value.formSpan ?? 12,
         options,
         props: {
-          clearable: isSelectable && !field.required,
+          clearable: (isSelectable || field.type === 'date') && !field.required,
           filterable: isSelectable,
           multiple: field.multiple,
           maxlength: field.maxlength ?? (field.type === 'textarea' ? 1000 : 160),
@@ -309,10 +325,12 @@
           resize: field.type === 'textarea' ? 'none' : undefined,
           showWordLimit: field.type === 'textarea',
           controlsPosition: field.type === 'number' ? 'right' : undefined,
+          valueFormat: field.type === 'date' ? 'YYYY-MM-DD' : undefined,
           placeholder:
             isOperationWorkCenter && !form.model.departmentId
               ? '请先选择车间 / 产线'
-              : field.placeholder || `${isSelectable ? '请选择' : '请输入'}${field.label}`,
+              : field.placeholder ||
+                `${field.type === 'date' ? '请选择' : isSelectable ? '请选择' : '请输入'}${field.label}`,
           disabled: isOperationWorkCenter && !form.model.departmentId,
           checkStrictly: field.type === 'treeSelect' ? true : undefined,
           defaultExpandAll: field.type === 'treeSelect' ? true : undefined,
@@ -323,17 +341,19 @@
           readonly: field.systemGenerated,
           class: field.type === 'number' ? '!w-full' : undefined
         },
-        help: field.systemGenerated
-          ? '由系统按 PJ + 年月 + 3 位流水号生成，每月从 001 重新开始。'
-          : isGroup && !groupOptions.value.length
-            ? `暂无${config.value.groupTitle || '业务分组'}，可先在左侧分组区新增。`
-            : isOperationWorkCenter
-              ? !form.model.departmentId
-                ? '选择车间 / 产线后，仅显示该范围内的工作中心。'
-                : workCenterOptions.value.length
-                  ? '仅显示所选车间 / 产线下的工作中心。'
-                  : '当前车间 / 产线暂无可选工作中心。'
-              : undefined
+        help:
+          field.help ??
+          (field.systemGenerated
+            ? '由系统按 PJ + 年月 + 3 位流水号生成，每月从 001 重新开始。'
+            : isGroup && !groupOptions.value.length
+              ? `暂无${config.value.groupTitle || '业务分组'}，可先在左侧分组区新增。`
+              : isOperationWorkCenter
+                ? !form.model.departmentId
+                  ? '选择车间 / 产线后，仅显示该范围内的工作中心。'
+                  : workCenterOptions.value.length
+                    ? '仅显示所选车间 / 产线下的工作中心。'
+                    : '当前车间 / 产线暂无可选工作中心。'
+                : undefined)
       }
     ]
   }
@@ -399,7 +419,9 @@
       else if (field.key === 'isDefault' || field.key === 'participatesScheduling') {
         model[field.key] = false as never
       } else if (field.key === 'price') model[field.key] = 0 as never
-      else if (!(field.key in model)) model[field.key] = null as never
+      else if (field.defaultValue !== undefined) {
+        model[field.key] = cloneDeep(field.defaultValue) as never
+      } else if (!(field.key in model)) model[field.key] = null as never
     }
     if (data.row) Object.assign(model, cloneDeep(data.row))
     else if (data.config.kind === 'operation' && data.initialGroupId) {

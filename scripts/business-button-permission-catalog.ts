@@ -30,6 +30,30 @@ const crud = (
   ...(options.export ? [button('Export', '导出')] : [])
 ]
 
+/** 物流主数据页面：在通用 CRUD 之外固定提供查看与复制动作。 */
+const logisticsCrud = (
+  options: {
+    import?: boolean
+  } = {}
+): BusinessButtonDefinition[] => [
+  button('View', '查看'),
+  button('Add', '新增'),
+  button('Copy', '复制'),
+  button('Edit', '编辑'),
+  button('Delete', '删除'),
+  ...(options.import ? [button('Import', '导入')] : []),
+  button('Export', '导出')
+]
+
+/** 供应链单据台账：单据由本页登记并删除，状态流转走审批中心。 */
+const documentLedger = (): BusinessButtonDefinition[] => [
+  button('View', '查看'),
+  button('Add', '新增'),
+  button('Edit', '编辑'),
+  button('Delete', '删除'),
+  button('Export', '导出')
+]
+
 export const businessButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] = [
   // FMS 页面会跳转到这些 TMS 页面（TMS 不在模板范围内）：只登记页面级查看权限
   ...['TmsCarrier', 'TmsCustomer', 'TmsLoadedWaybillList'].map((menuName) => ({
@@ -1000,7 +1024,22 @@ export const businessButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] =
       button('Delete', '删除'),
       button('Export', '导出')
     ]
-  }
+  },
+  // 物流主数据：页面复用 src/views/mdm/operational-master 的配置驱动框架
+  { menuName: 'MdmLogisticsCargo', buttons: logisticsCrud({ import: true }) },
+  { menuName: 'MdmLogisticsCarrier', buttons: logisticsCrud({ import: true }) },
+  { menuName: 'MdmLogisticsStation', buttons: logisticsCrud({ import: true }) },
+  { menuName: 'MdmLogisticsVehicle', buttons: logisticsCrud() },
+  { menuName: 'MdmLogisticsPart', buttons: logisticsCrud({ import: true }) },
+  { menuName: 'MdmLogisticsPartCategory', buttons: logisticsCrud({ import: true }) },
+  // 供应链单据台账：页面位于 src/views/mdm/supply-chain-document
+  { menuName: 'MdmPurchaseContract', buttons: documentLedger() },
+  { menuName: 'MdmPurchaseRequest', buttons: documentLedger() },
+  { menuName: 'MdmPurchaseOrder', buttons: documentLedger() },
+  { menuName: 'MdmReceiptNotice', buttons: documentLedger() },
+  { menuName: 'MdmSalesContractDoc', buttons: documentLedger() },
+  { menuName: 'MdmSalesOrder', buttons: documentLedger() },
+  { menuName: 'MdmShippingNotice', buttons: documentLedger() }
 ]
 export const systemButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] = [
   { menuName: 'Organization', buttons: crud({ view: true }) },

@@ -99,6 +99,7 @@
     fetchOperationalMaster,
     fetchOperationalMasterReferences,
     importOperationalMasters,
+    supportsOperationalMasterEnabledFilter,
     type MasterGroup,
     type MasterReferenceOption,
     type OperationalMasterInput,
@@ -158,7 +159,48 @@
     'MdmWorkstation:Copy',
     'MdmWorkstation:Edit',
     'MdmWorkstation:Delete',
-    'MdmWorkstation:Export'
+    'MdmWorkstation:Export',
+    'MdmLogisticsCargo:View',
+    'MdmLogisticsCargo:Add',
+    'MdmLogisticsCargo:Copy',
+    'MdmLogisticsCargo:Edit',
+    'MdmLogisticsCargo:Delete',
+    'MdmLogisticsCargo:Import',
+    'MdmLogisticsCargo:Export',
+    'MdmLogisticsCarrier:View',
+    'MdmLogisticsCarrier:Add',
+    'MdmLogisticsCarrier:Copy',
+    'MdmLogisticsCarrier:Edit',
+    'MdmLogisticsCarrier:Delete',
+    'MdmLogisticsCarrier:Import',
+    'MdmLogisticsCarrier:Export',
+    'MdmLogisticsStation:View',
+    'MdmLogisticsStation:Add',
+    'MdmLogisticsStation:Copy',
+    'MdmLogisticsStation:Edit',
+    'MdmLogisticsStation:Delete',
+    'MdmLogisticsStation:Import',
+    'MdmLogisticsStation:Export',
+    'MdmLogisticsVehicle:View',
+    'MdmLogisticsVehicle:Add',
+    'MdmLogisticsVehicle:Copy',
+    'MdmLogisticsVehicle:Edit',
+    'MdmLogisticsVehicle:Delete',
+    'MdmLogisticsVehicle:Export',
+    'MdmLogisticsPart:View',
+    'MdmLogisticsPart:Add',
+    'MdmLogisticsPart:Copy',
+    'MdmLogisticsPart:Edit',
+    'MdmLogisticsPart:Delete',
+    'MdmLogisticsPart:Import',
+    'MdmLogisticsPart:Export',
+    'MdmLogisticsPartCategory:View',
+    'MdmLogisticsPartCategory:Add',
+    'MdmLogisticsPartCategory:Copy',
+    'MdmLogisticsPartCategory:Edit',
+    'MdmLogisticsPartCategory:Delete',
+    'MdmLogisticsPartCategory:Import',
+    'MdmLogisticsPartCategory:Export'
   ] as const
   void declaredPermissions
 
@@ -197,7 +239,9 @@
     workCenters: [],
     personnel: [],
     units: [],
-    menus: []
+    menus: [],
+    suppliers: [],
+    partCategories: []
   })
 
   void userStore.ensureDictLoaded('commonBoolean')
@@ -241,20 +285,25 @@
   )
   const table = reactive({
     search: { keyword: '', enabled: undefined as boolean | undefined },
-    searchItems: computed<SearchFormItem[]>(() => [
-      {
-        key: 'keyword',
-        label: '关键字',
-        type: 'input',
-        props: { clearable: true, placeholder: '编码、名称或业务说明' }
-      },
-      {
-        key: 'enabled',
-        label: '启用状态',
-        type: 'select',
-        props: { clearable: true, placeholder: '全部状态', options: booleanOptions.value }
+    searchItems: computed<SearchFormItem[]>(() => {
+      const items: SearchFormItem[] = [
+        {
+          key: 'keyword',
+          label: '关键字',
+          type: 'input',
+          props: { clearable: true, placeholder: '编码、名称或业务说明' }
+        }
+      ]
+      if (supportsOperationalMasterEnabledFilter(config.value.kind)) {
+        items.push({
+          key: 'enabled',
+          label: '启用状态',
+          type: 'select',
+          props: { clearable: true, placeholder: '全部状态', options: booleanOptions.value }
+        })
       }
-    ]),
+      return items
+    }),
     headerActions: computed<ArtTableQueryHeaderAction[]>(() => {
       const actions: ArtTableQueryHeaderAction[] = [
         {
@@ -301,10 +350,12 @@
               required: !!field.required
             })),
           importTransformer: (rows) =>
-            rows.map((row) => ({
-              ...row,
-              enabled: row.enabled === '是' || row.enabled === true || row.enabled === '启用'
-            })),
+            supportsOperationalMasterEnabledFilter(config.value.kind)
+              ? rows.map((row) => ({
+                  ...row,
+                  enabled: row.enabled === '是' || row.enabled === true || row.enabled === '启用'
+                }))
+              : rows,
           importApi: async (rows) => {
             await importOperationalMasters(config.value.kind, rows as OperationalMasterInput[])
           }

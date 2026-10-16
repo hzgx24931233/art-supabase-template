@@ -9,6 +9,12 @@ export type OperationalMasterKind =
   | 'operation-control-code'
   | 'operation'
   | 'workstation'
+  | 'cargo'
+  | 'carrier'
+  | 'station'
+  | 'vehicle'
+  | 'part'
+  | 'part-category'
 
 export type ActivityFormulaPurpose =
   | 'report_preparation'
@@ -116,6 +122,115 @@ export interface OperationalMasterRecord {
   workCenterId?: string | null
   responsiblePersonId?: string | null
   andonSimNo?: string | null
+  /** 物流主数据：货物 */
+  cargoCode?: string | null
+  cargoName?: string | null
+  specModel?: string | null
+  unit?: string | null
+  lengthM?: number | null
+  widthM?: number | null
+  heightM?: number | null
+  volumeM3?: number | null
+  weightKg?: number | null
+  valueAmount?: number | null
+  /** 物流主数据：承运商 */
+  carrierCode?: string | null
+  companyName?: string | null
+  carrierType?: string | null
+  businessLicenseNo?: string | null
+  taxRegistrationNo?: string | null
+  legalRepresentative?: string | null
+  postalCode?: string | null
+  businessLicenseUrl?: string | null
+  driverCount?: number | null
+  vehicleCount?: number | null
+  bankAccountName?: string | null
+  signedContract?: boolean
+  contractAttachmentUrl?: string | null
+  dispatchChannel?: string | null
+  /** 物流主数据：站点 */
+  stationCode?: string | null
+  stationName?: string | null
+  stationType?: string | null
+  regionCode?: string | null
+  managerName?: string | null
+  sort?: number | null
+  /** 物流主数据：车辆 */
+  plateNo?: string | null
+  selfNo?: string | null
+  vehicleType?: string | null
+  originType?: string | null
+  vin?: string | null
+  brandModel?: string | null
+  businessType?: string | null
+  vehicleColor?: string | null
+  plateColor?: string | null
+  transportIndustry?: string | null
+  operationCertNo?: string | null
+  purchaseCertNo?: string | null
+  registrationCertNo?: string | null
+  registerDate?: string | null
+  issueDate?: string | null
+  invoiceDate?: string | null
+  startUseDate?: string | null
+  serviceYears?: number | null
+  inspectionStartDate?: string | null
+  operationStatus?: string | null
+  operationStatusChangeDate?: string | null
+  purchaseStatus?: string | null
+  purchaseStatusChangeDate?: string | null
+  vehicleLevel?: string | null
+  isAirConditioned?: boolean
+  isNewEnergy?: boolean
+  isDoubleDeck?: boolean
+  grossMass?: number | null
+  curbWeight?: number | null
+  approvedLoadMass?: number | null
+  approvedPassengerCount?: number | null
+  seatCount?: number | null
+  overallLength?: number | null
+  overallWidth?: number | null
+  overallHeight?: number | null
+  platform?: string | null
+  frontTrack?: number | null
+  rearTrack?: number | null
+  wheelbase?: number | null
+  axleCount?: number | null
+  tireCount?: number | null
+  leafSpringCount?: number | null
+  engineNo?: string | null
+  engineModel?: string | null
+  fuelType?: string | null
+  displacement?: number | null
+  emissionStandard?: string | null
+  enginePower?: number | null
+  ratedTorqueSpeed?: number | null
+  engineTorque?: number | null
+  driverOneName?: string | null
+  driverOnePhone?: string | null
+  driverTwoName?: string | null
+  driverTwoPhone?: string | null
+  threeGuaranteeMileage?: number | null
+  threeGuaranteeDuration?: number | null
+  /** 物流主数据：零部件与零部件类别 */
+  partCode?: string | null
+  partName?: string | null
+  categoryId?: string | null
+  categoryCode?: string | null
+  categoryName?: string | null
+  categoryLevel?: number | null
+  parentId?: string | null
+  brand?: string | null
+  model?: string | null
+  supplierId?: string | null
+  manufacturer?: string | null
+  supplierContact?: string | null
+  isConsumable?: boolean
+  warrantyMileage?: number | null
+  warrantyDuration?: number | null
+  serviceLife?: number | null
+  serviceMileage?: number | null
+  status?: string | null
   enabled: boolean
   remark?: string | null
   createTime?: string
@@ -152,4 +267,6 @@ export interface OperationalMasterReferences {
   personnel: MasterReferenceOption[]
   units: MasterReferenceOption[]
   menus: MasterReferenceOption[]
+  suppliers: MasterReferenceOption[]
+  partCategories: MasterReferenceOption[]
 }

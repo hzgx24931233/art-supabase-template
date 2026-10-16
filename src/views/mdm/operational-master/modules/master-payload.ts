@@ -22,8 +22,14 @@ const nullableUuidFieldKeys = new Set<keyof OperationalMasterRecord>([
   'departmentId',
   'pricingUnitId',
   'workCenterId',
-  'responsiblePersonId'
+  'responsiblePersonId',
+  'categoryId',
+  'parentId',
+  'supplierId'
 ])
+
+/** 使用地址选择器写入 combined region 字段的主数据类别。 */
+const regionPathKinds: OperationalMasterKind[] = ['customer', 'project', 'carrier']
 
 /**
  * Build a write payload from configured database fields only. ArtForm slots can attach temporary
@@ -35,7 +41,7 @@ export function buildOperationalMasterWriteInput(
 ): OperationalMasterInput {
   const payload = pick(cloneDeep(model), [...context.fieldKeys]) as OperationalMasterInput
 
-  if (['customer', 'project'].includes(context.kind)) {
+  if (regionPathKinds.includes(context.kind)) {
     payload.region = context.regionPath.filter(Boolean).join('/') || null
   }
 

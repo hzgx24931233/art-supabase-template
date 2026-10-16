@@ -20,7 +20,9 @@
 
 ## 模板去掉了什么
 
-原产品的运输、车辆、人力、主数据、安全、仓储、生产、供应链等业务模块与对应 Edge Function 已移除；
+原产品的运输、车辆、人力、主数据、安全、仓储、生产、供应链等**业务模块**与对应 Edge Function 已移除；
+其中主数据部分以平台功能保留在 `系统主数据`（`/mdm`）下——物料 / 工程 / 销售 / 生产，以及物流主数据
+（货物 / 承运商 / 站点 / 车辆 / 零部件）与供应链单据台账，详见下文「物流主数据与供应链单据台账」。
 品牌名、项目 ref、Supabase 密钥、地图密钥、演示账号等部署专属信息已改为占位值。
 数据库基线不在本仓库内：数据库通过备份/恢复流程交付（见 `supabase/README.md`）。
 
@@ -112,6 +114,24 @@ pnpm baseline:platform --backup supabase/backups/<时间戳>   # 从快照重新
 ```
 
 详见 [supabase/README.zh-CN.md](supabase/README.zh-CN.md)。
+
+### 物流主数据与供应链单据台账（/mdm）
+
+系统主数据下有两组由仓库代码 + 库内菜单数据共同构成的页面，菜单、按钮权限与角色授权记录在库内
+`sys_menu` / `sys_role_menu`，随项目快照流转：
+
+- **物流主数据**（`MdmLogisticsMaster`）：货物 / 承运商 / 站点 / 车辆 / 零部件 / 零部件类别，
+  页面复用 `src/views/mdm/operational-master` 的配置驱动框架，字段与校验以对应表的现有列与约束为准。
+- **供应链单据**（`MdmSupplyChainDocuments`）：采购合同 / 采购申请 / 采购订单 / 收料通知单 /
+  销售合同 / 销售订单 / 发货通知单，页面位于 `src/views/mdm/supply-chain-document`，
+  按路由末段解析单据类别，单据编号沿用既有编号规则在保存时生成。
+
+权限口径：上述 6 张主数据表与 2 张单据表的写入策略用
+`app_private.has_permission('<页面权限码>')` 判定（单据表按 `kind` 经
+`app_private.scm_document_permission_prefix` 逐类判定），与页面按钮权限码一致；
+页面权限码登记在 `scripts/business-button-permission-catalog.ts`，由 `pnpm permissions:audit` 校验。
+编号规则场景（`sys_document_number_scene.menu_id`）指向这些页面菜单，编号规则页面的功能菜单筛选
+只展示有场景的菜单分支。
 
 ## 端到端测试前置条件
 
