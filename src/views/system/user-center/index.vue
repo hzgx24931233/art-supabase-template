@@ -67,9 +67,15 @@
               <small>维护个人资料与登录凭据，让账户信息保持准确和安全。</small>
             </div>
           </div>
-          <div class="user-center__security-badge">
-            <ArtSvgIcon icon="ri:verified-badge-line" />
-            安全可控
+          <div class="user-center__settings-actions">
+            <div class="user-center__security-badge">
+              <ArtSvgIcon icon="ri:verified-badge-line" />
+              安全可控
+            </div>
+            <ElButton plain @click="closeUserCenter">
+              <ArtSvgIcon icon="ri:close-line" />
+              关闭
+            </ElButton>
           </div>
         </header>
 
@@ -198,7 +204,7 @@
   import ArtForm, { type FormItem } from '@/components/core/forms/art-form/index.vue'
   import ArtSectionTitle from '@/components/core/surfaces/art-section-title/index.vue'
   import LoginMethods from './modules/login-methods.vue'
-  import { useSystemParam } from '@/hooks'
+  import { useCommon, useSystemParam } from '@/hooks'
   import { useUserStore } from '@/store/modules/user'
   import defaultAvatar from '@imgs/user/avatar.webp'
   import type { FormItemRule, FormRules } from 'element-plus'
@@ -235,6 +241,8 @@
   }
 
   const userStore = useUserStore()
+  const router = useRouter()
+  const { homePath } = useCommon()
   const { getDictMap, getUserInfo: userInfo } = storeToRefs(userStore)
   const {
     passwordMinLength,
@@ -440,7 +448,12 @@
   }
 
   const validateNewPassword: FormItemRule['validator'] = (_rule, value, callback) => {
-    if (value && !validatePasswordComplexity(value)) {
+    const password = String(value ?? '')
+    if (password && password.length < passwordMinLength.value) {
+      callback(new Error(getPasswordMinLengthMessage()))
+      return
+    }
+    if (password && !validatePasswordComplexity(password)) {
       callback(new Error(getPasswordComplexityMessage()))
       return
     }
@@ -504,6 +517,15 @@
     isEditPwd.value = false
   }
 
+  const closeUserCenter = (): void => {
+    if (window.history.length > 1) {
+      router.back()
+      return
+    }
+
+    void router.push(homePath.value)
+  }
+
   const saveProfile = async (): Promise<void> => {
     try {
       await ruleFormRef.value?.validate()
@@ -545,8 +567,11 @@
   }
 
   const savePassword = async (): Promise<void> => {
+    await loadPasswordPolicy()
+
     try {
-      await pwdFormRef.value?.validate()
+      const valid = await pwdFormRef.value?.validate()
+      if (valid !== true) return
     } catch {
       return
     }
@@ -851,6 +876,13 @@
       }
     }
 
+    &__settings-actions {
+      display: inline-flex;
+      flex: none;
+      gap: 12px;
+      align-items: center;
+    }
+
     &__security-badge {
       display: inline-flex;
       flex: none;
@@ -1027,6 +1059,11 @@
 
       &__security-badge {
         margin-left: 62px;
+      }
+
+      &__settings-actions {
+        width: 100%;
+        justify-content: space-between;
       }
 
       &__tabs :deep(.el-tabs__header) {

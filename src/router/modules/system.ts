@@ -53,7 +53,8 @@ export const systemRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.system.userCenter',
         isHide: true,
-        keepAlive: true,
+        // 个人中心从用户菜单进入，离开后应销毁页面实例，避免编辑状态和敏感表单内容残留。
+        keepAlive: false,
         isHideTab: true
       }
     },
