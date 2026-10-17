@@ -45,11 +45,15 @@ const referenceSearchFields: Record<MaterialReferenceKind, string[]> = {
 }
 
 interface MaterialAttributeValueRow {
+  id: string
+  attributeId: string
   attributeValue: string
   sort: number
 }
 
 interface MaterialAttributeRow {
+  id: string
+  groupId: string
   attributeKey: string
   attributeName: string
   required: boolean
@@ -62,8 +66,55 @@ type MaterialAttributeGroupRow = Omit<MaterialAttributeGroup, 'attributes'> & {
   attributes: MaterialAttributeRow[]
 }
 
-const attributeGroupSelect =
-  '*,attributes:mdm_material_attribute(attribute_key,attribute_name,required,enabled,sort,values:mdm_material_attribute_value(attribute_value,sort))'
+async function fetchMaterialAttributeGroups(params?: MaterialReferenceQuery) {
+  let query = supabase
+    .from('mdm_material_attribute_group')
+    .select('*', params ? { count: 'exact' } : undefined)
+    .order('sort')
+    .order('group_code')
+  if (params?.keyword)
+    query = query.or(buildOrIlikeFilter(['group_code', 'group_name'], params.keyword))
+  if (params?.status) query = query.eq('status', params.status)
+  if (params)
+    query = query.range((params.current - 1) * params.size, params.current * params.size - 1)
+
+  const { data: groups, total } = await responseHandle<MaterialAttributeGroup[]>(
+    () => query,
+    readOptions
+  )
+  const groupIds = (groups ?? []).map((group) => group.id)
+  if (!groupIds.length) return { data: [], total: total ?? 0 }
+
+  const [{ data: attributes }, { data: values }] = await Promise.all([
+    responseHandle<MaterialAttributeRow[]>(
+      () =>
+        supabase.from('mdm_material_attribute').select('*').in('group_id', groupIds).order('sort'),
+      readOptions
+    ),
+    responseHandle<MaterialAttributeValueRow[]>(
+      () => supabase.from('mdm_material_attribute_value').select('*').order('sort'),
+      readOptions
+    )
+  ])
+  const valuesByAttribute = new Map<string, MaterialAttributeValueRow[]>()
+  ;(values ?? []).forEach((value) => {
+    const list = valuesByAttribute.get(value.attributeId) ?? []
+    list.push(value)
+    valuesByAttribute.set(value.attributeId, list)
+  })
+  const attributesByGroup = new Map<string, MaterialAttributeRow[]>()
+  ;(attributes ?? []).forEach((attribute) => {
+    const list = attributesByGroup.get(attribute.groupId) ?? []
+    list.push({ ...attribute, values: valuesByAttribute.get(attribute.id) ?? [] })
+    attributesByGroup.set(attribute.groupId, list)
+  })
+  return {
+    data: (groups ?? []).map((group) =>
+      normalizeAttributeGroup({ ...group, attributes: attributesByGroup.get(group.id) ?? [] })
+    ),
+    total: total ?? 0
+  }
+}
 
 function normalizeAttributeGroup(record: MaterialAttributeGroupRow): MaterialAttributeGroup {
   return {
@@ -87,55 +138,54 @@ export async function fetchMaterialReferences<T extends MaterialReferenceRecord>
   params: MaterialReferenceQuery,
   options?: { signal?: AbortSignal }
 ) {
-  const table = referenceTables[kind]
+  if (kind === 'attribute-group') {
+    const result = await fetchMaterialAttributeGroups(params)
+    return { ...result, current: params.current, size: params.size } as {
+      data: T[]
+      total: number
+      current: number
+      size: number
+    }
+  }
+  const referenceKind = kind as Exclude<MaterialReferenceKind, 'attribute-group'>
+  const table = referenceTables[referenceKind]
   let query = supabase
     .from(table)
-    .select(kind === 'attribute-group' ? attributeGroupSelect : '*', { count: 'exact' })
+    .select('*', { count: 'exact' })
     .order('sort')
     .order(
-      kind === 'unit-of-measure'
+      referenceKind === 'unit-of-measure'
         ? 'unit_code'
-        : kind === 'material-type'
+        : referenceKind === 'material-type'
           ? 'type_code'
-          : kind === 'attribute-group'
-            ? 'group_code'
-            : 'rule_code'
+          : 'rule_code'
     )
   if (params.keyword)
-    query = query.or(buildOrIlikeFilter(referenceSearchFields[kind], params.keyword))
+    query = query.or(buildOrIlikeFilter(referenceSearchFields[referenceKind], params.keyword))
   if (params.status) query = query.eq('status', params.status)
   query = query.range((params.current - 1) * params.size, params.current * params.size - 1)
   const { data, total } = await responseHandle<Array<T | MaterialAttributeGroupRow>>(
     () => (options?.signal ? query.abortSignal(options.signal) : query),
     readOptions
   )
-  const records =
-    kind === 'attribute-group'
-      ? ((data ?? []).map((item) =>
-          normalizeAttributeGroup(item as MaterialAttributeGroupRow)
-        ) as T[])
-      : ((data ?? []) as T[])
+  const records = (data ?? []) as T[]
   return { data: records, total: total ?? 0, current: params.current, size: params.size }
 }
 
 export async function fetchMaterialReferenceOptions<T extends MaterialReferenceRecord>(
   kind: MaterialReferenceKind
 ) {
-  const table = referenceTables[kind]
+  if (kind === 'attribute-group') {
+    const result = await fetchMaterialAttributeGroups()
+    return result.data as T[]
+  }
+  const referenceKind = kind as Exclude<MaterialReferenceKind, 'attribute-group'>
+  const table = referenceTables[referenceKind]
   const { data } = await responseHandle<Array<T | MaterialAttributeGroupRow>>(
-    () =>
-      supabase
-        .from(table)
-        .select(kind === 'attribute-group' ? attributeGroupSelect : '*')
-        .eq('status', 'enabled')
-        .order('sort'),
+    () => supabase.from(table).select('*').eq('status', 'enabled').order('sort'),
     readOptions
   )
-  return kind === 'attribute-group'
-    ? ((data ?? []).map((item) =>
-        normalizeAttributeGroup(item as MaterialAttributeGroupRow)
-      ) as T[])
-    : ((data ?? []) as T[])
+  return (data ?? []) as T[]
 }
 
 export async function saveMaterialReference(
@@ -214,12 +264,7 @@ export async function setMaterialReferencesEnabled(
 
 export async function fetchMaterialCategories(): Promise<MaterialCategory[]> {
   const { data } = await responseHandle<MaterialCategory[]>(
-    () =>
-      supabase
-        .from('mdm_material_category')
-        .select('*,materialType:mdm_material_type(id,type_code,type_name)')
-        .order('sort')
-        .order('category_name'),
+    () => supabase.from('mdm_material_category').select('*').order('sort').order('category_name'),
     readOptions
   )
   return data ?? []
@@ -280,10 +325,7 @@ export async function fetchMaterialArchives(
 ) {
   let query = supabase
     .from('mdm_material')
-    .select(
-      '*,category:mdm_material_category(id,category_code,category_name),materialTypeRef:mdm_material_type(id,type_code,type_name),baseUnit:mdm_unit_of_measure!mdm_material_base_unit_fkey(id,unit_code,unit_name,symbol),productionUnit:mdm_unit_of_measure!mdm_material_production_unit_id_fkey(id,unit_code,unit_name,symbol),auxiliaryUnit:mdm_unit_of_measure!mdm_material_aux_unit_fkey(id,unit_code,unit_name,symbol),auxiliaryUnit2:mdm_unit_of_measure!mdm_material_aux_unit_2_fkey(id,unit_code,unit_name,symbol),attributeGroup:mdm_material_attribute_group!mdm_material_attribute_group_fkey(id,group_code,group_name),materialGroup:mdm_master_group!mdm_material_group_fkey(id,groupCode:code,groupName:name),defaultWarehouse:mdm_warehouse!mdm_material_default_warehouse_fkey(id,warehouse_code,warehouse_name)',
-      { count: 'exact' }
-    )
+    .select('*', { count: 'exact' })
     .order('sort')
     .order('material_code')
   if (params.keyword)

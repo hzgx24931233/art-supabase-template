@@ -38,6 +38,8 @@ export class MenuProcessor {
       menuList = await this.processBackendMenu(signal)
     }
 
+    menuList = this.ensureEmptyFolderComponents(menuList)
+
     // 在规范化路径之前，验证原始路径配置
     this.validateMenuPaths(menuList)
 
@@ -152,6 +154,34 @@ export class MenuProcessor {
         // 其他情况过滤掉
         return false
       })
+  }
+
+  /**
+   * 空目录仍然可以作为导航入口，但不能渲染布局组件，否则会出现空白页。
+   * 使用统一 404 页面让用户明确知道该目录尚未配置可访问页面。
+   */
+  private ensureEmptyFolderComponents(
+    menuList: AppRouteRecord[],
+    parentPath = ''
+  ): AppRouteRecord[] {
+    return menuList.map((item) => {
+      const children = item.children?.length
+        ? this.ensureEmptyFolderComponents(item.children, item.path || parentPath)
+        : item.children
+      const isEmptyNestedFolder =
+        Boolean(parentPath) &&
+        item.type !== 'button' &&
+        !children?.length &&
+        !item.meta?.link &&
+        item.meta?.isIframe !== true &&
+        (!item.component || item.component === RoutesAlias.Layout)
+
+      return {
+        ...item,
+        component: isEmptyNestedFolder ? '/exception/404' : item.component,
+        children
+      }
+    })
   }
 
   /**

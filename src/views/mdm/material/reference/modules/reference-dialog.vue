@@ -480,8 +480,32 @@
       ]
     }),
     rules: {
-      unitCode: [{ required: true, message: '请输入单位编码', trigger: 'blur' }],
-      unitName: [{ required: true, message: '请输入单位名称', trigger: 'blur' }],
+      unitCode: [
+        { required: true, message: '请输入单位编码', trigger: 'blur' },
+        {
+          validator: (_rule, value, callback) => {
+            if (hasDuplicateUnitValue('unitCode', value)) {
+              callback(new Error('单位编码已存在，请更换后再保存'))
+              return
+            }
+            callback()
+          },
+          trigger: 'blur'
+        }
+      ],
+      unitName: [
+        { required: true, message: '请输入单位名称', trigger: 'blur' },
+        {
+          validator: (_rule, value, callback) => {
+            if (hasDuplicateUnitValue('unitName', value)) {
+              callback(new Error('单位名称已存在，请更换后再保存'))
+              return
+            }
+            callback()
+          },
+          trigger: 'blur'
+        }
+      ],
       baseUnitId: [
         {
           validator: (_rule, value, callback) =>
@@ -517,6 +541,15 @@
       ruleName: [{ required: true, message: '请输入规则名称', trigger: 'blur' }]
     }
   })
+
+  const hasDuplicateUnitValue = (field: 'unitCode' | 'unitName', value: unknown): boolean => {
+    if (currentKind.value !== 'unit-of-measure' || typeof value !== 'string') return false
+    const normalizedValue = value.trim().toLowerCase()
+    if (!normalizedValue) return false
+    return unitOptions.value.some(
+      (unit) => unit.id !== formModel.id && unit[field].trim().toLowerCase() === normalizedValue
+    )
+  }
   void Promise.all(
     [
       'commonEnabledStatus',

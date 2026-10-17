@@ -319,7 +319,13 @@
         fetchMaterialReferenceOptions<MaterialType>('material-type'),
         fetchMaterialSiteOptions()
       ])
-      records.value = categoryRecords
+      records.value = categoryRecords.map((category) => ({
+        ...category,
+        materialType:
+          typeRecords.find((type) => type.id === category.materialTypeId) ??
+          category.materialType ??
+          null
+      }))
       materialTypes.value = typeRecords
       sites.value = siteRecords
       if (

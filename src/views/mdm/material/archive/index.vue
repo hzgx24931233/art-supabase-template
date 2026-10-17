@@ -837,6 +837,26 @@
     selectedCategoryId.value = id
     await tableRef.value?.getData()
   }
+  const hydrateMaterialArchive = (row: MaterialArchive): MaterialArchive => ({
+    ...row,
+    category:
+      categories.value.find((category) => category.id === row.categoryId) ?? row.category ?? null,
+    materialTypeRef:
+      materialTypes.value.find((type) => type.id === row.materialTypeId) ??
+      row.materialTypeRef ??
+      null,
+    baseUnit: units.value.find((unit) => unit.id === row.baseUnitId) ?? row.baseUnit ?? null,
+    productionUnit:
+      units.value.find((unit) => unit.id === row.productionUnitId) ?? row.productionUnit ?? null,
+    auxiliaryUnit:
+      units.value.find((unit) => unit.id === row.auxiliaryUnitId) ?? row.auxiliaryUnit ?? null,
+    auxiliaryUnit2:
+      units.value.find((unit) => unit.id === row.auxiliaryUnit2Id) ?? row.auxiliaryUnit2 ?? null,
+    attributeGroup:
+      attributeGroups.value.find((group) => group.id === row.attributeGroupId) ??
+      row.attributeGroup ??
+      null
+  })
   const loadOptions = async (): Promise<void> => {
     optionsLoading.value = true
     optionsError.value = ''
@@ -885,7 +905,7 @@
     overview.total = result.total
     overview.enabled = result.data.filter((item) => item.status === 'enabled').length
     overview.purchase = result.data.filter((item) => item.materialSource === 'purchase').length
-    return { records: result.data, total: result.total }
+    return { records: result.data.map(hydrateMaterialArchive), total: result.total }
   }
   const refresh = async (): Promise<void> => {
     await tableRef.value?.getData()

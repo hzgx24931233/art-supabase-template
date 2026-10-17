@@ -6,11 +6,12 @@
     @opened="handleDialogOpened"
     confirm-on-close
   >
-    <div class="menu-dialog-content">
+    <template #content-top>
       <ElAlert v-if="treeError" type="error" :closable="false" show-icon>
         <template #title>菜单层级加载失败</template>
         <ElButton link type="primary" @click="loadMenuTree">重新加载</ElButton>
       </ElAlert>
+
       <section class="menu-dialog-content__context art-card-xs">
         <span class="menu-dialog-content__context-icon" aria-hidden="true">
           <ArtSvgIcon :icon="menuTypeMeta.icon" />
@@ -20,7 +21,18 @@
           <p>{{ menuTypeMeta.description }}</p>
         </div>
       </section>
+      <div class="menu-dialog-content__type-fixed">
+        <ArtForm
+          v-model="form"
+          :items="[menuTypeItem]"
+          :span="24"
+          :show-reset="false"
+          :show-submit="false"
+        />
+      </div>
+    </template>
 
+    <div class="menu-dialog-content">
       <ArtForm
         ref="formRef"
         v-model="form"
@@ -172,10 +184,10 @@
     menuTree: []
   })
 
-  const hasParentId = (parentId?: string | null): boolean => parentId != null && parentId !== ''
-
-  const resolveFolderComponent = (parentId?: string | null): string =>
-    hasParentId(parentId) ? '' : '/index/index'
+  const resolveFolderComponent = (parentId?: string | null): string => {
+    void parentId
+    return '/index/index'
+  }
 
   const syncComponentByType = (): void => {
     if (form.value.type === 'folder') {
@@ -212,35 +224,32 @@
   /**
    * 表单项配置
    */
+  const menuTypeItem = computed<FormItem>(() => ({
+    label: '菜单类型',
+    key: 'type',
+    type: 'segment',
+    span: 24,
+    options: getDictMap.value.menuType?.length
+      ? getDictMap.value.menuType
+      : [
+          { label: '目录', value: 'folder' },
+          { label: '菜单', value: 'menu' },
+          { label: '按钮权限', value: 'button' }
+        ],
+    description: form.value.id
+      ? '菜单类型可调整，保存后请同步确认路由配置与权限关系。'
+      : '请选择目录、菜单或按钮权限。按钮权限需挂在具体菜单下。',
+    props: {
+      validateEvent: false,
+      onChange: handleMenuTypeChange
+    }
+  }))
+
   const formItems = computed<FormItem[]>(() => {
-    const baseItems: FormItem[] = [
-      {
-        label: '菜单类型',
-        key: 'type',
-        type: 'segment',
-        span: 24,
-        options: getDictMap.value.menuType?.length
-          ? getDictMap.value.menuType
-          : [
-              { label: '目录', value: 'folder' },
-              { label: '菜单', value: 'menu' },
-              { label: '按钮权限', value: 'button' }
-            ],
-        description: form.value.id
-          ? '菜单类型创建后不建议变更，避免影响现有路由和授权。'
-          : '请选择目录、菜单或按钮权限。按钮权限需挂在具体菜单下。',
-        props: {
-          disabled: !!form.value.id,
-          validateEvent: false,
-          onChange: handleMenuTypeChange
-        }
-      }
-    ]
     // Switch 组件的 span：小屏幕 12，大屏幕 6
     const switchSpan = width.value < 640 ? 12 : 6
     if (['folder'].includes(form.value.type)) {
       return [
-        ...baseItems,
         { label: '基础定义', key: 'basicSection', type: 'divider', span: 24 },
         {
           label: '父级菜单',
@@ -320,7 +329,6 @@
     }
     if (['menu'].includes(form.value.type)) {
       return [
-        ...baseItems,
         { label: '基础定义', key: 'basicSection', type: 'divider', span: 24 },
         {
           label: '父级菜单',
@@ -428,7 +436,6 @@
       ]
     } else {
       return [
-        ...baseItems,
         { label: '权限定义', key: 'permissionSection', type: 'divider', span: 24 },
         {
           label: '权限名称',
@@ -705,6 +712,22 @@
       background: var(--el-color-primary-light-9);
       border: 1px solid var(--el-color-primary-light-7);
       border-radius: var(--art-control-radius);
+    }
+
+    &__type-fixed {
+      padding: 10px 16px 2px;
+      margin-bottom: 12px;
+      background: var(--el-bg-color);
+      border: 1px solid var(--el-border-color-lighter);
+      border-radius: var(--el-border-radius-base);
+
+      :deep(.art-form) {
+        padding: 0 !important;
+      }
+
+      :deep(.el-form-item) {
+        margin-bottom: 8px;
+      }
     }
 
     :deep(.art-form) {
