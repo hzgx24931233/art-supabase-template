@@ -6,3 +6,7 @@
 	path = modules/art-supabase-hr
 	url = https://github.com/hzgx24931233/art-supabase-hr.git
 	branch = main
+[submodule "modules/art-supabase-pm"]
+	path = modules/art-supabase-pm
+	url = https://github.com/hzgx24931233/art-supabase-pm.git
+	branch = main
