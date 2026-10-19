@@ -1039,7 +1039,45 @@ export const businessButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] =
   { menuName: 'MdmReceiptNotice', buttons: documentLedger() },
   { menuName: 'MdmSalesContractDoc', buttons: documentLedger() },
   { menuName: 'MdmSalesOrder', buttons: documentLedger() },
-  { menuName: 'MdmShippingNotice', buttons: documentLedger() }
+  { menuName: 'MdmShippingNotice', buttons: documentLedger() },
+  {
+    menuName: 'ProjectPlanningOrganization',
+    buttons: [
+      button('View', '查看项目组织架构', 'PmProjectOrg:View'),
+      button('ManageVersion', '管理项目组织版本', 'PmProjectOrg:ManageVersion'),
+      button('ManageNode', '维护组织节点', 'PmProjectOrg:ManageNode'),
+      button('ManagePosition', '维护项目岗位', 'PmProjectOrg:ManagePosition'),
+      button('ManagePerson', '维护项目人员', 'PmProjectOrg:ManagePerson'),
+      button('ManageParticipant', '维护参建单位', 'PmProjectOrg:ManageParticipant'),
+      button('Submit', '提交项目组织审批', 'PmProjectOrg:Submit'),
+      button('Approve', '审批项目组织版本', 'PmProjectOrg:Approve'),
+      button('Export', '导出项目组织资料', 'PmProjectOrg:Export'),
+      button('UploadArtifact', '上传组织架构附件', 'PmProjectOrg:UploadArtifact'),
+      button('LinkBusiness', '关联业务责任人', 'PmProjectOrg:LinkBusiness')
+    ]
+  },
+  {
+    menuName: 'ProjectWbs',
+    buttons: [
+      button('View', '查看 WBS', 'PmWbs:View'),
+      button('Add', '新增节点', 'PmWbs:Add'),
+      button('Edit', '编辑节点', 'PmWbs:Edit'),
+      button('Delete', '删除节点', 'PmWbs:Delete'),
+      button('Archive', '归档节点', 'PmWbs:Archive'),
+      button('Move', '调整节点顺序', 'PmWbs:Move'),
+      button('ManageVersion', '管理 WBS 版本', 'PmWbs:ManageVersion'),
+      button('Submit', '提交 WBS 审批', 'PmWbs:Submit'),
+      button('Approve', '审批 WBS 基线', 'PmWbs:Approve'),
+      button('Reject', '退回 WBS 版本', 'PmWbs:Reject'),
+      button('ManageTemplate', '管理 WBS 模板', 'PmWbs:ManageTemplate'),
+      button('Import', '导入 WBS', 'PmWbs:Import'),
+      button('Export', '导出 WBS', 'PmWbs:Export'),
+      button('ManageScope', '维护范围边界', 'PmWbs:ManageScope'),
+      button('ManageDeliverable', '维护交付物', 'PmWbs:ManageDeliverable'),
+      button('LinkBusiness', '关联业务数据', 'PmWbs:LinkBusiness'),
+      button('ViewHistory', '查看版本历史', 'PmWbs:ViewHistory')
+    ]
+  }
 ]
 export const systemButtonPermissionCatalog: BusinessMenuButtonCatalogEntry[] = [
   { menuName: 'Organization', buttons: crud({ view: true }) },

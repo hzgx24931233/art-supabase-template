@@ -25,5 +25,6 @@ export const hostedModuleSharedDependencies = [
  */
 export const hostedApplicationSourceDirectories = {
   '@fms': 'modules/art-supabase-fms/src',
-  '@hr': 'modules/art-supabase-hr/src'
+  '@hr': 'modules/art-supabase-hr/src',
+  '@pm': 'modules/art-supabase-pm/src'
 } as const

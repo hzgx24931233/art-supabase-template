@@ -17,6 +17,7 @@
     "paths": {
       "@fms/*": ["modules/art-supabase-fms/src/*"],
       "@hr/*": ["modules/art-supabase-hr/src/*"],
+      "@pm/*": ["modules/art-supabase-pm/src/*"],
       "@/*": ["src/*"],
       "@views/*": ["src/views/*"],
       "@imgs/*": ["src/assets/images/*"],

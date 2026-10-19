@@ -11345,28 +11345,19 @@ begin
     'number-engine'
   from (
     values
-      ('tms.order', '运输订单号', 'business_document', 'tms_order', 'order_no', 'YD{YYYYMM}-{SEQ:3}', 'month', true, '运单沿用订单号，不单独取号'),
-      ('tms.contract', '合同编号', 'business_document', 'tms_contract', 'contract_no', 'HT{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('tms.carrier_price', '承运商报价单号', 'business_document', 'tms_carrier_price', 'quote_no', 'CYSBJ{YYYYMM}-{SEQ:4}', 'month', true, '承运商价格维护报价单号'),
-      ('tms.carrier_payment_application', '承运商付款申请号', 'business_document', 'tms_carrier_payment_application', 'application_no', 'FK{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('tms.carrier_statement', '承运商对账单号', 'business_document', 'tms_carrier_statement', 'statement_no', 'CYSDZ{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('tms.customer_statement', '客户对账单号', 'business_document', 'tms_customer_statement', 'statement_no', 'KHDZ{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('tms.cash_transaction', '收支流水号', 'business_document', 'tms_cash_transaction', 'transaction_no', 'SZ{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('tms.expense_payment', '费用付款单号', 'business_document', 'tms_expense_payment', 'payment_no', 'FYZF{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('tms.expense_reimbursement', '费用报销单号', 'business_document', 'tms_expense_reimbursement', 'reimbursement_no', 'FYBX{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('tms.waybill_cost', '运单费用单号', 'business_document', 'tms_waybill_cost', 'cost_no', 'YDFY{YYYYMM}-{SEQ:4}', 'month', true, '运单费用统一台账编号'),
       ('tms.invoice_record', '开票登记号', 'business_document', 'tms_invoice', 'invoice_record_no', 'FPDJ{YYYYMM}-{SEQ:4}', 'month', true, '发票代码和发票号码属于外部法定号码，不在本规则内'),
-      ('tms.receipt_exception', '回单异常工单号', 'business_document', 'tms_receipt_exception_work_order', 'work_order_no', 'HDYC{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('master.customer', '客户编码', 'master_data', 'tms_customer', 'customer_code', 'KH{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('master.carrier', '承运商编码', 'master_data', 'tms_carrier', 'carrier_code', 'CYS{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('master.cargo', '货物编码', 'master_data', 'tms_cargo', 'cargo_code', 'HW{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('master.station', '站点编码', 'master_data', 'tms_station', 'station_code', 'ZD{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('vehicle.archive_self', '车辆自编号', 'vehicle', 'vehicle_archive', 'self_no', 'ZBH{YYYYMM}-{SEQ:4}', 'month', false, '车牌号、车架号等外部标识不在本规则内'),
-      ('vehicle.inspection', '车辆年检单号', 'vehicle', 'vehicle_inspection', 'inspection_no', 'NJ{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('vehicle.maintenance', '车辆维修单号', 'vehicle', 'vehicle_maintenance_record', 'maintenance_no', 'WX{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('vehicle.part', '配件编码', 'vehicle', 'vehicle_parts', 'part_code', 'LP{YYYYMM}-{SEQ:4}', 'month', true, null),
-      ('vehicle.part_category', '配件分类编码', 'vehicle', 'vehicle_parts_category', 'category_code', 'LPLB{YYYYMM}-{SEQ:3}', 'month', true, null),
-      ('vehicle.routine_inspection', '车辆例检单号', 'vehicle', 'vehicle_routine_inspection_record', 'routine_inspection_no', 'LJ{YYYYMM}-{SEQ:4}', 'month', true, null)
+      ('master.customer', '客户编码', 'master_data', 'mdm_customer', 'customer_code', 'KH{YYYYMM}-{SEQ:4}', 'month', true, null),
+      ('master.carrier', '承运商编码', 'master_data', 'mdm_carrier', 'carrier_code', 'CYS{YYYYMM}-{SEQ:4}', 'month', true, null),
+      ('master.cargo', '货物编码', 'master_data', 'mdm_cargo', 'cargo_code', 'HW{YYYYMM}-{SEQ:4}', 'month', true, null),
+      ('master.station', '站点编码', 'master_data', 'mdm_station', 'station_code', 'ZD{YYYYMM}-{SEQ:4}', 'month', true, null),
+      ('hr.employee', '员工编号', 'master_data', 'mdm_employee', 'employee_no', 'EMP{YYYYMM}{SEQ:3}', 'month', true, '员工花名册主档编号'),
+      ('hr.position', '岗位编号', 'master_data', 'mdm_position', 'position_code', 'POS{YYYYMM}{SEQ:3}', 'month', true, '岗位主数据编码'),
+      ('vehicle.archive_self', '车辆自编号', 'vehicle', 'mdm_vehicle', 'self_no', 'ZBH{YYYYMM}-{SEQ:4}', 'month', false, '车牌号、车架号等外部标识不在本规则内'),
+      ('vehicle.part', '配件编码', 'vehicle', 'mdm_part', 'part_code', 'LP{YYYYMM}-{SEQ:4}', 'month', true, null),
+      ('vehicle.part_category', '配件分类编码', 'vehicle', 'mdm_part_category', 'category_code', 'LPLB{YYYYMM}-{SEQ:3}', 'month', true, null),
+      ('mdm.project', '项目编号', 'master_data', 'mdm_project', 'project_code', 'XM{YYYYMM}-{SEQ:4}', 'month', true, '项目主数据编号由数据库编号引擎生成'),
+      ('mdm.bom', 'BOM编号', 'master_data', 'mdm_bom', 'bom_code', 'BOM{YYYYMM}-{SEQ:4}', 'month', true, 'BOM主数据由保存服务生成编号'),
+      ('mdm.production_equipment', '生产设备编号', 'master_data', 'mdm_equipment', 'equipment_code', 'SBEQ{YYYYMM}-{SEQ:4}', 'month', false, '生产设备编号可手工填写；留空时自动生成')
   ) as item(
     rule_key,
     rule_name,
@@ -21115,7 +21106,7 @@ begin
      and enabled;
   if not found then raise exception '请选择已启用的部门或产线' using errcode = '23503'; end if;
   if v_name = '' then raise exception '请输入设备名称' using errcode = '23514'; end if;
-  if v_code = '' then v_code := app_private.next_document_number('mdm.production-equipment'); end if;
+  if v_code = '' then v_code := app_private.next_document_number('mdm.production_equipment'); end if;
 
   if not exists (
     select 1 from public.mdm_equipment_category
@@ -40750,6 +40741,12 @@ CREATE OR REPLACE TRIGGER "mdm_production_shift_pattern_validate" BEFORE INSERT 
 --
 
 CREATE OR REPLACE TRIGGER "mdm_project_create_audit" BEFORE INSERT ON "public"."mdm_project" FOR EACH ROW EXECUTE FUNCTION "public"."trg_set_create_time_and_by"('true', 'true');
+
+--
+-- Name: mdm_project document_number_project_code; Type: TRIGGER; Schema: public
+--
+
+CREATE OR REPLACE TRIGGER "document_number_project_code" BEFORE INSERT ON "public"."mdm_project" FOR EACH ROW EXECUTE FUNCTION "app_private"."trg_assign_configurable_number"('mdm.project', 'project_code');
 
 
 --

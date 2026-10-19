@@ -45,3 +45,12 @@ registerHostedApplication(
     '!../modules/art-supabase-hr/src/views/**/components/**/*.vue'
   ])
 )
+registerHostedApplication(
+  'pm',
+  '../modules/art-supabase-pm/src/views',
+  import.meta.glob<HostedRouteComponentModule>([
+    '../modules/art-supabase-pm/src/views/**/*.vue',
+    '!../modules/art-supabase-pm/src/views/**/modules/**/*.vue',
+    '!../modules/art-supabase-pm/src/views/**/components/**/*.vue'
+  ])
+)

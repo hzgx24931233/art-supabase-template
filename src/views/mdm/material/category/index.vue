@@ -1,9 +1,9 @@
 <template>
-  <ArtPermissionGuard permission="MdmMaterialCategory:View" resource-name="物料分类">
+  <ArtPermissionGuard permission="MdmMaterialCategory:View" resource-name="成本分类">
     <div class="material-category-page business-workspace-page art-full-height">
       <BusinessWorkspaceHeader
         eyebrow="MATERIAL TAXONOMY"
-        title="物料分类"
+        title="成本分类"
         description="建立稳定的分类树和业务默认策略，为物料档案、采购收货、库存与成本核算提供一致口径。"
         icon="ri:node-tree"
         :tags="[

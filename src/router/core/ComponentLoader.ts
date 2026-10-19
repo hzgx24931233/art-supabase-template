@@ -21,6 +21,18 @@ type PreloadableAsyncRouteComponent = AsyncRouteComponent & {
 const registeredApplicationModules: Record<string, RouteComponentLoader> = {}
 const warnedMissingHostedApplications = new Set<HostedApplicationCode>()
 
+// PM is currently hosted from the main workspace rather than a separately initialized
+// submodule. Keep a direct route fallback so an older bootstrap bundle or a standalone
+// host cannot turn a valid PM menu into the module-unavailable page.
+const directHostedRouteFallbacks: Record<string, RouteComponentLoader> = {
+  '../../views/pm/wbs/index.vue': () =>
+    import('../../../modules/art-supabase-pm/src/views/wbs/index.vue'),
+  '../../views/pm/project-organization/index.vue': () =>
+    import('../../../modules/art-supabase-pm/src/views/project-organization/index.vue'),
+  '../../views/pm/planning/organization/index.vue': () =>
+    import('../../../modules/art-supabase-pm/src/views/project-organization/index.vue')
+}
+
 type HostedApplicationCode = Exclude<ApplicationCode, 'platform'>
 
 /**
@@ -131,15 +143,25 @@ export class ComponentLoader {
       return this.createEmptyComponent()
     }
 
-    // 构建可能的路径
-    const fullPath = `../../views${componentPath}.vue`
-    const fullPathWithIndex = `../../views${componentPath}/index.vue`
+    // 菜单数据偶尔会带尾部斜杠；统一后再构建 glob key，避免有效模块被误判为缺失。
+    const normalizedComponentPath = `/${componentPath.replace(/^\/+|\/+$/g, '')}`
+    const fullPath = `../../views${normalizedComponentPath}.vue`
+    const fullPathWithIndex = `../../views${normalizedComponentPath}/index.vue`
 
     // 先尝试直接路径，再尝试添加/index的路径
-    const module = this.modules[fullPath] || this.modules[fullPathWithIndex]
+    // Hosted applications are loaded asynchronously during route initialization. Read the
+    // registration table at resolution time as well as the constructor snapshot so a loader
+    // created just before a hosted module finishes registering cannot report a false absence.
+    const module =
+      this.modules[fullPath] ||
+      this.modules[fullPathWithIndex] ||
+      registeredApplicationModules[fullPath] ||
+      registeredApplicationModules[fullPathWithIndex] ||
+      directHostedRouteFallbacks[fullPath] ||
+      directHostedRouteFallbacks[fullPathWithIndex]
 
     if (!module) {
-      const hostedApplicationCode = resolveHostedApplicationCode(componentPath)
+      const hostedApplicationCode = resolveHostedApplicationCode(normalizedComponentPath)
       if (hostedApplicationCode) {
         if (!warnedMissingHostedApplications.has(hostedApplicationCode)) {
           warnedMissingHostedApplications.add(hostedApplicationCode)

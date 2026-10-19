@@ -9,7 +9,7 @@
  * 并同步 scripts/hosted-module-dependencies.ts、src/bootstrapHostedApplications.ts、
  * tsconfig.json 与 .gitmodules。
  */
-export const APPLICATION_CODES = ['platform', 'fms', 'hr'] as const
+export const APPLICATION_CODES = ['platform', 'fms', 'hr', 'pm'] as const
 
 export type ApplicationCode = (typeof APPLICATION_CODES)[number]
 
@@ -51,6 +51,14 @@ export const APPLICATION_PROFILES: Record<ApplicationCode, ApplicationProfile> =
     defaultPath: '/hr',
     deploymentPath: '/art-supabase-hr/',
     developmentPort: 3013
+  },
+  pm: {
+    code: 'pm',
+    name: '项目管理',
+    description: '项目规划、实施、资金与成本管理',
+    defaultPath: '/pm',
+    deploymentPath: '/art-supabase-pm/',
+    developmentPort: 3014
   }
 }
 

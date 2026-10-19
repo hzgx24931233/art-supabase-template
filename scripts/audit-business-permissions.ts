@@ -33,18 +33,20 @@ type ManagedModule =
   | 'ctm'
   | 'system'
   | 'workflow'
+  | 'pm'
 
 const managedViewRoots = new Map<ManagedModule, string>([
   ['hr', join(projectRoot, 'modules/art-supabase-hr/src/views')],
   ['fms', join(projectRoot, 'modules/art-supabase-fms/src/views')],
   ['mdm', join(projectRoot, 'src/views/mdm')],
   ['system', join(projectRoot, 'src/views/system')],
-  ['workflow', join(projectRoot, 'src/views/workflow')]
+  ['workflow', join(projectRoot, 'src/views/workflow')],
+  ['pm', join(projectRoot, 'modules/art-supabase-pm/src/views')]
 ])
-const businessModules = new Set<ManagedModule>(['fms', 'hr', 'mdm'])
+const businessModules = new Set<ManagedModule>(['fms', 'hr', 'mdm', 'pm'])
 const sourceExtensions = new Set(['.ts', '.tsx', '.vue'])
 const permissionPattern =
-  /['"`]((?:System|Workflow|Tms|Finance|Hr|Mdm|Pmis|Smis|Scm|Wms|Ctm|Vehicle|Insurance|Parts|PartsCategory|Supplier)[A-Za-z0-9]*(?::[A-Za-z][A-Za-z0-9]*)+)['"`]/g
+  /['"`]((?:System|Workflow|Tms|Finance|Hr|Mdm|Pm|Pmis|Smis|Scm|Wms|Ctm|Vehicle|Insurance|Parts|PartsCategory|Supplier)[A-Za-z0-9]*(?::[A-Za-z][A-Za-z0-9]*)+)['"`]/g
 const platformSuperPattern = /isPlatformSuper|平台超级管理员|仅平台|platform super administrator/i
 
 // These files use platform-super only for organization-wide scope or controlled writes where explicitly required.
@@ -120,6 +122,7 @@ function resolveBusinessCatalogOwner(menuName: string): ManagedModule {
   if (menuName.startsWith('Finance')) return 'fms'
   if (menuName.startsWith('Hr')) return 'hr'
   if (menuName.startsWith('Mdm')) return 'mdm'
+  if (menuName.startsWith('Project')) return 'pm'
   // TMS 页面不在模板范围内，但 FMS 页面会引用它们的页面级查看权限
   if (menuName.startsWith('Tms')) return 'fms'
   throw new Error(`未登记的业务菜单归属：${menuName}`)
