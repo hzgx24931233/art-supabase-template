@@ -18,6 +18,8 @@ export interface ArtDialogOptions<TData = unknown> extends ArtOverlayOptions<
   titleIcon?: string
   /** 标题下方的辅助说明 */
   subtitle?: string
+  /** 辅助说明前的图标（Iconify 名称）；传空字符串可隐藏 */
+  subtitleIcon?: string
   /** 弹窗宽度 */
   width?: string | number
   /** 响应式尺寸预设；显式 width 的优先级更高 */

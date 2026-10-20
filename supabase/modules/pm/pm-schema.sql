@@ -391,13 +391,93 @@ create or replace function public.pm_list_wbs_workspace(p_project_id uuid, p_ver
   );
 $$;
 
-create or replace function public.pm_create_wbs_version(p_project_id uuid,p_title text,p_change_note text default null) returns public.pm_wbs_version language plpgsql security invoker set search_path=public,app_private,pg_catalog as $$
-declare v public.pm_wbs_version; source public.pm_wbs_version; n public.pm_wbs_node; new_id uuid; begin
-  if not ((select app_private.has_permission('PmWbs:ManageVersion')) or (select app_private.is_platform_super())) then raise exception '当前账号没有管理 WBS 版本的权限' using errcode='42501'; end if;
-  if exists(select 1 from public.pm_wbs_version where project_id=p_project_id and status in ('draft','submitted')) then select * into v from public.pm_wbs_version where project_id=p_project_id and status in ('draft','submitted') order by version_no desc limit 1; return v; end if;
-  select * into source from public.pm_wbs_version where project_id=p_project_id and status='approved' order by version_no desc limit 1;
-  insert into public.pm_wbs_version(project_id,version_no,title,change_note,source_version_id) values(p_project_id,coalesce((select max(version_no)+1 from public.pm_wbs_version where project_id=p_project_id),1),p_title,p_change_note,source.id) returning * into v;
-  if source.id is not null then for n in select * from public.pm_wbs_node where version_id=source.id loop new_id:=gen_random_uuid(); insert into public.pm_wbs_node select new_id,v.id,parent_id,sort_order,wbs_code,custom_code,name,description,deliverable_summary,quantity,unit,planned_quantity,budget_cost,responsible_department,responsible_person,quality_standard,is_milestone,status,metadata,auth.uid()::text,now(),auth.uid()::text,now() from public.pm_wbs_node where id=n.id; end loop; end if;
+create or replace function public.pm_create_wbs_version(
+  p_project_id uuid,
+  p_title text,
+  p_change_note text default null
+) returns public.pm_wbs_version
+language plpgsql
+security invoker
+set search_path = public, app_private, pg_catalog
+as $$
+declare
+  v public.pm_wbs_version;
+  source public.pm_wbs_version;
+begin
+  if not ((select app_private.has_permission('PmWbs:ManageVersion')) or (select app_private.is_platform_super())) then
+    raise exception '当前账号没有管理 WBS 版本的权限' using errcode = '42501';
+  end if;
+
+  if exists (
+    select 1 from public.pm_wbs_version
+    where project_id = p_project_id and status in ('draft', 'submitted')
+  ) then
+    select * into v from public.pm_wbs_version
+    where project_id = p_project_id and status in ('draft', 'submitted')
+    order by version_no desc limit 1;
+    return v;
+  end if;
+
+  select * into source from public.pm_wbs_version
+  where project_id = p_project_id and status = 'approved'
+  order by version_no desc limit 1;
+
+  insert into public.pm_wbs_version(project_id, version_no, title, change_note, source_version_id)
+  values (
+    p_project_id,
+    coalesce((select max(version_no) + 1 from public.pm_wbs_version where project_id = p_project_id), 1),
+    p_title,
+    p_change_note,
+    source.id
+  )
+  returning * into v;
+
+  create temporary table if not exists pg_temp.pm_wbs_clone_map (
+    old_id uuid primary key,
+    new_id uuid not null
+  ) on commit drop;
+  truncate pg_temp.pm_wbs_clone_map;
+
+  if source.id is not null then
+    insert into pg_temp.pm_wbs_clone_map
+    select id, gen_random_uuid() from public.pm_wbs_node where version_id = source.id;
+
+    insert into public.pm_wbs_node(
+      id, version_id, parent_id, sort_order, wbs_code, custom_code, name, description,
+      deliverable_summary, quantity, unit, planned_quantity, budget_cost,
+      responsible_department, responsible_person, quality_standard, is_milestone,
+      status, metadata, create_by, create_time, update_by, update_time
+    )
+    select
+      clone.new_id, v.id, parent_map.new_id, wn.sort_order, wn.wbs_code, wn.custom_code,
+      wn.name, wn.description, wn.deliverable_summary, wn.quantity, wn.unit,
+      wn.planned_quantity, wn.budget_cost, wn.responsible_department,
+      wn.responsible_person, wn.quality_standard, wn.is_milestone, wn.status,
+      wn.metadata, auth.uid()::text, now(), auth.uid()::text, now()
+    from public.pm_wbs_node wn
+    join pg_temp.pm_wbs_clone_map clone on clone.old_id = wn.id
+    left join pg_temp.pm_wbs_clone_map parent_map on parent_map.old_id = wn.parent_id
+    where wn.version_id = source.id;
+
+    insert into public.pm_wbs_deliverable(
+      node_id, name, deliverable_type, acceptance_criteria, responsible_person,
+      status, attachment_id, create_by, create_time, update_by, update_time
+    )
+    select
+      clone.new_id, d.name, d.deliverable_type, d.acceptance_criteria, d.responsible_person,
+      d.status, d.attachment_id, auth.uid()::text, now(), auth.uid()::text, now()
+    from public.pm_wbs_deliverable d
+    join pg_temp.pm_wbs_clone_map clone on clone.old_id = d.node_id;
+
+    insert into public.pm_wbs_scope_boundary(
+      version_id, boundary_type, content, basis, sort_order,
+      create_by, create_time, update_by, update_time
+    )
+    select v.id, b.boundary_type, b.content, b.basis, b.sort_order,
+      auth.uid()::text, now(), auth.uid()::text, now()
+    from public.pm_wbs_scope_boundary b
+    where b.version_id = source.id;
+  end if;
   return v;
 end $$;
 
@@ -421,8 +501,274 @@ declare v public.pm_wbs_version; begin select * into v from public.pm_wbs_versio
   elsif p_action='cancel' and v.status in ('draft','submitted') then update public.pm_wbs_version set status='cancelled',decision_note=p_note,update_time=now() where id=v.id returning * into v;
   else raise exception 'WBS 版本当前状态不支持此操作' using errcode='P0001'; end if; return v; end $$;
 
-create or replace function public.pm_copy_wbs_template(p_project_id uuid,p_version_id uuid,p_template_id uuid) returns integer language plpgsql security invoker set search_path=public,app_private,pg_catalog as $$
-declare t record; v public.pm_wbs_version; count integer:=0; begin select * into v from public.pm_wbs_version where id=p_version_id and project_id=p_project_id; if v.status<>'draft' then raise exception '只有草稿版本可复制模板' using errcode='55000'; end if; for t in select * from public.pm_wbs_template_node where template_id=p_template_id order by sort_order loop insert into public.pm_wbs_node(version_id,parent_id,sort_order,wbs_code,name,description,deliverable_summary,unit,quality_standard,is_milestone,metadata) values(p_version_id,null,t.sort_order,t.wbs_code,t.name,t.description,t.deliverable_summary,t.unit,t.quality_standard,t.is_milestone,t.metadata); count:=count+1; end loop; return count; end $$;
+create or replace function public.pm_copy_wbs_template(
+  p_project_id uuid,
+  p_version_id uuid,
+  p_template_id uuid
+) returns integer
+language plpgsql
+security invoker
+set search_path = public, app_private, pg_catalog
+as $$
+declare
+  v public.pm_wbs_version;
+  count integer := 0;
+begin
+  if not ((select app_private.has_permission('PmWbs:ManageTemplate')) or (select app_private.is_platform_super())) then
+    raise exception '当前账号没有管理 WBS 模板的权限' using errcode = '42501';
+  end if;
+  if not ((select app_private.has_permission('PmWbs:Edit')) or (select app_private.is_platform_super())) then
+    raise exception '当前账号没有编辑 WBS 节点的权限' using errcode = '42501';
+  end if;
+
+  select * into v from public.pm_wbs_version
+  where id = p_version_id and project_id = p_project_id;
+  if not found then
+    raise exception 'WBS 版本不存在' using errcode = 'P0002';
+  end if;
+  if v.status <> 'draft' then
+    raise exception '只有草稿版本可复制模板' using errcode = '55000';
+  end if;
+  if not exists (
+    select 1 from public.pm_wbs_template
+    where id = p_template_id and enabled
+  ) then
+    raise exception '模板不存在或已停用' using errcode = 'P0002';
+  end if;
+  if exists (
+    select 1
+    from public.pm_wbs_template_node tn
+    join public.pm_wbs_node n on n.version_id = p_version_id and n.wbs_code = tn.wbs_code
+    where tn.template_id = p_template_id
+  ) then
+    raise exception '当前草稿已存在相同 WBS 编码的节点，请先调整编码或使用新的草稿版本' using errcode = '23505';
+  end if;
+
+  create temporary table if not exists pg_temp.pm_wbs_template_clone_map (
+    old_id uuid primary key,
+    new_id uuid not null
+  ) on commit drop;
+  truncate pg_temp.pm_wbs_template_clone_map;
+
+  insert into pg_temp.pm_wbs_template_clone_map
+  select id, gen_random_uuid() from public.pm_wbs_template_node where template_id = p_template_id;
+
+  insert into public.pm_wbs_node(
+    id, version_id, parent_id, sort_order, wbs_code, name, description,
+    deliverable_summary, unit, quality_standard, is_milestone, metadata,
+    create_by, create_time, update_by, update_time
+  )
+  select
+    clone.new_id, v.id, parent_map.new_id, tn.sort_order, tn.wbs_code, tn.name,
+    tn.description, tn.deliverable_summary, tn.unit, tn.quality_standard,
+    tn.is_milestone, tn.metadata, auth.uid()::text, now(), auth.uid()::text, now()
+  from public.pm_wbs_template_node tn
+  join pg_temp.pm_wbs_template_clone_map clone on clone.old_id = tn.id
+  left join pg_temp.pm_wbs_template_clone_map parent_map on parent_map.old_id = tn.parent_id
+  where tn.template_id = p_template_id;
+
+  get diagnostics count = row_count;
+  return count;
+end $$;
+
+create or replace function public.pm_save_wbs_template(
+  p_template jsonb,
+  p_nodes jsonb
+) returns jsonb
+language plpgsql
+security invoker
+set search_path = public, app_private, pg_catalog
+as $$
+declare
+  v public.pm_wbs_template;
+  v_id uuid;
+  v_name text;
+  v_category text;
+  v_description text;
+  v_enabled boolean;
+  v_count integer;
+begin
+  if not ((select app_private.has_permission('PmWbs:ManageTemplate')) or (select app_private.is_platform_super())) then
+    raise exception '当前账号没有管理 WBS 模板的权限' using errcode = '42501';
+  end if;
+
+  v_id := nullif(btrim(coalesce(p_template->>'id', '')), '')::uuid;
+  v_name := btrim(coalesce(p_template->>'name', ''));
+  v_category := btrim(coalesce(p_template->>'category', ''));
+  v_description := nullif(btrim(coalesce(p_template->>'description', '')), '');
+  v_enabled := coalesce((p_template->>'enabled')::boolean, true);
+
+  if v_name = '' then
+    raise exception '请输入模板名称' using errcode = '22023';
+  end if;
+  if v_category = '' then
+    raise exception '请输入模板分类' using errcode = '22023';
+  end if;
+  if exists (
+    select 1 from public.pm_wbs_template t
+    where t.name = v_name and (v_id is null or t.id <> v_id)
+  ) then
+    raise exception '模板名称“%”已存在', v_name using errcode = '23505';
+  end if;
+
+  if p_nodes is null or jsonb_typeof(p_nodes) <> 'array' then
+    raise exception '模板明细必须是数组' using errcode = '22023';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(p_nodes) item
+    where nullif(btrim(coalesce(item->>'id', '')), '') is null
+  ) then
+    raise exception '模板节点缺少标识' using errcode = '22023';
+  end if;
+
+  create temporary table if not exists pg_temp.pm_wbs_template_save_nodes (
+    id uuid primary key,
+    parent_id uuid,
+    sort_order integer not null default 0,
+    wbs_code text not null,
+    name text not null,
+    description text,
+    deliverable_summary text,
+    unit text,
+    quality_standard text,
+    is_milestone boolean not null default false,
+    metadata jsonb not null default '{}'::jsonb
+  ) on commit drop;
+  truncate pg_temp.pm_wbs_template_save_nodes;
+
+  insert into pg_temp.pm_wbs_template_save_nodes (
+    id, parent_id, sort_order, wbs_code, name, description,
+    deliverable_summary, unit, quality_standard, is_milestone, metadata
+  )
+  select
+    (item->>'id')::uuid,
+    nullif(btrim(coalesce(item->>'parent_id', '')), '')::uuid,
+    coalesce((item->>'sort_order')::integer, 0),
+    btrim(coalesce(item->>'wbs_code', '')),
+    btrim(coalesce(item->>'name', '')),
+    nullif(btrim(coalesce(item->>'description', '')), ''),
+    nullif(btrim(coalesce(item->>'deliverable_summary', '')), ''),
+    nullif(btrim(coalesce(item->>'unit', '')), ''),
+    nullif(btrim(coalesce(item->>'quality_standard', '')), ''),
+    coalesce((item->>'is_milestone')::boolean, false),
+    case when jsonb_typeof(item->'metadata') = 'object' then item->'metadata' else '{}'::jsonb end
+  from jsonb_array_elements(p_nodes) item;
+
+  if exists (
+    select 1 from pg_temp.pm_wbs_template_save_nodes
+    where name = '' or wbs_code = ''
+  ) then
+    raise exception '模板节点的编码和名称不能为空' using errcode = '22023';
+  end if;
+  if exists (
+    select 1 from pg_temp.pm_wbs_template_save_nodes
+    group by wbs_code
+    having count(*) > 1
+  ) then
+    raise exception '模板明细中的 WBS 编码不能重复' using errcode = '23505';
+  end if;
+  if exists (
+    select 1 from pg_temp.pm_wbs_template_save_nodes n
+    where n.parent_id is not null
+      and not exists (
+        select 1 from pg_temp.pm_wbs_template_save_nodes p where p.id = n.parent_id
+      )
+  ) then
+    raise exception '模板节点存在无效的上级节点' using errcode = '22023';
+  end if;
+  if exists (
+    with recursive walk as (
+      select n.id, n.parent_id, array[n.id] as path, false as cycle
+      from pg_temp.pm_wbs_template_save_nodes n
+      union all
+      select w.id, n.parent_id, w.path || n.id, n.id = any(w.path)
+      from walk w
+      join pg_temp.pm_wbs_template_save_nodes n on n.id = w.parent_id
+      where not w.cycle
+    )
+    select 1 from walk where cycle
+  ) then
+    raise exception '模板节点存在循环层级' using errcode = '22023';
+  end if;
+
+  if v_id is null then
+    insert into public.pm_wbs_template(
+      name, category, description, enabled, node_count, create_by, update_by
+    )
+    values (v_name, v_category, v_description, v_enabled, 0, auth.uid()::text, auth.uid()::text)
+    returning * into v;
+  else
+    update public.pm_wbs_template
+    set name = v_name,
+        category = v_category,
+        description = v_description,
+        enabled = v_enabled,
+        update_by = auth.uid()::text,
+        update_time = now()
+    where id = v_id
+    returning * into v;
+    if not found then
+      raise exception '模板不存在或已被删除' using errcode = 'P0002';
+    end if;
+  end if;
+
+  update public.pm_wbs_template_node
+  set parent_id = null
+  where template_id = v.id;
+
+  delete from public.pm_wbs_template_node
+  where template_id = v.id;
+
+  insert into public.pm_wbs_template_node(
+    id, template_id, parent_id, sort_order, wbs_code, name, description,
+    deliverable_summary, unit, quality_standard, is_milestone, metadata
+  )
+  select
+    n.id, v.id, null, n.sort_order, n.wbs_code, n.name, n.description,
+    n.deliverable_summary, n.unit, n.quality_standard, n.is_milestone, n.metadata
+  from pg_temp.pm_wbs_template_save_nodes n;
+
+  update public.pm_wbs_template_node node
+  set parent_id = n.parent_id
+  from pg_temp.pm_wbs_template_save_nodes n
+  where node.template_id = v.id and node.id = n.id and n.parent_id is not null;
+
+  v_count := (select count(*)::integer from pg_temp.pm_wbs_template_save_nodes);
+  update public.pm_wbs_template
+  set node_count = v_count, update_time = now()
+  where id = v.id
+  returning * into v;
+
+  return jsonb_build_object(
+    'template', to_jsonb(v),
+    'nodes', coalesce((
+      select jsonb_agg(to_jsonb(node) order by node.sort_order, node.wbs_code)
+      from public.pm_wbs_template_node node
+      where node.template_id = v.id
+    ), '[]'::jsonb)
+  );
+end $$;
+
+create or replace function public.pm_delete_wbs_template(p_template_id uuid)
+returns void
+language plpgsql
+security invoker
+set search_path = public, app_private, pg_catalog
+as $$
+begin
+  if not ((select app_private.has_permission('PmWbs:ManageTemplate')) or (select app_private.is_platform_super())) then
+    raise exception '当前账号没有管理 WBS 模板的权限' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.pm_wbs_template where id = p_template_id) then
+    raise exception '模板不存在或已被删除' using errcode = 'P0002';
+  end if;
+
+  update public.pm_wbs_template_node
+  set parent_id = null
+  where template_id = p_template_id;
+
+  delete from public.pm_wbs_template where id = p_template_id;
+end $$;
 
 create or replace function public.pm_link_wbs_business(p_wbs_node_id uuid,p_business_type text,p_business_id uuid,p_link_role text default 'related') returns uuid language plpgsql security invoker set search_path=public,app_private,pg_catalog as $$ declare id uuid; begin if not ((select app_private.has_permission('PmWbs:LinkBusiness')) or (select app_private.is_platform_super())) then raise exception '当前账号没有关联 WBS 业务的权限' using errcode='42501'; end if; insert into public.pm_wbs_business_link(wbs_node_id,business_type,business_id,link_role) values(p_wbs_node_id,p_business_type,p_business_id,p_link_role) on conflict(wbs_node_id,business_type,business_id,link_role) do update set status='active',update_time=now() returning pm_wbs_business_link.id into id; return id; end $$;
 
@@ -431,4 +777,6 @@ revoke all on function public.pm_create_wbs_version(uuid,text,text) from public,
 revoke all on function public.pm_save_wbs_nodes(jsonb) from public,anon; grant execute on function public.pm_save_wbs_nodes(jsonb) to authenticated;
 revoke all on function public.pm_transition_wbs(uuid,text,text) from public,anon; grant execute on function public.pm_transition_wbs(uuid,text,text) to authenticated;
 revoke all on function public.pm_copy_wbs_template(uuid,uuid,uuid) from public,anon; grant execute on function public.pm_copy_wbs_template(uuid,uuid,uuid) to authenticated;
+revoke all on function public.pm_save_wbs_template(jsonb,jsonb) from public,anon; grant execute on function public.pm_save_wbs_template(jsonb,jsonb) to authenticated;
+revoke all on function public.pm_delete_wbs_template(uuid) from public,anon; grant execute on function public.pm_delete_wbs_template(uuid) to authenticated;
 revoke all on function public.pm_link_wbs_business(uuid,text,uuid,text) from public,anon; grant execute on function public.pm_link_wbs_business(uuid,text,uuid,text) to authenticated;

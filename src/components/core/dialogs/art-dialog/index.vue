@@ -44,9 +44,17 @@
             <span :id="titleId" :class="titleClass">{{ dialogTitle }}</span>
           </div>
           <div v-if="hasSubtitle && !isFocusMode" class="art-dialog__subtitle">
-            <slot name="subtitle" :data="openData" :api="exposedApi">
-              {{ dialogSubtitle }}
-            </slot>
+            <ArtSvgIcon
+              v-if="dialogSubtitleIcon"
+              class="art-dialog__subtitle-icon"
+              :icon="dialogSubtitleIcon"
+              aria-hidden="true"
+            />
+            <span class="art-dialog__subtitle-text">
+              <slot name="subtitle" :data="openData" :api="exposedApi">
+                {{ dialogSubtitle }}
+              </slot>
+            </span>
           </div>
         </div>
         <div v-if="$slots['header-actions'] || formCount" class="art-dialog__header-actions">
@@ -243,6 +251,7 @@
     title: '',
     titleIcon: 'ri:windows-fill',
     subtitle: '',
+    subtitleIcon: '',
     width: undefined,
     size: undefined,
     fullscreen: false,
@@ -385,6 +394,7 @@
     title: props.title,
     titleIcon: props.titleIcon,
     subtitle: props.subtitle,
+    subtitleIcon: props.subtitleIcon,
     width: props.width,
     size: props.size,
     fullscreen: props.fullscreen,
@@ -550,6 +560,7 @@
   const dialogTitleIcon = computed(() => String(options.value.titleIcon ?? '').trim())
   const hasTitleIcon = computed(() => Boolean(dialogTitleIcon.value))
   const dialogSubtitle = computed(() => String(options.value.subtitle ?? ''))
+  const dialogSubtitleIcon = computed(() => String(options.value.subtitleIcon ?? '').trim())
   const hasSubtitle = computed(() => Boolean(slots.subtitle || dialogSubtitle.value))
   const fullscreenIcon = computed(() =>
     isFullscreen.value ? 'dashicons:fullscreen-exit-alt' : 'dashicons:fullscreen-alt'
@@ -880,13 +891,26 @@
     }
 
     &__subtitle {
-      margin-top: 3px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      display: flex;
+      gap: var(--art-space-1);
+      align-items: flex-start;
+      margin-top: var(--art-space-2);
       font-size: 13px;
       line-height: 20px;
       color: var(--el-text-color-secondary);
       overflow-wrap: anywhere;
+    }
+
+    &__subtitle-icon {
+      flex: none;
+      margin-top: 3px;
+      font-size: 14px;
+      color: var(--theme-color);
+    }
+
+    &__subtitle-text {
+      flex: 1;
+      min-width: 0;
     }
 
     &__unsaved-message {

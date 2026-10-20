@@ -271,6 +271,18 @@ dialogRef.value?.handleOpen(data, {
 
 传入 `title-icon=""` 可隐藏图标，恢复为纯标题的弹窗头部。使用 `#header` 插槽自定义标题区域时，标题图标不会渲染，需要由业务自己控制头部内容。
 
+## 副标题
+
+`subtitle` 渲染在标题下方，用于说明当前弹窗的业务上下文或保存后的结果。需要提示类语义时，可通过 `subtitleIcon` 在文字前加一个主题色图标；图标仅作视觉辅助，文案本身仍表达完整含义。
+
+```ts
+dialogRef.value?.handleOpen(data, {
+  title: '新增 WBS 节点',
+  subtitle: '填写工作包信息，保存后加入当前草稿版本。',
+  subtitleIcon: 'ri:information-line'
+})
+```
+
 ## 自定义插槽
 
 ```vue
@@ -329,6 +341,8 @@ dialogRef.value?.handleOpen(user, {
 | --- | --- | --- | --- |
 | `title` | `string` | `''` | 标题 |
 | `titleIcon` | `string` | `'ri:file-list-3-line'` | 标题前图标（Iconify 名称），传空字符串隐藏 |
+| `subtitle` | `string` | `''` | 标题下方的辅助说明 |
+| `subtitleIcon` | `string` | `''` | 辅助说明前图标（Iconify 名称），传空字符串隐藏 |
 | `width` | `string \| number` | `'50%'` | 弹窗宽度 |
 | `fullscreen` | `boolean` | `false` | 是否以全屏状态打开 |
 | `showFullscreenButton` | `boolean` | `true` | 是否显示全屏切换按钮 |
